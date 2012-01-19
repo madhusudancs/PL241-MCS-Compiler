@@ -84,7 +84,7 @@ class Parser(object):
   def __tokenize(self):
     """Splits the entire source code into tokens using regular expression.
     """
-    self.tokens = re.findall("(\d+|\w+|[^\s+])", self.src)
+    self.__tokens = re.findall("(\d+|\w+|[^\s+])", self.src)
 
   def __parse(self):
     """Parses the tokens by delegating to appropriate functions and builds tree.
@@ -94,31 +94,31 @@ class Parser(object):
   def parse_main():
     pass
 
-  def parse_let():
+  def __parse_let(self):
     pass
 
-  def parse_var():
+  def __parse_var(self):
     pass
 
-  def parse_array():
+  def __parse_array(self):
     pass
 
-  def parse_if():
+  def __parse_if(self):
     pass
 
-  def parse_while():
+  def __parse_while(self):
     pass
 
-  def parse_function():
+  def __parse_function(self):
     pass
 
-  def parse_procedure():
+  def __parse_procedure(self):
     pass
 
-  def parse_return():
+  def __parse_return(self):
     pass
 
-  def parse_call():
+  def __parse_call(self):
     pass
 
 
