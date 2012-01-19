@@ -1,39 +1,81 @@
+import re
+
 from argparse import ArgumentParser
 
 
-START_CONTROL_CHARACTERS = ['(', '{', '[']
-END_CONTROL_CHARACTERS = [')', '}', ']']
+class Parser(object):
+  """Abstracts the entire grammar parser along with building the parse tree.
 
+  This parser is implemented as a home-brewn recursive descent parser with
+  some help from regular expression library only for tokenizing.
+  """
 
-def split_control_characters(token):
-  start_tokens_list = []
-  while True:
-    if not token or (token[0] not in START_CONTROL_CHARACTERS):
-      break
+  def __init__(self, program_file):
+    """Initializes by reading the program file and constructing the parse tree.
 
-    start_tokens_list = start_tokens_list + [token[0]]
-    token = token[1:]
+    Args:
+      program_file: the file object that contains the source code to compile.
+    """
+    self.src = program_file.read()
+    self.__tokenize()
+    self.__parse()
 
-  end_tokens_list = []
-  while True:
-    if not token or (token[-1] not in END_CONTROL_CHARACTERS):
-      break
+  def __tokenize(self):
+    """Splits the entire source code into tokens using regular expression.
+    """
+    self.tokens = re.findall("(\d+|\w+|[^\s+])", self.src)
 
-    end_tokens_list = [token[-1]] + end_tokens_list
-    token = token[:-1]
+  def __parse(self):
+    """Parses the tokens by delegating to appropriate functions and builds tree.
+    """
+    self.tokens
 
-  return start_tokens_list + [token] + end_tokens_list
+  def parse_main():
+    pass
 
+  def parse_let():
+    pass
 
-def parse(program):
-  src = program.read()
-  src_tokens = src.split()
-  final_tokens = []
-  for i, token in enumerate(src_tokens):
-    split_tokens = split_control_characters(token)
-    final_tokens.extend(split_tokens)
+  def parse_var():
+    pass
 
-  print final_tokens:
+  def parse_array():
+    pass
+
+  def parse_if():
+    pass
+
+  def parse_while():
+    pass
+
+  def parse_function():
+    pass
+
+  def parse_procedure():
+    pass
+
+  def parse_return():
+    pass
+
+  def parse_call():
+    pass
+
+  # The alternative solution to this parse map is to find if a parse function
+  # exists for every token parsed where each parse function's name is constructed
+  # based on the construct it parses and call if exists based on that. I prefer
+  # this approach for readability.
+  PARSE_MAP = {
+    'main': parse_main,
+    'let': parse_let,
+    'var': parse_var,
+    'array': parse_array,
+    'if': parse_if,
+    'while': parse_while,
+    'function': parse_function,
+    'procedure': parse_procedure,
+    'return': parse_return,
+    'call': parse_call
+  }
 
 
 if __name__ == '__main__':
