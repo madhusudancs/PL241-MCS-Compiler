@@ -68,6 +68,9 @@ class Parser(object):
   some help from regular expression library only for tokenizing.
   """
 
+  KEYWORDS = ['main', 'let', 'var', 'array', 'if', 'while', 'function',
+              'procedure', 'return', 'call']
+
   def __init__(self, program_file):
     """Initializes by reading the program file and constructing the parse tree.
 
@@ -118,22 +121,6 @@ class Parser(object):
   def parse_call():
     pass
 
-  # The alternative solution to this parse map is to find if a parse function
-  # exists for every token parsed where each parse function's name is constructed
-  # based on the construct it parses and call if exists based on that. I prefer
-  # this approach for readability.
-  PARSE_MAP = {
-    'main': parse_main,
-    'let': parse_let,
-    'var': parse_var,
-    'array': parse_array,
-    'if': parse_if,
-    'while': parse_while,
-    'function': parse_function,
-    'procedure': parse_procedure,
-    'return': parse_return,
-    'call': parse_call
-  }
 
 
 if __name__ == '__main__':
