@@ -3,6 +3,14 @@ import re
 from argparse import ArgumentParser
 
 
+class SyntaxError(Exception):
+  def __init__(self, msg):
+    self.__msg = msg
+
+  def __str__(self):
+    return 'SyntaxError: %s' % self.__msg
+
+
 class Node(object):
   """Represents a node in the parse tree.
   """
