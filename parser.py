@@ -80,6 +80,10 @@ class Parser(object):
       program_file: the file object that contains the source code to compile.
     """
     self.src = program_file.read()
+
+    # Close the program file, we do not need that anymore
+    program_file.close()
+
     self.__tokenize()
     self.__parse()
 
