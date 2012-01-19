@@ -121,6 +121,8 @@ class Parser(object):
   def __parse_call(self):
     pass
 
+  def is_keyword(word):
+    return word in KEYWORDS
 
 
 def bootstrap():
