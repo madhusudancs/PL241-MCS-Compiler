@@ -2,6 +2,7 @@ import re
 import sys
 
 from argparse import ArgumentParser
+from copy import deepcopy
 
 
 class SyntaxError(Exception):
@@ -90,10 +91,43 @@ class Parser(object):
   def __parse(self):
     """Parses the tokens by delegating to appropriate functions and builds tree.
     """
-    self.tokens
+    self.__stream = deepcopy(self.__tokens)
+    self.__ff_to_main()
+    self.__parse_main()
 
-  def parse_main():
-    pass
+  def __ff_to_main(self):
+    """Fast forward the stream upto the point we find the keyword main.
+
+    We do this because the grammar defines the program entry point as main.
+    """
+    try:
+      main_index = self.__stream.index('main')
+      self.__stream = self.__stream[main_index:]
+    except ValueError:
+      raise SyntaxError('"main" not found')
+
+  def __r_to_period(self):
+    """Rewind the stream upto the point we find the period that ends program.
+
+    We do this because the grammar defines the program exit point as period.
+    """
+    try:
+      period_index = self.__stream.index('.')
+      self.__stream = self.__stream[:period_index + 1]
+    except ValueError:
+      raise SyntaxError('"." not found')
+
+    except ValueError:
+      raise SyntaxError('"main" not found')
+
+  def __parse_main(self):
+    main = self.__stream[0]
+    main_node = Node('keyword', main)
+
+    period = self.__stream[-1]
+    period_node = Node('keyword', period, main_node)
+
+    main_node.append_children(period_node)
 
   def __parse_let(self):
     pass
