@@ -1,8 +1,8 @@
 main
-var first
-array [10][20] a, b, c
-array [10] singledimension
-var somename, some, varname
+var first;
+array [10][20] a, b, c;
+array [10] singledimension;
+var somename, some, varname;
 function firstfunc (a, b);
 var funcvar1, funcvar2
 {
