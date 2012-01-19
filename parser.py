@@ -123,10 +123,17 @@ class Parser(object):
 
 
 
-if __name__ == '__main__':
+def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
   parser.add_argument('file_names', metavar='File Names', type=file, nargs='+',
                       help='name of the input files.')
   args = parser.parse_args()
-  p = Parser(args.file_names[0])
+  try:
+    p = Parser(args.file_names[0])
+  except SyntaxError, e:
+    print e
+    sys.exit(1)
+
+if __name__ == '__main__':
+  bootstrap()
 
