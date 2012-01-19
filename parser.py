@@ -83,5 +83,5 @@ if __name__ == '__main__':
   parser.add_argument('file_names', metavar='File Names', type=file, nargs='+',
                       help='name of the input files.')
   args = parser.parse_args()
-  parse(args.file_names[0])
+  p = Parser(args.file_names[0])
 
