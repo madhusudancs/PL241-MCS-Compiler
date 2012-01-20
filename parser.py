@@ -180,6 +180,17 @@ class Parser(object):
   KEYWORDS = ['main', 'let', 'var', 'array', 'if', 'while', 'function',
               'procedure', 'return', 'call']
 
+  CONTROL_CHARACTERS_MAP = {
+      ',': 'comma',
+      ';': 'semicolon',
+      '(': 'leftparen',
+      ')': 'rightparen',
+      '{': 'leftbrace',
+      '}': 'rightbrace',
+      '[': 'leftbracket',
+      ']': 'rightbracket',
+      }
+
   def __init__(self, program_file):
     """Initializes by reading the program file and constructing the parse tree.
 
