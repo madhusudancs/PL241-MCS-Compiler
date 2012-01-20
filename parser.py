@@ -59,15 +59,6 @@ class SyntaxError(Exception):
     return 'SyntaxError: %s' % self.__msg
 
 
-class StopParsing(Exception):
-  def __init__(self, msg):
-    self.__msg = msg
-
-  def __str__(self):
-    return 'StopParsing: %s' % self.__msg
-
-
-
 class Node(object):
   """Represents a node in the parse tree.
   """
@@ -164,8 +155,7 @@ class TokenStream(object):
       next_token = self.__tokens[self.__stream_pointer]
       self.__stream_pointer += 1
     except IndexError:
-      raise StopParsing('End of source has been reached while something '
-                        'was expected.')
+      raise StopIteration
 
     return next_token
 
