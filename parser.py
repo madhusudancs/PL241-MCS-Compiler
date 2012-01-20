@@ -59,6 +59,15 @@ class SyntaxError(Exception):
     return 'SyntaxError: %s' % self.__msg
 
 
+class StopParsing(Exception):
+  def __init__(self, msg):
+    self.__msg = msg
+
+  def __str__(self):
+    return 'StopParsing: %s' % self.__msg
+
+
+
 class Node(object):
   """Represents a node in the parse tree.
   """
