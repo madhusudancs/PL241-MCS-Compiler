@@ -15,6 +15,34 @@
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
 
+"""Implements the parser for the PL241 compiler.
+
+EBNF of the PL241 grammar is as follows:
+
+letter = "a".."z";
+digit = "0".."9";
+relOp = "==" | "!=" | "<" | "<=" | ">" | ">=";
+ident = letter {letter | digit};
+number = digit {digit};
+designator = ident{ "[" expression "]" };
+factor = designator | number | "(" expression ")" | funcCall;
+term = factor { ("*" | "/") factor};
+expression = term {("+" | "-") term};
+relation = expression relOp expression;
+assignment = "let" designator "<-" expression;
+funcCall = "call" ident [ "(" [expression { "," expression } ] ")" ];
+ifStatement = "if" relation "then" statSequence [ "else" statSequence ] "fi";
+whileStatement = "while" relation "do" statSequence "od";
+returnStatement = "return" [ expression ];
+statement = assignment | funcCall | ifStatement | whileStatement | returnStatement;
+statSequence = statement { ";" statement };
+typeDecl = "var" | "array" "[" number "]" { "[" number "]" };
+varDecl = typeDecl ident { "," ident } ";";
+funcDecl = ("function" | "procedure") ident [formalParam] ";" funcBody ";";
+formalParam = "(" [ident { "," ident }] ")";
+funcBody = { varDecl } "{" [ statSequence ] "}";
+computation = "main" { varDecl } { funcDecl } "{" statSequence "}" ".";
+"""
 
 import re
 import sys
