@@ -120,6 +120,56 @@ class Node(object):
     return self.__str__()
 
 
+class TokenStream(object):
+  """Handles the token stream of the source.
+  """
+
+  def __init__(self, src):
+    """Initializes the token stream from the source.
+    """
+    self.src = src
+
+    # The stream pointers that keep track of where in the source code our
+    # parser currently is.
+    self.__stream_pointer = None
+
+  def __tokenize(self):
+    """Splits the entire source code stream into tokens using regular expression.
+    """
+    self.__tokens = re.findall("(\d+|\w+|[^\s+])", self.src)
+
+    # Initializes the stream to the beginning of the tokens list.
+    self.__stream_pointer = 0
+
+  def fastforward(self, token):
+    """Fast forward the stream upto the point we find the given token.
+    """
+    try:
+      self.__stream_pointer = self.__tokens.index(token)
+    except ValueError:
+      raise SyntaxError('"%s" not found' % (token))
+
+  def __iter__(self):
+    """Setup the iterator protocol.
+    """
+    return self
+
+  def next(self):
+    """Get the next item in the token stream.
+    """
+    if self.__stream_pointer = None:
+      self.__tokenize()
+
+    try:
+      next_token = self.__tokens[self.__stream_pointer]
+      self.__stream_pointer += 1
+    except IndexError:
+      raise StopParsing('End of source has been reached while something '
+                        'was expected.')
+
+    return next_token
+
+
 class Parser(object):
   """Abstracts the entire grammar parser along with building the parse tree.
 
