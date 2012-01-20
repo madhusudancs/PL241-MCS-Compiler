@@ -197,59 +197,62 @@ class Parser(object):
     Args:
       program_file: the file object that contains the source code to compile.
     """
-    self.src = program_file.read()
+    program_file_obj = open(program_file, 'r')
 
-    # Close the program file, we do not need that anymore
+    # Read the entire source in the supplied program file.
+    self.src = program_file_obj.read()
+
+    # Close the program file, we do not need that anymore since we have read
+    # entire source in the program file.
     program_file.close()
 
-    self.__tokenize()
-    self.__parse()
-
-  def __tokenize(self):
-    """Splits the entire source code into tokens using regular expression.
-    """
-    self.__tokens = re.findall("(\d+|\w+|[^\s+])", self.src)
+    self.root = self.__parse()
 
   def __parse(self):
     """Parses the tokens by delegating to appropriate functions and builds tree.
     """
-    self.__stream = deepcopy(self.__tokens)
-    self.__ff_to_main()
-    self.__parse_main()
+    self.__token_stream = TokenStream(self.src)
 
-  def __ff_to_main(self):
-    """Fast forward the stream upto the point we find the keyword main.
-
-    We do this because the grammar defines the program entry point as main.
-    """
-    try:
-      main_index = self.__stream.index('main')
-      self.__stream = self.__stream[main_index:]
-    except ValueError:
-      raise SyntaxError('"main" not found')
-
-  def __r_to_period(self):
-    """Rewind the stream upto the point we find the period that ends program.
-
-    We do this because the grammar defines the program exit point as period.
-    """
-    try:
-      period_index = self.__stream.index('.')
-      self.__stream = self.__stream[:period_index + 1]
-    except ValueError:
-      raise SyntaxError('"." not found')
-
-    except ValueError:
-      raise SyntaxError('"main" not found')
+    return self.__parse_main()
 
   def __parse_main(self):
-    main = self.__stream[0]
+    # We fast forward to "main" in the source code because the grammar defines
+    # the program entry point as main.
+    self.__token_stream.fastforward('main')
+
+    main = self.__token_stream.next()
     main_node = Node('keyword', main)
 
-    period = self.__stream[-1]
-    period_node = Node('keyword', period, main_node)
+    children_nodes = []
 
-    main_node.append_children(period_node)
+    for token in self.__token_stream:
+      token_node = self.__parse_next_token(token)
+      children_nodes.append(token_node)
+
+    # The last token, which is essentially the end of the stream must be
+    # a period token, otherwise there is a syntax error in the program
+    # according to the grammar.
+    if token != '.':
+      raise SyntaxError('Program does not end with a "."')
+
+    main_node.append_children(*children_nodes)
+
+    return main_node
+
+  def __parse_next_token(self, token):
+    """Parses the next token in the stream and returns the node for it.
+
+    Args:
+      token: the token that must be parsed.
+    """
+    if self.is_keyword(token):
+      # Note that if the token is recognized as a keyword it should have
+      # a parse method defined, otherwise getattr will raise an exception.
+      # This is exception is not handled because this is likely to be a
+      # error in the compiler implementation.
+      parse_func = getattr(self, token)
+
+    return parse_func()
 
   def __parse_let(self):
     pass
@@ -284,7 +287,7 @@ class Parser(object):
 
 def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
-  parser.add_argument('file_names', metavar='File Names', type=file, nargs='+',
+  parser.add_argument('file_names', metavar='File Names', type=str, nargs='+',
                       help='name of the input files.')
   args = parser.parse_args()
   try:
