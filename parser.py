@@ -93,6 +93,8 @@ class Node(object):
           This stores the actual numerical value as the name. Since our grammar
           supports only integer values, we always store the name of the Node
           with type value as an integer type.
+      control: The node represents the control character in the grammar. The
+          name will be one of the control characters.
     """
     # convert the *args passed as tuple to list before storing it as
     # class attributed
