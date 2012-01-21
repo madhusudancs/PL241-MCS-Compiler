@@ -64,6 +64,28 @@ class LanguageSyntaxError(ParserBaseException):
     return 'SyntaxError: %s' % self.__msg
 
 
+class EndControlException(ParserBaseException):
+  def __init__(self, begin, end, msg=None):
+    msg = msg if msg else ('%s encountered without a matching %s.' % (
+        begin, end))
+    super(EndControlException, self).__init__(msg)
+
+
+class ThenFoundException(EndControl):
+  def __init__(self, msg=None):
+    super(ThenFoundException, self).__init__('if', 'then', msg)
+
+
+class ElseFoundException(EndControl):
+  def __init__(self, msg=None):
+    super(ElseFoundException, self).__init__('if', 'else', msg)
+
+
+class FiFoundException(EndControl):
+  def __init__(self, msg=None):
+    super(FiFoundException, self).__init__('if', 'fi', msg)
+
+
 class Node(object):
   """Represents a node in the parse tree.
   """
