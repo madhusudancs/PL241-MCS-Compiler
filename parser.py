@@ -51,10 +51,15 @@ from argparse import ArgumentParser
 from copy import deepcopy
 
 
-class SyntaxError(Exception):
+class ParserBaseException(Exception):
   def __init__(self, msg):
     self.__msg = msg
 
+  def __str__(self):
+    return '%s: %s' % (self.__class__.__name__, self.__msg)
+
+
+class LanguageSyntaxError(ParserBaseException):
   def __str__(self):
     return 'SyntaxError: %s' % self.__msg
 
