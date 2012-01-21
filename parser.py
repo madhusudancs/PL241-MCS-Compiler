@@ -248,7 +248,7 @@ class Parser(object):
     children_nodes = []
 
     for token in self.__token_stream:
-      token_node = self.__parse_next_token(token)
+      token_node = self.__parse_next_token(token, main_node)
       children_nodes.append(token_node)
 
     # The last token, which is essentially the end of the stream must be
@@ -261,7 +261,7 @@ class Parser(object):
 
     return main_node
 
-  def __parse_next_token(self, token):
+  def __parse_next_token(self, token, parent):
     """Parses the next token in the stream and returns the node for it.
 
     Args:
@@ -274,33 +274,33 @@ class Parser(object):
       # error in the compiler implementation.
       parse_func = getattr(self, token)
 
-    return parse_func()
+      return parse_func(parent)
 
-  def __parse_let(self):
+  def __parse_let(self, parent):
     pass
 
-  def __parse_var(self):
+  def __parse_var(self, parent):
     pass
 
-  def __parse_array(self):
+  def __parse_array(self, parent):
     pass
 
   def __parse_if(self):
     pass
 
-  def __parse_while(self):
+  def __parse_while(self, parent):
     pass
 
-  def __parse_function(self):
+  def __parse_function(self, parent):
     pass
 
-  def __parse_procedure(self):
+  def __parse_procedure(self, parent):
     pass
 
-  def __parse_return(self):
+  def __parse_return(self, parent):
     pass
 
-  def __parse_call(self):
+  def __parse_call(self, parent):
     pass
 
   def is_keyword(word):
