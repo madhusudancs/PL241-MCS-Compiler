@@ -272,7 +272,7 @@ class Parser(object):
       # a parse method defined, otherwise getattr will raise an exception.
       # This is exception is not handled because this is likely to be a
       # error in the compiler implementation.
-      parse_func = getattr(self, token)
+      parse_func = getattr(self, '_Parser__parse_%s' % (token))
 
       return parse_func(parent)
 
