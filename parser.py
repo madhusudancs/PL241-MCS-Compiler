@@ -179,7 +179,7 @@ class TokenStream(object):
   def next(self):
     """Get the next item in the token stream.
     """
-    if self.__stream_pointer = None:
+    if self.__stream_pointer == None:
       self.__tokenize()
 
     try:
