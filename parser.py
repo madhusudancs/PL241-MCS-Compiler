@@ -159,8 +159,7 @@ class TokenStream(object):
   def __tokenize(self):
     """Splits the entire source code stream into tokens using regular expression.
     """
-    self.__tokens = re.findall("(\d+|\w+|[^\s+])", self.src)
-
+    self.__tokens = re.findall('(\d+|\w+|<-|==|!=|<=|>=|[^\s+])', self.src)
     # Initializes the stream to the beginning of the tokens list.
     self.__stream_pointer = 0
 
