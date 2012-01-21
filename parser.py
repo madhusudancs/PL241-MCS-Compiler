@@ -285,8 +285,48 @@ class Parser(object):
   def __parse_array(self, parent):
     pass
 
-  def __parse_if(self):
-    pass
+  def __parse_if(self, parent):
+    children_nodes = []
+    then_found = False
+    fi_found = False
+
+    if_node = Node('keyword', 'if', parent)
+
+    current_node = if_node
+
+    for token in self.__token_stream:
+      try:
+        children_nodes.append(self.__parse_next_token(token, current_node))
+      except ThenFoundException:
+        then_found = True
+        try:
+          then_node = Node('keyword', 'then', if_node)
+          current_node = then_node
+        except ElseFoundException:
+          else_node = Node('keyword', 'else', if_node)
+          current_node = else_node
+        except FiFoundException:
+          fi_found = True
+          break
+
+    if not then_found:
+      raise LanguageSyntaxError('No matching "then" was found for the if.')
+
+    if not fi_found:
+      raise LanguageSyntaxError('No matching "fi" was found for the if.')
+
+    node.append_children(*children_nodes)
+
+    return node
+
+  def __parse_then(self, parent):
+    raise ThenFoundException('if', 'then')
+
+  def __parse_else(self, parent):
+    raise ElseFoundException('if', 'else')
+
+  def __parse_fi(self, parent):
+    raise FiFoundException('if', 'fi')
 
   def __parse_while(self, parent):
     pass
