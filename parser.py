@@ -169,7 +169,7 @@ class TokenStream(object):
     try:
       self.__stream_pointer = self.__tokens.index(token)
     except ValueError:
-      raise SyntaxError('"%s" not found' % (token))
+      raise LanguageSyntaxError('"%s" not found' % (token))
 
   def __iter__(self):
     """Setup the iterator protocol.
@@ -254,7 +254,7 @@ class Parser(object):
     # a period token, otherwise there is a syntax error in the program
     # according to the grammar.
     if token != '.':
-      raise SyntaxError('Program does not end with a "."')
+      raise LanguageSyntaxError('Program does not end with a "."')
 
     main_node.append_children(*children_nodes)
 
@@ -313,7 +313,7 @@ def bootstrap():
   args = parser.parse_args()
   try:
     p = Parser(args.file_names[0])
-  except SyntaxError, e:
+  except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
