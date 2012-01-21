@@ -154,6 +154,8 @@ class TokenStream(object):
     # parser currently is.
     self.__stream_pointer = None
 
+    self.__tokenize()
+
   def __tokenize(self):
     """Splits the entire source code stream into tokens using regular expression.
     """
