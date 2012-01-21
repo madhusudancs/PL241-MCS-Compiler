@@ -186,6 +186,7 @@ class TokenStream(object):
       next_token = self.__tokens[self.__stream_pointer]
       self.__stream_pointer += 1
     except IndexError:
+      self.__stream_pointer = None
       raise StopIteration
 
     return next_token
