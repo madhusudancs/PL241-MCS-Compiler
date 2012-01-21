@@ -343,8 +343,8 @@ class Parser(object):
   def __parse_call(self, parent):
     pass
 
-  def is_keyword(word):
-    return word in KEYWORDS
+  def is_keyword(self, word):
+    return word in self.KEYWORDS
 
 
 def bootstrap():
