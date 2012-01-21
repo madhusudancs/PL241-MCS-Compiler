@@ -113,6 +113,9 @@ class Node(object):
           with type value as an integer type.
       control: The node represents the control character in the grammar. The
           name will be one of the control characters.
+      operator: The node represents one of the operators in the grammar. It
+          can be either relational operator or any other operator. The name of
+          the node will just be the operator itself.
     """
     # convert the *args passed as tuple to list before storing it as
     # class attributed
