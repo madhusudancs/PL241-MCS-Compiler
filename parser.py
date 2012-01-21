@@ -226,7 +226,7 @@ class Parser(object):
 
     # Close the program file, we do not need that anymore since we have read
     # entire source in the program file.
-    program_file.close()
+    program_file_obj.close()
 
     self.root = self.__parse()
 
