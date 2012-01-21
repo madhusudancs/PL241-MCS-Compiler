@@ -6,7 +6,7 @@ var somename, some, varname;
 function firstfunc (a, b);
 var funcvar1, funcvar2
 {
-    if a > b then
+    if a >= b then
         return a
     else
         return b
