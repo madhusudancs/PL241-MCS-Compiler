@@ -445,6 +445,66 @@ class Parser(object):
 
   def is_keyword(self, word):
     return word in self.KEYWORDS
+  def __parse_leftbracket(self, parent):
+    pass
+
+  def __parse_rightbracket(self, parent):
+    raise RightBracketFoundException()
+
+  def __parse_leftbrace(self, parent):
+    pass
+
+  def __parse_rightbrace(self, parent):
+    raise RightBraceFoundException()
+
+  def __parse_leftparen(self, parent):
+    pass
+
+  def __parse_rightparen(self, parent):
+    raise RightParenthesisFoundException()
+
+  def __parse_semicolon(self, parent):
+    pass
+
+  def __parse_comma(self, parent):
+    pass
+
+  def __parse_equal_to(self, parent):
+    pass
+
+  def __parse_not_equal_to(self, parent):
+    pass
+
+  def __parse_lesser_than(self, parent):
+    pass
+
+  def __parse_lesser_than_equal_to(self, parent):
+    pass
+
+  def __parse_greater_than(self, parent):
+    pass
+
+  def __parse_greater_than_equal_to(self, parent):
+    pass
+
+  def __parse_star_operator(self, parent):
+    pass
+
+  def __parse_slash_operator(self, parent):
+    pass
+
+  def __parse_plus_operator(self, parent):
+    pass
+
+  def __parse_minus_operator(self, parent):
+    pass
+
+  def __parse_assignment_operator(self, parent):
+    pass
+
+  def __parse_period_operator(self, parent):
+    pass
+
 
 
 def bootstrap():
