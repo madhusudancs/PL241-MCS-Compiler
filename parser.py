@@ -462,6 +462,31 @@ class Parser(object):
   def __parse_procedure(self, parent):
     pass
 
+  def __parse_abstract_statement(self, parent):
+    next_token = self.__token_stream.next()
+    if not self.is_keyword(next_token):
+      raise LanguageSyntaxError('Expected a keyword but %s was found.' %
+          (next_token))
+
+    try:
+      parse_method = getattr(self, '_Parser__parse_%s' % (next_token))
+
+      node = Node('abstract', 'statement', parent)
+      parse_method(node)
+    except AttributeError:
+      raise ParserBaseException('Handler for %s is not implemented.' %
+          (next_token))
+
+  def __parse_abstract_stat_sequence(self, parent):
+    node = Node('abstract', 'statSeq', parent)
+
+    self.__parse_abstract_statement(node)
+
+    while self.__token_stream.look_ahead() == ';':
+      self.__token_stream.next()
+
+      self.__parse_abstract_statement(node)
+
   def __parse_leftbracket(self, parent):
     pass
 
