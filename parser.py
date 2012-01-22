@@ -138,7 +138,6 @@ class Node(object):
     """
 
     self.children.extend(children)
-    print self.children
 
   def __str__(self):
     return 'Node: %s "%s"' % (self.type, self.name)
