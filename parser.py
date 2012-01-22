@@ -508,13 +508,15 @@ class Parser(object):
 
   def __parse_ident(self, parent, token):
     if IDENT_RE.match(token):
-      node = Node('ident', token, parent)
+      Node('ident', token, parent)
+      return
 
     raise LanguageSyntaxError('Expected identified but %s found.' % (token))
 
   def __parse_number(self, parent, token):
     if NUMBER_RE.match(token):
-      node = Node('number', token, parent)
+      Node('number', token, parent)
+      return
 
     raise LanguageSyntaxError('Expected number but %s found.' % (token))
 
