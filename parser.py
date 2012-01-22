@@ -344,12 +344,8 @@ class Parser(object):
   def __parse_let(self, parent):
     node = Node('keyword', 'let', parent)
 
-  def __parse_var(self, parent):
-    pass
     self.__parse_abstract_designator(node)
 
-  def __parse_array(self, parent):
-    pass
     next_token = self.__token_stream.next()
     if next_token == '<-':
       self.__parse_assignment_operator(node)
@@ -398,16 +394,19 @@ class Parser(object):
   def __parse_while(self, parent):
     pass
 
+  def __parse_return(self, parent):
+    pass
+
+  def __parse_var(self, parent):
+    pass
+
+  def __parse_array(self, parent):
+    pass
+
   def __parse_function(self, parent):
     pass
 
   def __parse_procedure(self, parent):
-    pass
-
-  def __parse_return(self, parent):
-    pass
-
-  def __parse_call(self, parent):
     pass
 
   def __parse_leftbracket(self, parent):
@@ -435,7 +434,7 @@ class Parser(object):
     pass
 
   def __parse_assignment_operator(self, parent):
-    pass
+    node = Node('operator', '<-', parent)
 
   def __parse_period_operator(self, parent):
     pass
@@ -447,7 +446,7 @@ class Parser(object):
     node = Node('abstract', 'designator', parent)
 
     next_token = self.__token_stream.next()
-    node = self.__parse_ident(node, next_token)
+    node = self.__parse_abstract_ident(node, next_token)
 
     while (self.__token_stream.look_ahead() == 
         self.CONTROL_CHARACTERS_MAP['leftbracket']):
@@ -472,7 +471,7 @@ class Parser(object):
       self.__parse_call(node)
     else:
       try:
-        self.__parse_number(node, next_token)
+        self.__parse_abstract_number(node, next_token)
       except LanguageSyntaxError:
         self.__parse_abstract_designator(node)
 
@@ -494,14 +493,29 @@ class Parser(object):
       self.__parse_generic_operator(node, self.__token_stream.next())
       self.__parse_abstract_term(node)
 
-  def __parse_ident(self, parent, token):
+  def __parse_abstract_relation(self, parent):
+    node = Node('abstract', 'relation', parent)
+
+    self.__parse_abstract_expression(node)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if self.__token_stream.look_ahead() not in self.RELATIONAL_OPERATORS:
+      raise LanguageSyntaxError('Relational operator expected but %s was found'
+          % (look_ahead_token))
+
+    next_token = self.__token_stream.next()
+    self.__parse_generic_operator(node, next_token)
+
+    self.__parse_abstract_expression(node)
+
+  def __parse_abstract_ident(self, parent, token):
     if IDENT_RE.match(token):
       Node('ident', token, parent)
       return
 
     raise LanguageSyntaxError('Expected identified but %s found.' % (token))
 
-  def __parse_number(self, parent, token):
+  def __parse_abstract_number(self, parent, token):
     if NUMBER_RE.match(token):
       Node('number', token, parent)
       return
@@ -510,10 +524,10 @@ class Parser(object):
 
   def __parse_ident_or_number(self, parent, token):
     try:
-      self.__parse_ident(parent, token)
+      self.__parse_abstract_ident(parent, token)
     except LanguageSyntaxError:
       try:
-        self.__parse_number(parent, token)
+        self.__parse_abstract_number(parent, token)
       except LanguageSyntaxError:
         raise LanguageSyntaxError(
           'Expected identifier or number, but %s is neither' % (token))
