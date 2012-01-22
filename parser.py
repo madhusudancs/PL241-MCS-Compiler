@@ -581,6 +581,20 @@ class Parser(object):
   def is_keyword(self, token):
     return token in self.KEYWORDS
 
+  def is_control_character(self, token):
+    return token in self.CONTROL_CHARACTERS_MAP
+
+  def is_relational_operator(self, token):
+    return token in self.RELATIONAL_OPERATORS_MAP
+
+  def is_term_operator(self, token):
+    return token in self.TERM_OPERATORS_MAP
+
+  def is_expression_operator(self, token):
+    return token in self.EXPRESSION_OPERATORS_MAP
+
+  def is_other_operator(self, token):
+    return token in self.OTHER_OPERATORS_MAP
 
 
 def bootstrap():
