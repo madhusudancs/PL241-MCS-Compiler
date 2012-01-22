@@ -190,7 +190,7 @@ class TokenStream(object):
   def __tokenize(self):
     """Splits the entire source code stream into tokens using regular expression.
     """
-    self.__tokens = TOKEN_PATTERN.findall(self.src)
+    self.__tokens = TOKEN_RE.findall(self.src)
 
     LOGGER.debug('Parsed tokens: %s' % self.__tokens)
 
