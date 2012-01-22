@@ -44,12 +44,16 @@ funcBody = { varDecl } "{" [ statSequence ] "}";
 computation = "main" { varDecl } { funcDecl } "{" statSequence "}" ".";
 """
 
+
+import logging
 import re
 import sys
 
 from argparse import ArgumentParser
 from copy import deepcopy
 
+
+LOGGER = logging.getLogger(__name__)
 
 class ParserBaseException(Exception):
   def __init__(self, msg):
@@ -160,6 +164,9 @@ class TokenStream(object):
     """Splits the entire source code stream into tokens using regular expression.
     """
     self.__tokens = re.findall('(\d+|\w+|<-|==|!=|<=|>=|[^\s+])', self.src)
+
+    LOGGER.debug('Parsed tokens: %s' % self.__tokens)
+
     # Initializes the stream to the beginning of the tokens list.
     self.__stream_pointer = 0
 
@@ -351,7 +358,16 @@ def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
   parser.add_argument('file_names', metavar='File Names', type=str, nargs='+',
                       help='name of the input files.')
+  parser.add_argument('-d', '--debug', action='store_true',
+                      help='Enable debug logging to the console.')
   args = parser.parse_args()
+
+  if args.debug:
+    LOGGER.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    LOGGER.addHandler(ch)
+
   try:
     p = Parser(args.file_names[0])
   except LanguageSyntaxError, e:
