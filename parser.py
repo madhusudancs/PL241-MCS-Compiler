@@ -53,6 +53,7 @@ from argparse import ArgumentParser
 from copy import deepcopy
 
 
+# Module level logger object
 LOGGER = logging.getLogger(__name__)
 
 # Regular expression patterns used for parsing.
