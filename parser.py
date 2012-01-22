@@ -342,18 +342,27 @@ class Parser(object):
     return self.__parse_ident_or_number(parent, token)
 
   def __parse_let(self, parent):
-    pass
+    node = Node('keyword', 'let', parent)
 
   def __parse_var(self, parent):
     pass
+    self.__parse_abstract_designator(node)
 
   def __parse_array(self, parent):
     pass
+    next_token = self.__token_stream.next()
+    if next_token == '<-':
+      self.__parse_assignment_operator(node)
+    else:
+      raise LanguageSyntaxError(
+          '<- operator was expected but %s was found' % (next_token))
 
   def __parse_if(self, parent):
     if_children_nodes = []
+    self.__parse_abstract_expression(node)
 
-    children_nodes = []
+  def __parse_call(self, parent):
+    node = Node('keyword', 'call', parent)
 
     then_found = False
     fi_found = False
