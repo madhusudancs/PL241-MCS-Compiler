@@ -2,16 +2,14 @@ main
 var first;
 array [10][20] a, b, c;
 array [10] singledimension;
-var somename, some, varname;
-function firstfunc (a, b);
+var some123name,some45,varname;function firstfunc (a, b);
 var funcvar1, funcvar2
 {
     if a >= b then
         return a
     else
         return b
-    fi
-};
+    fi};
 {
     let first <- 10;
     let varname <- 20;
