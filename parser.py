@@ -180,6 +180,16 @@ class TokenStream(object):
     except ValueError:
       raise LanguageSyntaxError('"%s" not found' % (token))
 
+  def look_ahead(self):
+    """Return the next token in the stream.
+
+    If the end of stream has already been reached, the IndexError returned by
+    list is communicated, without handling. This should be handled outside
+    the class. This is a way to indicate that there is nothing more in the
+    stream to look ahead.
+    """
+    return self.__tokens[self.__stream_pointer]
+
   def __iter__(self):
     """Setup the iterator protocol.
     """
