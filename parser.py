@@ -331,14 +331,9 @@ class Parser(object):
       token_name = token
     elif self.is_control_character(token):
       token_name = self.CONTROL_CHARACTERS_MAP[token]
-    elif self.is_relational_operator(token):
-      token_name = self.RELATIONAL_OPERATORS_MAP[token]
-    elif self.is_term_operator(token):
-      token_name = self.TERM_OPERATORS_MAP[token]
-    elif self.is_expression_operator(token):
-      token_name = self.EXPRESSION_OPERATORS_MAP[token]
-    elif self.is_other_operator(token):
-      token_name = self.OTHER_OPERATORS_MAP[token]
+    elif (self.is_relational_operator(token) or self.is_term_operator(token) or
+        self.is_expression_operator(token)):
+      token_name = 'generic_operator'
 
     if token_name:
       parse_method = getattr(self, '_Parser__parse_%s' % (token_name))
@@ -451,41 +446,14 @@ class Parser(object):
   def __parse_comma(self, parent):
     pass
 
-  def __parse_equal_to(self, parent):
-    pass
-
-  def __parse_not_equal_to(self, parent):
-    pass
-
-  def __parse_lesser_than(self, parent):
-    pass
-
-  def __parse_lesser_than_equal_to(self, parent):
-    pass
-
-  def __parse_greater_than(self, parent):
-    pass
-
-  def __parse_greater_than_equal_to(self, parent):
-    pass
-
-  def __parse_star_operator(self, parent):
-    pass
-
-  def __parse_slash_operator(self, parent):
-    pass
-
-  def __parse_plus_operator(self, parent):
-    pass
-
-  def __parse_minus_operator(self, parent):
-    pass
-
   def __parse_assignment_operator(self, parent):
     pass
 
   def __parse_period_operator(self, parent):
     pass
+
+  def __parse_generic_operator(self, parent, token):
+    node = Node('operator', token, parent)
 
   def __parse_abstract_designator(self, parent):
     node = Node('abstract', 'designator', parent)
@@ -526,8 +494,7 @@ class Parser(object):
     self.__parse_abstract_factor(node)
 
     while self.is_term_operator(self.__token_stream.look_ahead()):
-      term_operator_node = Node(
-        'operator', self.__token_stream.next(), node)
+      self.__parse_generic_operator(node, self.__token_stream.next())
       self.__parse_abstract_factor(node)
 
   def __parse_abstract_expression(self, parent):
@@ -536,8 +503,7 @@ class Parser(object):
     self.__parse_abstract_term(node)
 
     while self.is_expression_operator(self.__token_stream.look_ahead()):
-      expression_operator_node = Node(
-          'operator', self.__token_stream.next(), node)
+      self.__parse_generic_operator(node, self.__token_stream.next())
       self.__parse_abstract_term(node)
 
   def __parse_ident(self, parent, token):
