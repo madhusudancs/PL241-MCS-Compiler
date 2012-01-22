@@ -314,33 +314,6 @@ class Parser(object):
 
     return main_node
 
-  def __parse_next_token(self, token, parent):
-    """Parses the next token in the stream and returns the node for it.
-
-    Args:
-      token: the token that must be parsed.
-      parent: the node that would current token's parent node in the parse tree.
-    """
-    token_name = None
-
-    if self.is_keyword(token):
-      # Note that if the token is recognized as a keyword it should have
-      # a parse method defined, otherwise getattr will raise an exception.
-      # This is exception is not handled because this is likely to be a
-      # error in the compiler implementation.
-      token_name = token
-    elif self.is_control_character(token):
-      token_name = self.CONTROL_CHARACTERS_MAP[token]
-    elif (self.is_relational_operator(token) or self.is_term_operator(token) or
-        self.is_expression_operator(token)):
-      token_name = 'generic_operator'
-
-    if token_name:
-      parse_method = getattr(self, '_Parser__parse_%s' % (token_name))
-      return parse_method(parent)
-
-    return self.__parse_ident_or_number(parent, token)
-
   def __parse_abstract_ident(self, parent, token):
     if IDENT_RE.match(token):
       Node('ident', token, parent)
@@ -354,16 +327,6 @@ class Parser(object):
       return
 
     raise LanguageSyntaxError('Expected number but %s found.' % (token))
-
-  def __parse_ident_or_number(self, parent, token):
-    try:
-      self.__parse_abstract_ident(parent, token)
-    except LanguageSyntaxError:
-      try:
-        self.__parse_abstract_number(parent, token)
-      except LanguageSyntaxError:
-        raise LanguageSyntaxError(
-          'Expected identifier or number, but %s is neither' % (token))
 
   def __parse_abstract_designator(self, parent):
     node = Node('abstract', 'designator', parent)
