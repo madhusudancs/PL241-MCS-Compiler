@@ -136,7 +136,7 @@ class Node(object):
           name of the keyword.
       ident: The node represents the ident type of data, the name stores the
           name of the ident.
-      value: The node contains the numerical value resulting from an expression.
+      number: The node contains the numerical value resulting from an expression.
           This stores the actual numerical value as the name. Since our grammar
           supports only integer values, we always store the name of the Node
           with type value as an integer type.
