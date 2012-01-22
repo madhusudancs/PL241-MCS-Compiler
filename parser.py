@@ -343,13 +343,13 @@ class Parser(object):
     return if_node
 
   def __parse_then(self, parent):
-    raise ThenFoundException('if', 'then')
+    raise ThenFoundException()
 
   def __parse_else(self, parent):
-    raise ElseFoundException('if', 'else')
+    raise ElseFoundException()
 
   def __parse_fi(self, parent):
-    raise FiFoundException('if', 'fi')
+    raise FiFoundException()
 
   def __parse_while(self, parent):
     pass
