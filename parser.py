@@ -443,8 +443,6 @@ class Parser(object):
   def __parse_call(self, parent):
     pass
 
-  def is_keyword(self, word):
-    return word in self.KEYWORDS
   def __parse_leftbracket(self, parent):
     pass
 
@@ -579,6 +577,9 @@ class Parser(object):
       except LanguageSyntaxError:
         raise LanguageSyntaxError(
           'Expected identifier or number, but %s is neither' % (token))
+
+  def is_keyword(self, token):
+    return token in self.KEYWORDS
 
 
 
