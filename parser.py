@@ -243,18 +243,19 @@ class Parser(object):
   some help from regular expression library only for tokenizing.
   """
 
-  KEYWORDS = ['main', 'let', 'var', 'array', 'if', 'then', 'else', 'fi',
-              'while', 'function', 'procedure', 'return', 'call']
+  KEYWORDS = [
+      'array', 'call', 'do', 'else', 'fi', 'function', 'if', 'let', 'main',
+      'od', 'procedure', 'return', 'then', 'var', 'while']
 
   CONTROL_CHARACTERS_MAP = {
       ',': 'comma',
       ';': 'semicolon',
-      '(': 'leftparen',
-      ')': 'rightparen',
-      '{': 'leftbrace',
-      '}': 'rightbrace',
       '[': 'leftbracket',
       ']': 'rightbracket',
+      '{': 'leftbrace',
+      '}': 'rightbrace',
+      '(': 'leftparen',
+      ')': 'rightparen',
       }
 
   RELATIONAL_OPERATORS = {
