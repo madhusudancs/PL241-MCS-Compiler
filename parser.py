@@ -100,6 +100,21 @@ class FiFoundException(EndControlException):
     super(FiFoundException, self).__init__('if', 'fi', msg)
 
 
+class RightBracketFoundException(EndControlException):
+  def __init__(self, msg=None):
+    super(RightBracketFoundException, self).__init__('[', ']', msg)
+
+
+class RightBraceFoundException(EndControlException):
+  def __init__(self, msg=None):
+    super(RightBraceFoundException, self).__init__('{', '}', msg)
+
+
+class RightParenthesisFoundException(EndControlException):
+  def __init__(self, msg=None):
+    super(RightParenthesisFoundException, self).__init__('(', ')', msg)
+
+
 class Node(object):
   """Represents a node in the parse tree.
   """
