@@ -341,6 +341,96 @@ class Parser(object):
 
     return self.__parse_ident_or_number(parent, token)
 
+  def __parse_abstract_ident(self, parent, token):
+    if IDENT_RE.match(token):
+      Node('ident', token, parent)
+      return
+
+    raise LanguageSyntaxError('Expected identified but %s found.' % (token))
+
+  def __parse_abstract_number(self, parent, token):
+    if NUMBER_RE.match(token):
+      Node('number', token, parent)
+      return
+
+    raise LanguageSyntaxError('Expected number but %s found.' % (token))
+
+  def __parse_ident_or_number(self, parent, token):
+    try:
+      self.__parse_abstract_ident(parent, token)
+    except LanguageSyntaxError:
+      try:
+        self.__parse_abstract_number(parent, token)
+      except LanguageSyntaxError:
+        raise LanguageSyntaxError(
+          'Expected identifier or number, but %s is neither' % (token))
+
+  def __parse_abstract_designator(self, parent):
+    node = Node('abstract', 'designator', parent)
+
+    next_token = self.__token_stream.next()
+    node = self.__parse_abstract_ident(node, next_token)
+
+    while (self.__token_stream.look_ahead() ==
+        self.CONTROL_CHARACTERS_MAP['leftbracket']):
+      try:
+        leftbracket_node = Node(
+            'operator', self.__token_stream.next(), node)
+        self.__parse_abstract_expression(leftbracket_node)
+      except RightBracketFoundException:
+        continue
+
+  def __parse_abstract_factor(self, parent):
+    node = Node('abstract', 'factor', parent)
+
+    next_token = self.__token_stream.next()
+
+    if next_token == self.CONTROL_CHARACTERS_MAP['leftparenthesis']:
+      try:
+        self.__parse_abstract_expression(node)
+      except RightParenthesisFoundException:
+        pass
+    elif next_token == 'call':
+      self.__parse_call(node)
+    else:
+      try:
+        self.__parse_abstract_number(node, next_token)
+      except LanguageSyntaxError:
+        self.__parse_abstract_designator(node)
+
+  def __parse_abstract_term(self, parent):
+    node = Node('abstract', 'term', parent)
+
+    self.__parse_abstract_factor(node)
+
+    while self.is_term_operator(self.__token_stream.look_ahead()):
+      self.__parse_generic_operator(node, self.__token_stream.next())
+      self.__parse_abstract_factor(node)
+
+  def __parse_abstract_expression(self, parent):
+    node = Node('abstract', 'expression', parent)
+
+    self.__parse_abstract_term(node)
+
+    while self.is_expression_operator(self.__token_stream.look_ahead()):
+      self.__parse_generic_operator(node, self.__token_stream.next())
+      self.__parse_abstract_term(node)
+
+  def __parse_abstract_relation(self, parent):
+    node = Node('abstract', 'relation', parent)
+
+    self.__parse_abstract_expression(node)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if self.__token_stream.look_ahead() not in self.RELATIONAL_OPERATORS:
+      raise LanguageSyntaxError('Relational operator expected but %s was found'
+          % (look_ahead_token))
+
+    next_token = self.__token_stream.next()
+    self.__parse_generic_operator(node, next_token)
+
+    self.__parse_abstract_expression(node)
+
   def __parse_let(self, parent):
     node = Node('keyword', 'let', parent)
 
@@ -441,96 +531,6 @@ class Parser(object):
 
   def __parse_generic_operator(self, parent, token):
     node = Node('operator', token, parent)
-
-  def __parse_abstract_designator(self, parent):
-    node = Node('abstract', 'designator', parent)
-
-    next_token = self.__token_stream.next()
-    node = self.__parse_abstract_ident(node, next_token)
-
-    while (self.__token_stream.look_ahead() == 
-        self.CONTROL_CHARACTERS_MAP['leftbracket']):
-      try:
-        leftbracket_node = Node(
-            'operator', self.__token_stream.next(), node)
-        self.__parse_abstract_expression(leftbracket_node)
-      except RightBracketFoundException:
-        continue
-
-  def __parse_abstract_factor(self, parent):
-    node = Node('abstract', 'factor', parent)
-
-    next_token = self.__token_stream.next()
-
-    if next_token == self.CONTROL_CHARACTERS_MAP['leftparenthesis']:
-      try:
-        self.__parse_abstract_expression(node)
-      except RightParenthesisFoundException:
-        pass
-    elif next_token == 'call':
-      self.__parse_call(node)
-    else:
-      try:
-        self.__parse_abstract_number(node, next_token)
-      except LanguageSyntaxError:
-        self.__parse_abstract_designator(node)
-
-  def __parse_abstract_term(self, parent):
-    node = Node('abstract', 'term', parent)
-
-    self.__parse_abstract_factor(node)
-
-    while self.is_term_operator(self.__token_stream.look_ahead()):
-      self.__parse_generic_operator(node, self.__token_stream.next())
-      self.__parse_abstract_factor(node)
-
-  def __parse_abstract_expression(self, parent):
-    node = Node('abstract', 'expression', parent)
-
-    self.__parse_abstract_term(node)
-
-    while self.is_expression_operator(self.__token_stream.look_ahead()):
-      self.__parse_generic_operator(node, self.__token_stream.next())
-      self.__parse_abstract_term(node)
-
-  def __parse_abstract_relation(self, parent):
-    node = Node('abstract', 'relation', parent)
-
-    self.__parse_abstract_expression(node)
-
-    look_ahead_token = self.__token_stream.look_ahead()
-    if self.__token_stream.look_ahead() not in self.RELATIONAL_OPERATORS:
-      raise LanguageSyntaxError('Relational operator expected but %s was found'
-          % (look_ahead_token))
-
-    next_token = self.__token_stream.next()
-    self.__parse_generic_operator(node, next_token)
-
-    self.__parse_abstract_expression(node)
-
-  def __parse_abstract_ident(self, parent, token):
-    if IDENT_RE.match(token):
-      Node('ident', token, parent)
-      return
-
-    raise LanguageSyntaxError('Expected identified but %s found.' % (token))
-
-  def __parse_abstract_number(self, parent, token):
-    if NUMBER_RE.match(token):
-      Node('number', token, parent)
-      return
-
-    raise LanguageSyntaxError('Expected number but %s found.' % (token))
-
-  def __parse_ident_or_number(self, parent, token):
-    try:
-      self.__parse_abstract_ident(parent, token)
-    except LanguageSyntaxError:
-      try:
-        self.__parse_abstract_number(parent, token)
-      except LanguageSyntaxError:
-        raise LanguageSyntaxError(
-          'Expected identifier or number, but %s is neither' % (token))
 
   def is_keyword(self, token):
     return token in self.KEYWORDS
