@@ -54,6 +54,8 @@ from copy import deepcopy
 
 
 LOGGER = logging.getLogger(__name__)
+TOKEN_PATTERN = re.compile('(\d+|\w+|<-|==|!=|<=|>=|[^\s+])')
+
 
 class ParserBaseException(Exception):
   def __init__(self, msg):
@@ -163,7 +165,7 @@ class TokenStream(object):
   def __tokenize(self):
     """Splits the entire source code stream into tokens using regular expression.
     """
-    self.__tokens = re.findall('(\d+|\w+|<-|==|!=|<=|>=|[^\s+])', self.src)
+    self.__tokens = TOKEN_PATTERN.findall(self.src)
 
     LOGGER.debug('Parsed tokens: %s' % self.__tokens)
 
