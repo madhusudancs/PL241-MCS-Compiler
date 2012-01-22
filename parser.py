@@ -335,15 +335,32 @@ class Parser(object):
 
     Args:
       token: the token that must be parsed.
+      parent: the node that would current token's parent node in the parse tree.
     """
+    token_name = None
+
     if self.is_keyword(token):
       # Note that if the token is recognized as a keyword it should have
       # a parse method defined, otherwise getattr will raise an exception.
       # This is exception is not handled because this is likely to be a
       # error in the compiler implementation.
-      parse_func = getattr(self, '_Parser__parse_%s' % (token))
+      token_name = token
+    elif self.is_control_character(token):
+      token_name = self.CONTROL_CHARACTERS_MAP[token]
+    elif self.is_relational_operator(token):
+      token_name = self.RELATIONAL_OPERATORS_MAP[token]
+    elif self.is_term_operator(token):
+      token_name = self.TERM_OPERATORS_MAP[token]
+    elif self.is_expression_operator(token):
+      token_name = self.EXPRESSION_OPERATORS_MAP[token]
+    elif self.is_other_operator(token):
+      token_name = self.OTHER_OPERATORS_MAP[token]
 
-      return parse_func(parent)
+    if token_name:
+      parse_method = getattr(self, '_Parser__parse_%s' % (token_name))
+      return parse_method(parent)
+
+    return self.__parse_ident_or_number(parent, token)
 
   def __parse_let(self, parent):
     pass
