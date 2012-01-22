@@ -295,28 +295,44 @@ class Parser(object):
     pass
 
   def __parse_if(self, parent):
+    if_children_nodes = []
+
     children_nodes = []
+
     then_found = False
     fi_found = False
 
     if_node = Node('keyword', 'if', parent)
 
-    current_node = if_node
+    condition_node = Node('abstract', 'condition', if_node)
+    current_node = condition_node
+    if_node.append_children(current_node)
 
     for token in self.__token_stream:
       try:
         children_nodes.append(self.__parse_next_token(token, current_node))
       except ThenFoundException:
         then_found = True
-        try:
-          then_node = Node('keyword', 'then', if_node)
-          current_node = then_node
-        except ElseFoundException:
-          else_node = Node('keyword', 'else', if_node)
-          current_node = else_node
-        except FiFoundException:
-          fi_found = True
-          break
+        then_node = Node('keyword', 'then', if_node)
+        current_node.append_children(*children_nodes)
+        current_node = then_node
+        if_node.append_children(current_node)
+        children_nodes = []
+      except ElseFoundException:
+        if not then_found:
+          raise LanguageSyntaxError(
+              '"else" found before the the matching "then".')
+        else_node = Node('keyword', 'else', if_node)
+        current_node.append_children(*children_nodes)
+        current_node = else_node
+        if_node.append_children(current_node)
+        children_nodes = []
+      except FiFoundException:
+        if not then_found:
+          raise LanguageSyntaxError('"fi" found before the matching "then".')
+        fi_found = True
+        current_node.append_children(*children_nodes)
+        break
 
     if not then_found:
       raise LanguageSyntaxError('No matching "then" was found for the if.')
@@ -324,9 +340,7 @@ class Parser(object):
     if not fi_found:
       raise LanguageSyntaxError('No matching "fi" was found for the if.')
 
-    node.append_children(*children_nodes)
-
-    return node
+    return if_node
 
   def __parse_then(self, parent):
     raise ThenFoundException('if', 'then')
