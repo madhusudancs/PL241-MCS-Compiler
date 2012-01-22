@@ -505,6 +505,81 @@ class Parser(object):
   def __parse_period_operator(self, parent):
     pass
 
+  def __parse_abstract_designator(self, parent):
+    node = Node('abstract', 'designator', parent)
+
+    next_token = self.__token_stream.next()
+    node = self.__parse_ident(node, next_token)
+
+    while (self.__token_stream.look_ahead() == 
+        self.CONTROL_CHARACTERS_MAP['leftbracket']):
+      try:
+        leftbracket_node = Node(
+            'operator', self.__token_stream.next(), node)
+        self.__parse_abstract_expression(leftbracket_node)
+      except RightBracketFoundException:
+        continue
+
+  def __parse_abstract_factor(self, parent):
+    node = Node('abstract', 'factor', parent)
+
+    next_token = self.__token_stream.next()
+
+    if next_token == self.CONTROL_CHARACTERS_MAP['leftparenthesis']:
+      try:
+        self.__parse_abstract_expression(node)
+      except RightParenthesisFoundException:
+        pass
+    elif next_token == 'call':
+      self.__parse_call(node)
+    else:
+      try:
+        self.__parse_number(node, next_token)
+      except LanguageSyntaxError:
+        self.__parse_abstract_designator(node)
+
+  def __parse_abstract_term(self, parent):
+    node = Node('abstract', 'term', parent)
+
+    self.__parse_abstract_factor(node)
+
+    while self.is_term_operator(self.__token_stream.look_ahead()):
+      term_operator_node = Node(
+        'operator', self.__token_stream.next(), node)
+      self.__parse_abstract_factor(node)
+
+  def __parse_abstract_expression(self, parent):
+    node = Node('abstract', 'expression', parent)
+
+    self.__parse_abstract_term(node)
+
+    while self.is_expression_operator(self.__token_stream.look_ahead()):
+      expression_operator_node = Node(
+          'operator', self.__token_stream.next(), node)
+      self.__parse_abstract_term(node)
+
+  def __parse_ident(self, parent, token):
+    if IDENT_RE.match(token):
+      node = Node('ident', token, parent)
+
+    raise LanguageSyntaxError('Expected identified but %s found.' % (token))
+
+  def __parse_number(self, parent, token):
+    if NUMBER_RE.match(token):
+      node = Node('number', token, parent)
+
+    raise LanguageSyntaxError('Expected number but %s found.' % (token))
+
+  def __parse_ident_or_number(self, parent, token):
+    try:
+      self.__parse_ident(parent, token)
+    except LanguageSyntaxError:
+      try:
+        self.__parse_number(parent, token)
+      except LanguageSyntaxError:
+        raise LanguageSyntaxError(
+          'Expected identifier or number, but %s is neither' % (token))
+
 
 
 def bootstrap():
