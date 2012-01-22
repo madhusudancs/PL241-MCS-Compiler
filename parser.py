@@ -56,6 +56,12 @@ from copy import deepcopy
 LOGGER = logging.getLogger(__name__)
 TOKEN_PATTERN = re.compile('(\d+|\w+|<-|==|!=|<=|>=|[^\s+])')
 
+# Regular expression patterns used for parsing.
+IDENT_PATTERN = r'[a-zA-Z][a-zA-Z0-9]*'
+NUMBER_PATTERN = r'\d+'
+IDENT_RE = re.compile(IDENT_PATTERN)
+NUMBER_RE = re.compile(NUMBER_PATTERN)
+
 
 class ParserBaseException(Exception):
   def __init__(self, msg):
