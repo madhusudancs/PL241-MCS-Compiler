@@ -257,6 +257,30 @@ class Parser(object):
       ']': 'rightbracket',
       }
 
+  RELATIONAL_OPERATORS = {
+      '==': 'equal_to',
+      '!=': 'not_equal_to',
+      '<': 'lesser_than',
+      '<=': 'lesser_than_equal_to',
+      '>': 'greater_than',
+      '>=': 'greater_than_equal_to',
+      }
+
+  TERM_OPERATORS_MAP = {
+      '*': 'star_operator',
+      '/': 'slash_operator',
+      }
+
+  EXPRESSION_OPERATORS_MAP = {
+      '+': 'plus_operator',
+      '-': 'minus_operator',
+      }
+
+  OTHER_OPERATORS_MAP = {
+      '<-': 'assignment_operator',
+      '.': 'period_operator',
+      }
+
   def __init__(self, program_file):
     """Initializes by reading the program file and constructing the parse tree.
 
