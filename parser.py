@@ -153,6 +153,9 @@ class Node(object):
     self.parent = parent
     self.children = list(children) if children else []
 
+    if self.parent:
+      self.parent.append_children(self)
+
   def append_children(self, *children):
     """Appends children to the end of the list of children.
 
