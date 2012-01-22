@@ -59,15 +59,15 @@ TOKEN_PATTERN = re.compile('(\d+|\w+|<-|==|!=|<=|>=|[^\s+])')
 
 class ParserBaseException(Exception):
   def __init__(self, msg):
-    self.__msg = msg
+    self._msg = msg
 
   def __str__(self):
-    return '%s: %s' % (self.__class__.__name__, self.__msg)
+    return '%s: %s' % (self.__class__.__name__, self._msg)
 
 
 class LanguageSyntaxError(ParserBaseException):
   def __str__(self):
-    return 'SyntaxError: %s' % self.__msg
+    return 'SyntaxError: %s' % self._msg
 
 
 class EndControlException(ParserBaseException):
