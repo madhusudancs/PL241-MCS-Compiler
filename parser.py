@@ -357,55 +357,34 @@ class Parser(object):
       raise LanguageSyntaxError(
           '<- operator was expected but %s was found' % (next_token))
 
-  def __parse_if(self, parent):
-    if_children_nodes = []
     self.__parse_abstract_expression(node)
 
   def __parse_call(self, parent):
     node = Node('keyword', 'call', parent)
 
-    then_found = False
-    fi_found = False
+    next_token = self.__token_stream.next()
+    self.__parse_abstract_ident(node, next_token)
 
-    if_node = Node('keyword', 'if', parent)
+    if self.__token_stream.look_ahead() != '(':
+      return
 
-    condition_node = Node('abstract', 'condition', if_node)
-    current_node = condition_node
-    if_node.append_children(current_node)
+    self.__token_stream.next()
+    if self.__token_stream.look_ahead() == ')':
+      self.__token_stream.next()
+      return
 
-    for token in self.__token_stream:
-      try:
-        children_nodes.append(self.__parse_next_token(token, current_node))
-      except ThenFoundException:
-        then_found = True
-        then_node = Node('keyword', 'then', if_node)
-        current_node.append_children(*children_nodes)
-        current_node = then_node
-        if_node.append_children(current_node)
-        children_nodes = []
-      except ElseFoundException:
-        if not then_found:
-          raise LanguageSyntaxError(
-              '"else" found before the the matching "then".')
-        else_node = Node('keyword', 'else', if_node)
-        current_node.append_children(*children_nodes)
-        current_node = else_node
-        if_node.append_children(current_node)
-        children_nodes = []
-      except FiFoundException:
-        if not then_found:
-          raise LanguageSyntaxError('"fi" found before the matching "then".')
-        fi_found = True
-        current_node.append_children(*children_nodes)
-        break
+    try:
+      self.__parse_abstract_expression(node)
+      while self.__token_stream.look_ahead() == ',':
+        self.__token_stream.next()
+        self.__parse_abstract_expression(node)
+    except RightParenthesisFoundException:
+      return
 
-    if not then_found:
-      raise LanguageSyntaxError('No matching "then" was found for the if.')
+  def __parse_if(self, parent):
+    node = Node('keyword', 'if', parent)
 
-    if not fi_found:
-      raise LanguageSyntaxError('No matching "fi" was found for the if.')
-
-    return if_node
+    self.__parse_abstract_relation(node)
 
   def __parse_then(self, parent):
     raise ThenFoundException()
