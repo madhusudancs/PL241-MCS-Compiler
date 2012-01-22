@@ -208,8 +208,8 @@ class Parser(object):
   some help from regular expression library only for tokenizing.
   """
 
-  KEYWORDS = ['main', 'let', 'var', 'array', 'if', 'while', 'function',
-              'procedure', 'return', 'call']
+  KEYWORDS = ['main', 'let', 'var', 'array', 'if', 'then', 'else', 'fi',
+              'while', 'function', 'procedure', 'return', 'call']
 
   CONTROL_CHARACTERS_MAP = {
       ',': 'comma',
