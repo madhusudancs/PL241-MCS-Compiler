@@ -191,6 +191,7 @@ class Node(object):
     color: lightcyan
     stretch: 7
     shrink: 10
+    layoutalgorithm: tree
     layout_downfactor: 10
     layout_upfactor:   1
     layout_nearfactor: 0
