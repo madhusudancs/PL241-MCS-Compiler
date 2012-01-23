@@ -463,22 +463,26 @@ class Parser(object):
   def __parse_call(self, parent):
     node = Node('keyword', 'call', parent)
 
-    next_token = self.__token_stream.next()
-    self.__parse_abstract_ident(node, next_token)
+    self.__parse_abstract_ident(node)
 
     if self.__token_stream.look_ahead() != '(':
       return
 
     self.__token_stream.next()
-    if self.__token_stream.look_ahead() == ')':
-      self.__token_stream.next()
-      return
 
     try:
+      if self.__token_stream.look_ahead() == ')':
+        self.__token_stream.next()
+        self.__parse_rightparen(node)
+
       self.__parse_abstract_expression(node)
       while self.__token_stream.look_ahead() == ',':
         self.__token_stream.next()
         self.__parse_abstract_expression(node)
+
+      if self.__token_stream.look_ahead() == ')':
+        self.__token_stream.next()
+        self.__parse_rightparen(node)
     except RightParenthesisFoundException:
       return
 
@@ -487,8 +491,32 @@ class Parser(object):
 
     self.__parse_abstract_relation(node)
 
-  def __parse_then(self, parent):
-    raise ThenFoundException()
+    next_token = self.__token_stream.next()
+    if next_token != 'then':
+      raise LanguageSyntaxError('Expected "then" but "%s" was found.' % (
+          next_token))
+
+    then_node = Node('keyword', 'then', node)
+
+    try:
+      self.__parse_abstract_stat_sequence(then_node)
+      if self.__token_stream.look_ahead() == 'else':
+        self.__token_stream.next()
+        self.__parse_else(node)
+      elif self.__token_stream.look_ahead() == 'fi':
+        self.__token_stream.next()
+        self.__parse_fi(node)
+    except ElseFoundException:
+      try:
+        else_node = Node('keyword', 'else', node)
+        self.__parse_abstract_stat_sequence(else_node)
+        if self.__token_stream.look_ahead() == 'fi':
+          self.__token_stream.next()
+          self.__parse_fi(node)
+      except FiFoundException:
+        return
+    except FiFoundException:
+      return
 
   def __parse_else(self, parent):
     raise ElseFoundException()
@@ -497,22 +525,88 @@ class Parser(object):
     raise FiFoundException()
 
   def __parse_while(self, parent):
-    pass
+    node = Node('keyword', 'while', parent)
+
+    self.__parse_abstract_relation(node)
+
+    next_token = self.__token_stream.next()
+    if next_token != 'do':
+      raise LanguageSyntaxError('Expected "do" but "%s" was found.' % (
+          next_token))
+
+    do_node = Node('keyword', 'do', node)
+
+    try:
+      self.__parse_abstract_stat_sequence(self, do_node)
+    except OdFoundException:
+      return
+
+  def __parse_od(self, parent):
+    raise OdFoundException()
 
   def __parse_return(self, parent):
-    pass
+    node = Node('keyword', 'return', parent)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if self.is_keyword(look_ahead_token) and look_ahead_token != 'call':
+      return
+
+    self.__parse_abstract_expression(node)
 
   def __parse_var(self, parent):
-    pass
+    node = Node('keyword', 'var', parent)
 
   def __parse_array(self, parent):
-    pass
+    node = Node('keyword', 'array', parent)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token != '[':
+      raise LanguageSyntaxError('"[" missing from array declaration.')
+
+    while self.__token_stream.look_ahead() == '[':
+      next_token = self.__token_stream.next()
+      self.__parse_abstract_number(node)
+      look_ahead_token = self.__token_stream.look_ahead()
+      if look_ahead_token == ']':
+        next_token = self.__token_stream.next()
+        continue
+      else:
+        raise LanguageSyntaxError('Expected "]" but "%s" was found."' % (
+            look_ahead_token))
 
   def __parse_function(self, parent):
-    pass
+    node = Node('keyword', 'function', parent)
+
+    self.__parse_abstract_function_procedure(node)
 
   def __parse_procedure(self, parent):
-    pass
+    node = Node('keyword', 'procedure', parent)
+
+    self.__parse_abstract_function_procedure(node)
+
+  def __parse_abstract_function_procedure(self, parent):
+    self.__parse_abstract_ident(parent)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token == '(':
+      next_token = self.__token_stream.next()
+      try:
+        self.__parse_abstract_formal_param(parent)
+      except RightParenthesisFoundException:
+        look_ahead_token = self.__token_stream.look_ahead()
+
+    if look_ahead_token != ';':
+      raise LanguageSyntaxError('Expected ";" but "%s" was found.' % (
+          look_ahead_token))
+    next_token = self.__token_stream.next()
+
+    self.__parse_abstract_func_body(parent)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token != ';':
+      raise LanguageSyntaxError('Expected ";" but "%s" was found.' % (
+          look_ahead_token))
+    next_token = self.__token_stream.next()
 
   def __parse_abstract_statement(self, parent):
     next_token = self.__token_stream.next()
@@ -538,6 +632,103 @@ class Parser(object):
       self.__token_stream.next()
 
       self.__parse_abstract_statement(node)
+
+  def __parse_abstract_type_decl(self, parent):
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token == 'var':
+      next_token = self.__token_stream.next()
+      self.__parse_var(parent)
+      return
+    elif look_ahead_token == 'array':
+      next_token = self.__token_stream.next()
+      self.__parse_array(parent)
+      return
+
+    raise LanguageSyntaxError('Expected "var" or "array" but "%s" was found.' %
+        (look_ahead_token))
+
+  def __parse_abstract_var_decl(self, parent):
+    node = Node('abstract', 'varDecl', parent)
+
+    self.__parse_abstract_type_decl(node)
+
+    self.__parse_abstract_ident(node)
+
+    while self.__token_stream.look_ahead() == ',':
+      self.__token_stream.next()
+
+      self.__parse_abstract_ident(node)
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token != ';':
+      raise LanguageSyntaxError('Expected ";" but "%s" was found' % (
+          look_ahead_token))
+
+    next_token = self.__token_stream.next()
+
+    raise EndOfStatementFoundException()
+
+  def __parse_abstract_func_decl(self, parent):
+    look_ahead_token = self.__token_stream.look_ahead()
+    if not (look_ahead_token == 'function' or look_ahead_token == 'procedure'):
+      raise LanguageSyntaxError(
+          'Expected "function" or "procedure" but "%s" was found.' % (
+              look_ahead_token))
+
+    next_token = self.__token_stream.next()
+    parser_method = getattr(self, '_Parser__parse_%s' % (next_token))
+    parser_method(parent)
+
+  def __parse_abstract_formal_param(self, parent):
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token == ')':
+      self.__parse_rightparen(parent)
+
+    node = Node('abstract', 'formal_param', parent)
+    self.__parse_abstract_ident(node)
+
+    while self.__token_stream.look_ahead() == ',':
+      self.__token_stream.next()
+      self.__parse_abstract_ident(node)
+
+    if self.__token_stream.look_ahead() == ')':
+      self.__token_stream.next()
+      self.__parse_rightparen(node)
+
+  def __parse_abstract_func_body(self, parent):
+    node = Node('abstract', 'funcBody', parent)
+
+    while True:
+      try:
+        self.__parse_abstract_var_decl(node)
+      except EndOfStatementFoundException:
+        continue
+      except LanguageSyntaxError, e:
+        if str(e).startswith('SyntaxError: Expected "var" or "array" but "'):
+          break
+        else:
+          raise
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token != '{':
+      raise LanguageSyntaxError('Expected "{" but "%s" was found' % (
+          look_ahead_token))
+
+    self.__token_stream.next()
+
+    try:
+      look_ahead_token = self.__token_stream.look_ahead()
+      if look_ahead_token == '}':
+        self.__token_stream.next()
+        self.__parse_rightbrace(node)
+
+      self.__parse_abstract_stat_sequence(node)
+      look_ahead_token = self.__token_stream.look_ahead()
+      if look_ahead_token == '}':
+        self.__token_stream.next()
+        self.__parse_rightbrace(node)
+    except RightBraceFoundException:
+      return
 
   def __parse_leftbracket(self, parent):
     pass
