@@ -95,6 +95,11 @@ class FiFoundException(EndControlException):
     super(FiFoundException, self).__init__('if', 'fi', msg)
 
 
+class OdFoundException(EndControlException):
+  def __init__(self, msg=None):
+    super(OdFoundException, self).__init__('while', 'do', msg)
+
+
 class RightBracketFoundException(EndControlException):
   def __init__(self, msg=None):
     super(RightBracketFoundException, self).__init__('[', ']', msg)
@@ -108,6 +113,11 @@ class RightBraceFoundException(EndControlException):
 class RightParenthesisFoundException(EndControlException):
   def __init__(self, msg=None):
     super(RightParenthesisFoundException, self).__init__('(', ')', msg)
+
+
+class EndOfStatementFoundException(EndControlException):
+  def __init__(self, msg=None):
+    super(EndOfStatementFoundException, self).__init__('statement', ';', msg)
 
 
 class Node(object):
