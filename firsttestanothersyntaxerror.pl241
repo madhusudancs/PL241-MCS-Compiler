@@ -13,6 +13,6 @@ var funcvar1, funcvar2;
 {
     let first <- 10;
     let varname <- 20;
-    call OutputNum(call firstfunc(first, varname))
+    call OutputNum(firstfunc(first, varname))
 }.
 
