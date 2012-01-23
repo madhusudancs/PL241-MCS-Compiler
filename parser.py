@@ -801,10 +801,11 @@ def bootstrap():
 
   try:
     p = Parser(args.file_names[0])
+    return p.root
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
 if __name__ == '__main__':
-  bootstrap()
+  root = bootstrap()
 
