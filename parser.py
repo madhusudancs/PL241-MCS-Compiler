@@ -161,6 +161,8 @@ class Node(object):
     if self.parent:
       self.parent.append_children(self)
 
+    self.vcg_output = None
+
   def append_children(self, *children):
     """Appends children to the end of the list of children.
 
@@ -170,8 +172,39 @@ class Node(object):
 
     self.children.extend(children)
 
+  def generate_tree_for_vcg(self, tree):
+    self.vcg_output.append(str(tree))
+    for child in tree.children:
+      self.generate_tree_for_vcg(child)
+      self.vcg_output.append(
+          'edge: {sourcename: "%s" targetname: "%s" }' % (id(tree), id(child)))
+
+  def generate_vcg(self):
+    self.vcg_output = []
+    self.generate_tree_for_vcg(self)
+
+    print """graph: { title: "SYNTAXTREE"
+    height: 700
+    width: 700
+    x: 30
+    y: 30
+    color: lightcyan
+    stretch: 7
+    shrink: 10
+    layout_downfactor: 10
+    layout_upfactor:   1
+    layout_nearfactor: 0
+    manhattan_edges: yes
+    %s
+}""" % ('\n    '.join(self.vcg_output))
+
+
   def __str__(self):
-    return 'Node: %s "%s"' % (self.type, self.name)
+    return 'node: { title: "%(id)s" label: "%(type)s: %(name)s" }' % {
+        'id': id(self),
+        'name': self.name,
+        'type': self.type
+        }
 
   def __repr__(self):
     return self.__str__()
