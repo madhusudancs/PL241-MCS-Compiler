@@ -438,7 +438,7 @@ class Parser(object):
 
     look_ahead_token = self.__token_stream.look_ahead()
     if self.__token_stream.look_ahead() not in self.RELATIONAL_OPERATORS:
-      raise LanguageSyntaxError('Relational operator expected but %s was found'
+      raise LanguageSyntaxError('Relational operator expected but "%s" was found'
           % (look_ahead_token))
 
     next_token = self.__token_stream.next()
@@ -456,7 +456,7 @@ class Parser(object):
       self.__parse_assignment_operator(node)
     else:
       raise LanguageSyntaxError(
-          '<- operator was expected but %s was found' % (next_token))
+          '<- operator was expected but "%s" was found' % (next_token))
 
     self.__parse_abstract_expression(node)
 
@@ -517,7 +517,7 @@ class Parser(object):
   def __parse_abstract_statement(self, parent):
     next_token = self.__token_stream.next()
     if not self.is_keyword(next_token):
-      raise LanguageSyntaxError('Expected a keyword but %s was found.' %
+      raise LanguageSyntaxError('Expected a keyword but "%s" was found.' %
           (next_token))
 
     try:
