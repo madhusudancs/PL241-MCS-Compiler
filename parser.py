@@ -151,11 +151,11 @@ class Node(object):
           can be either relational operator or any other operator. The name of
           the node will just be the operator itself.
     """
-    # convert the *args passed as tuple to list before storing it as
-    # class attributed
     self.type = node_type
     self.name = name
     self.parent = parent
+    # cast the children argument passed as any type to list before storing
+    # it as class attributes
     self.children = list(children) if children else []
 
     if self.parent:
