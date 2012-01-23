@@ -85,11 +85,6 @@ class EndControlException(ParserBaseException):
     super(EndControlException, self).__init__(msg)
 
 
-class ThenFoundException(EndControlException):
-  def __init__(self, msg=None):
-    super(ThenFoundException, self).__init__('if', 'then', msg)
-
-
 class ElseFoundException(EndControlException):
   def __init__(self, msg=None):
     super(ElseFoundException, self).__init__('if', 'else', msg)
