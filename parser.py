@@ -240,6 +240,12 @@ class TokenStream(object):
 
     return next_token
 
+  def debug(self):
+    """Logs all the debug information about the TokenStream.
+    """
+    LOGGER.debug('Stream Pointer Value: %s' % (self.__stream_pointer))
+    LOGGER.debug('Stream Ahead: %s' % (self.__tokens[self.__stream_pointer:]))
+
 
 class Parser(object):
   """Abstracts the entire grammar parser along with building the parse tree.
