@@ -301,46 +301,80 @@ class Parser(object):
     self.__token_stream.fastforward('main')
 
     main = self.__token_stream.next()
-    main_node = Node('keyword', main)
+    node = Node('keyword', main)
 
-    children_nodes = []
+    while True:
+      try:
+        self.__parse_abstract_var_decl(node)
+      except EndOfStatementFoundException:
+        continue
+      except LanguageSyntaxError, e:
+        if str(e).startswith('SyntaxError: Expected "var" or "array" but "'):
+          break
+        else:
+          raise
 
-    for token in self.__token_stream:
-      token_node = self.__parse_next_token(token, main_node)
-      children_nodes.append(token_node)
+    while True:
+      try:
+        self.__parse_abstract_func_decl(node)
+      except LanguageSyntaxError, e:
+        if str(e).startswith(
+            'SyntaxError: Expected "function" or "procedure" but "'):
+          break
+        else:
+          raise
+
+    look_ahead_token = self.__token_stream.look_ahead()
+    if look_ahead_token != '{':
+      raise LanguageSyntaxError('Expected "{" but "%s" was found.' % (
+          look_ahead_token))
+
+    self.__token_stream.next()
+
+    try:
+      self.__parse_abstract_stat_sequence(node)
+      if self.__token_stream.look_ahead() == '}':
+        self.__token_stream.next()
+        self.__parse_rightbrace(node)
+    except RightBraceFoundException:
+      pass
 
     # The last token, which is essentially the end of the stream must be
     # a period token, otherwise there is a syntax error in the program
     # according to the grammar.
-    if token != '.':
+    if self.__token_stream.next() != '.':
       raise LanguageSyntaxError('Program does not end with a "."')
 
-    main_node.append_children(*children_nodes)
+    return node
 
-    return main_node
-
-  def __parse_abstract_ident(self, parent, token):
-    if IDENT_RE.match(token):
-      Node('ident', token, parent)
+  def __parse_abstract_ident(self, parent):
+    look_ahead_token = self.__token_stream.look_ahead()
+    if IDENT_RE.match(look_ahead_token):
+      next_token = self.__token_stream.next()
+      Node('ident', next_token, parent)
       return
 
-    raise LanguageSyntaxError('Expected identified but %s found.' % (token))
+    self.__token_stream.debug()
 
-  def __parse_abstract_number(self, parent, token):
-    if NUMBER_RE.match(token):
-      Node('number', token, parent)
+    raise LanguageSyntaxError('Expected identifier but "%s" found.' % (
+        look_ahead_token))
+
+  def __parse_abstract_number(self, parent):
+    look_ahead_token = self.__token_stream.look_ahead()
+    if NUMBER_RE.match(look_ahead_token):
+      next_token = self.__token_stream.next()
+      Node('number', next_token, parent)
       return
 
-    raise LanguageSyntaxError('Expected number but %s found.' % (token))
+    raise LanguageSyntaxError('Expected number but "%s" found.' % (
+        look_ahead_token))
 
   def __parse_abstract_designator(self, parent):
     node = Node('abstract', 'designator', parent)
 
-    next_token = self.__token_stream.next()
-    node = self.__parse_abstract_ident(node, next_token)
+    self.__parse_abstract_ident(node)
 
-    while (self.__token_stream.look_ahead() ==
-        self.CONTROL_CHARACTERS_MAP['leftbracket']):
+    while self.__token_stream.look_ahead() == '[':
       try:
         leftbracket_node = Node(
             'operator', self.__token_stream.next(), node)
@@ -351,20 +385,33 @@ class Parser(object):
   def __parse_abstract_factor(self, parent):
     node = Node('abstract', 'factor', parent)
 
-    next_token = self.__token_stream.next()
+    look_ahead_token = self.__token_stream.look_ahead()
 
-    if next_token == self.CONTROL_CHARACTERS_MAP['leftparenthesis']:
+    if look_ahead_token == '(':
       try:
+        self.__token_stream.next()
         self.__parse_abstract_expression(node)
       except RightParenthesisFoundException:
         pass
-    elif next_token == 'call':
+    elif look_ahead_token == 'call':
+      self.__token_stream.next()
       self.__parse_call(node)
     else:
       try:
-        self.__parse_abstract_number(node, next_token)
+        self.__parse_abstract_number(node)
       except LanguageSyntaxError:
-        self.__parse_abstract_designator(node)
+        try:
+          self.__parse_abstract_designator(node)
+        except LanguageSyntaxError:
+          look_ahead_token = self.__token_stream.look_ahead()
+          if self.is_control_character(look_ahead_token):
+            next_token = self.__token_stream.next()
+            parser_method = '_Parser_parser_%s' % (
+                self.CONTROL_CHARACTERS_MAP[next_token])
+            parser_method(node)
+          else:
+            # Re-raise the exception back if it is not a control character.
+            raise
 
   def __parse_abstract_term(self, parent):
     node = Node('abstract', 'term', parent)
