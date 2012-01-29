@@ -237,7 +237,24 @@ class Parser(object):
     # entire source in the program file.
     program_file_obj.close()
 
+    # The current scope of the program as the parser, parses through the source.
+    self.__current_scope = None
+
+    # The program symbol table, stored as dictionary. The keys of this
+    # dictionary represents the scope of the symbol whose value is another
+    # dictionary whose keys are the symbols and values are the latest value
+    # of the symbol.
+    self.symbol_table = {}
+
     self.root = self.__parse()
+
+  def __update_scope(self, scope):
+    """Update the current scope, add it to the symbol table if doesn't exist.
+    """
+    self.__current_scope = scope
+
+    if self.__current_scope not in self.symbol_table:
+      self.symbol_table[self.__current_scope] = {}
 
   def __parse(self):
     """Parses the tokens by delegating to appropriate functions and builds tree.
@@ -253,6 +270,9 @@ class Parser(object):
 
     main = self.__token_stream.next()
     node = Node('keyword', main)
+
+    # Since main is getting defined here, update the scope to indicate it.
+    self.__update_scope('main')
 
     while True:
       try:
@@ -274,6 +294,11 @@ class Parser(object):
           break
         else:
           raise
+
+    # Although we won't have any more variable declarations, to be on the
+    # safer side set the scope back to main since we are done with all the
+    # function declarations.
+    self.__update_scope('main')
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != '{':
@@ -303,7 +328,11 @@ class Parser(object):
     if IDENT_RE.match(look_ahead_token):
       next_token = self.__token_stream.next()
       Node('ident', next_token, parent)
-      return
+
+      # Symbol table should be updated at this point since we found a new name.
+      if next_token not in self.symbol_table[self.__current_scope]:
+        self.symbol_table[self.__current_scope][next_token] = None
+      return next_token
 
     self.__token_stream.debug()
 
@@ -536,7 +565,12 @@ class Parser(object):
     self.__parse_abstract_function_procedure(node)
 
   def __parse_abstract_function_procedure(self, parent):
-    self.__parse_abstract_ident(parent)
+    func_name = self.__parse_abstract_ident(parent)
+
+    # This function's name is still in the previous scope so that it can be
+    # called from the function outside this own function. Once we are done
+    # with it update the scope for this function
+    self.__update_scope(func_name)
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token == '(':
