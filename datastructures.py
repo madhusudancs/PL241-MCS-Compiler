@@ -120,3 +120,86 @@ class Node(object):
   def __repr__(self):
     return self.__str__()
 
+
+class Dominator(object):
+  """Stores the Dominator Tree for a given Graph.
+
+  This class implements Dominator Tree Construction Algorithm proposed by
+  Thomas Lengauer and Robert Endre Tarjan in their landmark paper
+  "Fast Algorithm for Finding Dominators in a Flowgraph"
+  """
+
+  def __init__(self, graph):
+    """Initializes the dominator tree and all other datastructures required.
+
+    NOTE: This class assumes that the whole dominator tree construction is done
+    in memory. If we ever do construction out of memory the semi dominator
+    dictionary used must be completely reimplemented since its keys are memory
+    dependent.
+
+    Args:
+      graph: The Control Flow Graph which is the input for this class supplied
+          as Adjacency List of Vertices. The first element of the list is
+          assumed to be the start vertex of the graph.
+    """
+    self.graph = graph
+
+    self.semi = None
+
+    # The paper uses the variable name vertex even for this list and for
+    # individual vertices under consideration at each step. However I don't
+    # know any programming language that lets us do it ;-)
+    self.vertices = None
+
+  def construct(self):
+    """Constructs the dominator tree for this object.
+    """
+    self.semi = {}
+
+    self.vertices = []
+
+    dfs(self.graph[0])
+
+  def number(self, vertex):
+    """Assigns a number for the given vertex and updates the datastructures.
+
+    It updates those datastructures that depend on the vertex numbering.
+
+    Args:
+      vertex: The vertex which should be numbered.
+    """
+    if vertex in self.semi:
+      raise NodeProcessedException
+
+    self.semi[vertex] = len(self.vertices)
+
+    self.vertices.append(vertex)
+
+  def dfs(self, vertex):
+    """Perform Depth-First search on the input graph and enumerate the nodes.
+
+    Args:
+      vertex: The vertex which is under processing during the depth-first
+          search.
+    """
+    try:
+      self.number(vertex)
+    except NodeProcessedException:
+      return
+
+    for e in vertex.out_edges:
+      if semi(e) = 0:
+        parent(e) = vertex
+        dfs(e)
+      pred(w).append(vertex)
+
+  def link_edge(self, v, w):
+    """
+    """
+    pass
+
+  def eval_dom(self, v):
+    """
+    """
+    pass
+
