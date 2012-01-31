@@ -16,6 +16,19 @@
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
 
 
+class NodeProcessedException(Exception):
+  """Exception to indicate that the node is already processed
+  """
+  def __init__(self, msg=None):
+    self._msg = msg if msg else "The node is already processed."
+
+  def __str__(self):
+    return self._msg
+
+  def __repr__(self):
+    return self.__str__()
+
+
 class Node(object):
   """Represents a node in the parse tree.
   """
