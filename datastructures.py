@@ -36,35 +36,35 @@ class Node(object):
   """Represents a node in the parse tree.
   """
 
-  def __init__(self, node_type=None, name=None, parent=None, children=None):
+  def __init__(self, node_type=None, value=None, parent=None, children=None):
     """Initializes a node in the parse tree along with its pointers.
 
     Args:
       node_type: The type of the node, can take various values, see below.
-      name: The value to be stored along with the node in the parse tree.
+      value: The value to be stored along with the node in the parse tree.
       parent: The optional parent of this node in the parse tree.
       children: The optional children of this node in the parse tree.
 
     node_type values:
       abstract: The node does not represent any real grammar element but an
           abtract intermediate type in the grammar like varDecl, funcDecl. The
-          name for this type of node indicates the abstract name used.
-      keyword: The node represents the program keyword, the name stores the
+          value for this type of node indicates the abstract name used.
+      keyword: The node represents the program keyword, the value stores the
           name of the keyword.
-      ident: The node represents the ident type of data, the name stores the
+      ident: The node represents the ident type of data, the value stores the
           name of the ident.
       number: The node contains the numerical value resulting from an expression.
-          This stores the actual numerical value as the name. Since our grammar
-          supports only integer values, we always store the name of the Node
+          This stores the actual numerical value as the value. Since our grammar
+          supports only integer values, we always store the value of the Node
           with type value as an integer type.
       control: The node represents the control character in the grammar. The
-          name will be one of the control characters.
+          value will be one of the control characters.
       operator: The node represents one of the operators in the grammar. It
-          can be either relational operator or any other operator. The name of
+          can be either relational operator or any other operator. The value of
           the node will just be the operator itself.
     """
     self.type = node_type
-    self.name = name
+    self.value = value
     self.parent = parent
     # cast the children argument passed as any type to list before storing
     # it as class attributes
