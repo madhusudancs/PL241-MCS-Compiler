@@ -81,23 +81,29 @@ class Node(object):
     Args:
       children: tuple of children that must be appended to this node in order.
     """
-
     self.children.extend(children)
     for child in children:
       child.parent = self
 
   def generate_tree_for_vcg(self, tree):
+    """Recursively visit nodes of the tree with the given argument as the root.
+
+    Args:
+      tree: The root of the sub-tree whose nodes we must visit recursively.
+    """
     self.vcg_output.append(str(tree))
     for child in tree.children:
       self.generate_tree_for_vcg(child)
       self.vcg_output.append(
           'edge: {sourcename: "%s" targetname: "%s" }' % (id(tree), id(child)))
 
-  def generate_vcg(self):
+  def generate_vcg(self, title="TREE"):
+    """Generate the Visualization of Compiler Graphs for this node as the root.
+    """
     self.vcg_output = []
     self.generate_tree_for_vcg(self)
 
-    print """graph: { title: "SYNTAXTREE"
+    print """graph: { title: %(title)s
     height: 700
     width: 700
     x: 30
@@ -110,13 +116,16 @@ class Node(object):
     layout_upfactor:   1
     layout_nearfactor: 0
     manhattan_edges: yes
-    %s
-}""" % ('\n    '.join(self.vcg_output))
+    %(nodes_edges)s
+}""" % {
+        'title': title,
+        'nodes_edges': '\n    '.join(self.vcg_output)
+        }
 
   def __str__(self):
-    return 'node: { title: "%(id)s" label: "%(type)s: %(name)s" }' % {
+    return 'node: { title: "%(id)s" label: "%(type)s: %(value)s" }' % {
         'id': id(self),
-        'name': self.name,
+        'value': self.value,
         'type': self.type
         }
 
