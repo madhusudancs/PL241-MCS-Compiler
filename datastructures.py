@@ -16,6 +16,9 @@
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
 
 
+from collections import OrderedDict
+
+
 class NodeProcessedException(Exception):
   """Exception to indicate that the node is already processed
   """
@@ -121,10 +124,109 @@ class Node(object):
     return self.__str__()
 
 
-class Dominator(object):
-  """Stores the Dominator Tree for a given Graph.
+class CFGNode(Node):
+  """Represents a node in the control flow graph.
 
-  This class implements Dominator Tree Construction Algorithm proposed by
+  Contains some additional attributes like dominator for the node etc. and
+  parent and children are renamed to in_edges and out_edges.
+
+  Attributes:
+    value: The value to be stored in the current node.
+    in_edges: The set of nodes which have an edge to this node.
+    out_edges: The set of nodes to which this node has an edge.
+    dom_children: The set of children in the dominator tree for this node.
+    dom_parent: The parent in the dominator tree for this node.
+  """
+
+  def __init__(self, value=None, in_edges=None, out_edges=None):
+    """Constructs a node of the Control Flow Graph.
+
+    Args:
+      value: The value to be stored in the current node.
+      in_edges: The set of nodes which have an edge to this node.
+      out_edges: The set of nodes to which this node has an edge.
+    """
+    self.value = value
+    self.parent = parent
+    # cast the children argument passed as any type to list before storing
+    # it as class attributes
+    self.children = list(children) if children else []
+
+    self.dom_parent = None
+    self.dom_children = []
+
+  def append_in_edges(self, *in_edges):
+    """Add the in-edges for this node and also update the out-edges.
+
+    If we call this method, one should not call out_edges method for the same
+    pair of nodes since this method already updates the out_edges too.
+    """
+    self.in_edges.extend(in_edges)
+    for i in in_edges:
+      i.out_edges.append(self)
+
+  def append_out_edges(self, *out_edges):
+    """Add the out-edges for this node and also update the in-edges.
+
+    If we call this method, one should not call in_edges method for the same
+    pair of nodes since this method already updates the in_edges too.
+    """
+    self.out_edges.extend(out_edges)
+    for i in out_edges:
+      i.in_edges.append(self)
+
+  def append_dom_children(self, *children):
+    """Appends the children to this node in the dominator tree.
+
+    Args:
+      children: tuple of children that must be appended to this node in order.
+    """
+    self.dom_children.extend(children)
+    for child in children:
+      child.dom_parent = self
+
+  def generate_dom_tree_for_vcg(self, tree):
+    """Recursively visit nodes of the tree with the given argument as the root.
+
+    Args:
+      tree: The root of the sub-tree whose nodes we must visit recursively.
+    """
+    self.vcg_output.append(str(tree))
+    for child in tree.dom_children:
+      self.generate_dom_tree_for_vcg(child)
+      self.vcg_output.append(
+          'edge: {sourcename: "%s" targetname: "%s" }' % (id(tree), id(child)))
+
+  def generate_dom_vcg(self, title="DOMINATOR TREE"):
+    """Generate the Visualization of Compiler Graphs for this node as the root.
+    """
+    self.vcg_output = []
+    self.generate_dom_tree_for_vcg(self)
+
+    print """graph: { title: %(title)s
+    height: 700
+    width: 700
+    x: 30
+    y: 30
+    color: lightcyan
+    stretch: 7
+    shrink: 10
+    layoutalgorithm: tree
+    layout_downfactor: 10
+    layout_upfactor:   1
+    layout_nearfactor: 0
+    manhattan_edges: yes
+    %(nodes_edges)s
+}""" % {
+        'title': title,
+        'nodes_edges': '\n    '.join(self.vcg_output)
+        }
+
+
+class Dominator(object):
+  """Stores the dominator tree for a given Graph.
+
+  This class implements dominator tree construction algorithm proposed by
   Thomas Lengauer and Robert Endre Tarjan in their landmark paper
   "Fast Algorithm for Finding Dominators in a Flowgraph"
   """
@@ -138,27 +240,76 @@ class Dominator(object):
     dependent.
 
     Args:
-      graph: The Control Flow Graph which is the input for this class supplied
-          as Adjacency List of Vertices. The first element of the list is
+      graph: The control flow graph which is the input for this class supplied
+          as AdjacencyList of vertices. The first element of the list is
           assumed to be the start vertex of the graph.
     """
     self.graph = graph
 
-    self.semi = None
-
-    # The paper uses the variable name vertex even for this list and for
-    # individual vertices under consideration at each step. However I don't
-    # know any programming language that lets us do it ;-)
+    # This dictionary contains a key value pair for every dictionary where
+    # the keys are the vertex itself and the value is another dictionary.
+    # The value dictionary corresponding to the vertex key contains exactly
+    # 5 key-value pairs:
+    #     'semi': Stores the semi-dominator information for the given vertex.
+    #     'parent':the parent on the given vertex in the spanning tree.
+    #     'pred': List of predecessors for the vertex.
+    #     'bucket': List of vertices whose semi-dominator is this vertex.
+    #     'dom': The dominator of this vertex.
+    #     'ancestor': Required for path compression during link and eval.
+    #     'label': Required for path compression during link and eval.
+    #
+    # NOTE: The paper uses the variable name vertex for the list of vertices.
+    # We will avoid using this datastructure by using the OrderedDict 
+    # datastructure from the collections module which is a dictionary with
+    # the ordering for keys. The keys are ordered in the order in which they
+    # were inserted into the dictionary.
     self.vertices = None
 
   def construct(self):
     """Constructs the dominator tree for this object.
     """
-    self.semi = {}
+    self.vertices = OrderedDict()
 
-    self.vertices = []
-
+    # Step 1 in the paper
     dfs(self.graph[0])
+
+    vertices_order = self.vertices.keys()
+
+    # Combined Steps 2 and 3 in the paper.
+    # -1:1:-1 ensures that we start with the last vertex and go on up to the
+    # first vertex which is the root, but not including the first vertex
+    # in steps of -1 which is the reverse ordering.
+    for w in reversed(vertices_order[-1:1:-1]):
+      # Step 2 in the paper
+      for v in w['pred']:
+        u = self.eval_dom(v)
+        if self.vertices[u]['semi'] < self.vertices[w]['semi']:
+          self.vertices[w]['semi'] = self.vertices[u]['semi']
+        bucket_vertex = vertices_order[self.vertices[w]['semi']]
+        self.vertices[bucket_vertex]['bucket'].append(w)
+        self.link(self.vertices[w]['parent'], w)
+
+      # Step 3 in the paper
+      for v in self.vertices[w]['parent']['bucket']:
+        self.vertices[w]['parent']['bucket'].remove(v)
+        u = self.eval_dom(v)
+        if self.vertices[u]['semi'] < self.vertices[v]['semi']:
+          self.vertices[v]['dom'] = u
+        else:
+          self.vertices[v]['dom'] = self.vertices[w]['parent']
+
+    # Step 4 in the paper.
+    for w in vertices_order:
+      if self.vertices[w]['dom'] != vertices_order[self.vertices[w]['semi']]:
+        self.vertices[w]['dom'] = self.vertices[w]['dom']['dom']
+
+    root_vertex = vertices_order[0]
+    self.vertices[root_vertex]['dom'] = 0
+
+    # As one final step we construct the dominator tree for the datastructure
+    # that we have chosen. This is not part of the paper, but we need it for
+    # our custom datastructure.
+    return self.construct_dom_tree()
 
   def number(self, vertex):
     """Assigns a number for the given vertex and updates the datastructures.
@@ -168,15 +319,23 @@ class Dominator(object):
     Args:
       vertex: The vertex which should be numbered.
     """
-    if vertex in self.semi:
+    if vertex in self.vertices:
       raise NodeProcessedException
 
-    self.semi[vertex] = len(self.vertices)
+    self.vertices[vertex] = {
+        'semi': len(self.vertices),
+        'parent': None,
+        'pred': [],
+        'bucket': None,
+        'dom': None,
+        'ancestor': None,
+        'label': None,
+    }
 
     self.vertices.append(vertex)
 
   def dfs(self, vertex):
-    """Perform Depth-First search on the input graph and enumerate the nodes.
+    """Perform depth-first search on the input graph and enumerate the nodes.
 
     Args:
       vertex: The vertex which is under processing during the depth-first
@@ -187,19 +346,75 @@ class Dominator(object):
     except NodeProcessedException:
       return
 
-    for e in vertex.out_edges:
-      if semi(e) = 0:
-        parent(e) = vertex
-        dfs(e)
-      pred(w).append(vertex)
+    for w in vertex.out_edges:
+      if w not in self.vertices:
+        dfs(w)
+        # Note the order of this operation is swapped from the one given in
+        # the paper. This really doesn't change the algorithm since parent
+        # of w can be set to vertex before doing a dfs of w or after since
+        # dfs looks only at the children of a node, not its parents. But in
+        # case of our implementation this is important because until we do a
+        # dfs on w, w will not be numbered which means that the entry of w
+        # is still not created in self.vertices and hence
+        # self.vertices[w]['parent'] will give us a KeyError. Hence the order
+        # swapping.
+        self.vertices[w]['parent'] = vertex
 
-  def link_edge(self, v, w):
+      self.vertices[w]['pred'].append(vertex)
+
+  def link(self, v, w):
+    """Creates an edge from the vertex v to vertex w in the dominator tree.
+
+    Args:
+      v: vertex which forms the tail for the edge we are adding.
+      w: vertex which forms the head for the edge we are adding.
     """
-    """
-    pass
+    self.vertices[w]['ancestor'] = v
 
   def eval_dom(self, v):
+    """Evaluates the dominator or the semi-dominator for the given vertex.
+
+    Returns a vertex "u" among vertices numbered greater than "w" satisfying
+    "u" has a path to "v" whose semidominator has the minimum number. To know
+    what is "w" look at the construct method above.
+
+    NOTE: The naming is a bit weird with _dom because eval is a keyword
+    in Python.
+
+    Args:
+      v: vertex which we must evaluate for now.
     """
+    # The order of the if-else is swapped from the way it is presented in the
+    # paper just for better readability.
+    if self.vertices[v]['ancestor']:
+      self.compress(v)
+      return self.vertices[v]['label']
+    else:
+      return v
+
+  def compress(self, v):
+    """Perform path compression for performing eval according to the paper.
+
+    IMPORTANT: This method assumes self.vertices[v]['ancestor'] is not None,
+    i.e. v is not the root of any forest.
     """
-    pass
+    # The order of the if-else is swapped from the way it is presented in the
+    # paper just for better readability.
+    if self.vertices[v]['ancestor']['ancestor']:
+      return
+
+    self.compress(self.vertices[v]['ancestor'])
+    if (self.vertices[v]['ancestor']['label']['semi'] <
+        self.vertices[v]['label']['semi']):
+      self.vertices[v]['label'] = self.vertices[v]['ancestor']['label']
+
+    self.vertices[v]['ancestor'] = self.vertices[v]['ancestor']['ancestor']
+
+  def construct_dom_tree(self):
+    """Constructs the dominator tree in the CFGNode objects.
+    """
+    for v in self.vertices:
+      v['dom'].append_dom_children(v)
+
+    return self.vertices[0]
 
