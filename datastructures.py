@@ -244,6 +244,12 @@ class CFGNode(Node):
         'nodes_edges': '\n    '.join(self.vcg_output)
         }
 
+  def __str__(self):
+    return 'node: { title: "%(id)s" label: "CFGNode: %(value)s" }' % {
+        'id': id(self),
+        'value': self.value,
+        }
+
 
 class Dominator(object):
   """Stores the dominator tree for a given Graph.
