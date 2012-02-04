@@ -672,7 +672,7 @@ class Parser(object):
     if look_ahead_token == ')':
       self.__parse_rightparen(parent)
 
-    node = Node('abstract', 'formal_param', parent)
+    node = Node('abstract', 'formalParam', parent)
     self.__parse_abstract_ident(node)
 
     while self.__token_stream.look_ahead() == ',':
