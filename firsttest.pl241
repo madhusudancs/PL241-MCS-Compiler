@@ -12,7 +12,12 @@ var funcvar1, funcvar2;
     fi};
 {
     let first <- 10;
-    let varname <- 20;
+    let varname <- -20;
+    let some123name <- first + varname;
+    let some123name <- first - varname;
+    let some123name <- first * varname;
+    let some123name <- first / varname;
+    let some123name <- (first + varname)-varname *first/some45;
     call OutputNum(call firstfunc(first, varname))
 }.
 
