@@ -60,10 +60,10 @@ LOGGER = logging.getLogger(__name__)
 
 # Regular expression patterns used for parsing.
 IDENT_PATTERN = r'[a-zA-Z][a-zA-Z0-9]*'
-NUMBER_PATTERN = r'\d+'
+NUMBER_PATTERN = r'-?\d+'
 IDENT_RE = re.compile(IDENT_PATTERN)
 NUMBER_RE = re.compile(NUMBER_PATTERN)
-TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|[^\s+])' % (
+TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[^\s+])' % (
     NUMBER_PATTERN, IDENT_PATTERN))
 
 
