@@ -371,6 +371,9 @@ class Parser(object):
       try:
         self.__token_stream.next()
         self.__parse_abstract_expression(node)
+        if self.__token_stream.look_ahead() == ')':
+          self.__token_stream.next()
+          self.__parse_rightparen(node)
       except RightParenthesisFoundException:
         pass
     elif look_ahead_token == 'call':
