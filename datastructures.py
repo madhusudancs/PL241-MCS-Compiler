@@ -168,10 +168,11 @@ class CFGNode(Node):
       out_edges: The set of nodes to which this node has an edge.
     """
     self.value = value
-    self.parent = parent
-    # cast the children argument passed as any type to list before storing
-    # it as class attributes
-    self.children = list(children) if children else []
+
+    # Cast the in_edges and out_edges argument passed as any type to list
+    # before storing it as class attributes.
+    self.in_edges = list(in_edges) if in_edges else []
+    self.out_edges = list(out_edges) if out_edges else []
 
     self.dom_parent = None
     self.dom_children = []
