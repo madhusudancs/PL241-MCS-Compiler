@@ -115,7 +115,7 @@ class Node(object):
     self.vcg_output = []
     self.generate_tree_for_vcg(self)
 
-    print """graph: { title: %(title)s
+    return """graph: { title: "%(title)s"
     height: 700
     width: 700
     x: 30
@@ -224,7 +224,7 @@ class CFGNode(Node):
     self.vcg_output = []
     self.generate_dom_tree_for_vcg(self)
 
-    print """graph: { title: %(title)s
+    return """graph: { title: "%(title)s"
     height: 700
     width: 700
     x: 30
