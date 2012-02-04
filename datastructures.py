@@ -307,37 +307,41 @@ class Dominator(object):
     # -1:1:-1 ensures that we start with the last vertex and go on up to the
     # first vertex which is the root, but not including the first vertex
     # in steps of -1 which is the reverse ordering.
-    for w in reversed(vertices_order[-1:1:-1]):
+    for w in vertices_order[-1:0:-1]:
       # Step 2 in the paper
-      for v in w['pred']:
+      for v in self.vertices[w]['pred']:
         u = self.eval_dom(v)
         if self.vertices[u]['semi'] < self.vertices[w]['semi']:
           self.vertices[w]['semi'] = self.vertices[u]['semi']
-        bucket_vertex = vertices_order[self.vertices[w]['semi']]
-        self.vertices[bucket_vertex]['bucket'].append(w)
-        self.link(self.vertices[w]['parent'], w)
+
+      bucket_vertex = vertices_order[self.vertices[w]['semi']]
+      self.vertices[bucket_vertex]['bucket'].append(w)
+      self.link(self.vertices[w]['parent'], w)
 
       # Step 3 in the paper
-      for v in self.vertices[w]['parent']['bucket']:
-        self.vertices[w]['parent']['bucket'].remove(v)
+      for v in self.vertices[self.vertices[w]['parent']]['bucket']:
         u = self.eval_dom(v)
         if self.vertices[u]['semi'] < self.vertices[v]['semi']:
           self.vertices[v]['dom'] = u
         else:
           self.vertices[v]['dom'] = self.vertices[w]['parent']
 
-    # Step 4 in the paper.
-    for w in vertices_order:
-      if self.vertices[w]['dom'] != vertices_order[self.vertices[w]['semi']]:
-        self.vertices[w]['dom'] = self.vertices[w]['dom']['dom']
+      # We do this as an alternative to removing each entry in the parent's
+      # bucket because of the way Python's for construct works. This is an
+      # implementation level change.
+      self.vertices[self.vertices[w]['parent']]['bucket'] = []
 
-    root_vertex = vertices_order[0]
-    self.vertices[root_vertex]['dom'] = 0
+    # Step 4 in the paper.
+    for w in vertices_order[1:]:
+      if self.vertices[w]['dom'] != vertices_order[self.vertices[w]['semi']]:
+        self.vertices[w]['dom'] = self.vertices[self.vertices[w]['dom']]['dom']
 
     # As one final step we construct the dominator tree for the datastructure
     # that we have chosen. This is not part of the paper, but we need it for
     # our custom datastructure.
-    return self.construct_dom_tree()
+    self.construct_dom_tree()
+
+    return self.graph[0]
 
   def number(self, vertex):
     """Assigns a number for the given vertex and updates the datastructures.
@@ -354,13 +358,11 @@ class Dominator(object):
         'semi': len(self.vertices),
         'parent': None,
         'pred': [],
-        'bucket': None,
+        'bucket': [],
         'dom': None,
         'ancestor': None,
-        'label': None,
+        'label': vertex,
     }
-
-    self.vertices.append(vertex)
 
   def dfs(self, vertex):
     """Perform depth-first search on the input graph and enumerate the nodes.
@@ -376,7 +378,7 @@ class Dominator(object):
 
     for w in vertex.out_edges:
       if w not in self.vertices:
-        dfs(w)
+        self.dfs(w)
         # Note the order of this operation is swapped from the one given in
         # the paper. This really doesn't change the algorithm since parent
         # of w can be set to vertex before doing a dfs of w or after since
@@ -428,21 +430,23 @@ class Dominator(object):
     """
     # The order of the if-else is swapped from the way it is presented in the
     # paper just for better readability.
-    if self.vertices[v]['ancestor']['ancestor']:
+    if not self.vertices[self.vertices[v]['ancestor']]['ancestor']:
       return
 
     self.compress(self.vertices[v]['ancestor'])
-    if (self.vertices[v]['ancestor']['label']['semi'] <
-        self.vertices[v]['label']['semi']):
-      self.vertices[v]['label'] = self.vertices[v]['ancestor']['label']
+    if (self.vertices[self.vertices[self.vertices[v][
+        'ancestor']]['label']]['semi'] <
+        self.vertices[self.vertices[v]['label']]['semi']):
+      self.vertices[v]['label'] = \
+          self.vertices[self.vertices[v]['ancestor']]['label']
 
-    self.vertices[v]['ancestor'] = self.vertices[v]['ancestor']['ancestor']
+    self.vertices[v]['ancestor'] = \
+        self.vertices[self.vertices[v]['ancestor']]['ancestor']
 
   def construct_dom_tree(self):
     """Constructs the dominator tree in the CFGNode objects.
     """
     for v in self.vertices:
-      v['dom'].append_dom_children(v)
-
-    return self.vertices[0]
+      if self.vertices[v]['dom']:
+        self.vertices[v]['dom'].append_dom_children(v)
 
