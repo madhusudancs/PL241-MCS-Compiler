@@ -773,6 +773,9 @@ def bootstrap():
                       help='name of the input files.')
   parser.add_argument('-d', '--debug', action='store_true',
                       help='Enable debug logging to the console.')
+  parser.add_argument('-g', '--vcg', metavar="VCG", type=str,
+                      nargs='?', const=True,
+                      help='Generate the Visualization Compiler Graph output.')
   args = parser.parse_args()
 
   if args.debug:
@@ -783,7 +786,13 @@ def bootstrap():
 
   try:
     p = Parser(args.file_names[0])
+
+    if args.vcg:
+      vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
+          sys.stdout
+      vcg_file.write(p.root.generate_vcg())
     return p.root
+
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
