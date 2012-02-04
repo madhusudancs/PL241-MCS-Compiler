@@ -299,7 +299,7 @@ class Dominator(object):
     self.vertices = OrderedDict()
 
     # Step 1 in the paper
-    dfs(self.graph[0])
+    self.dfs(self.graph[0])
 
     vertices_order = self.vertices.keys()
 
