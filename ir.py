@@ -57,6 +57,190 @@ from parser import Parser
 LOGGER = logging.getLogger(__name__)
 
 
+class Instruction(object):
+  """Abstraction for all the instruction in the Intermediate Representation.
+  """
+
+  label_counter = 0
+
+  def __init__(self, label, instruction, op1, op2=None):
+    """Constructs the 3-address code for the instruction.
+
+    Args:
+      instruction: contains the instruction type for this instruction.
+      op1: The first operator for the instruction.
+      op2: The second operator for the instruction. This operand is optional.
+    """
+    self.instruction = instruction
+    self.op1 = op1
+    self.op2 = op2
+    self.label = self.__class__.label_counter
+    self.__class__.label_counter += 1
+
+
+class IntermediateRepresentation(object):
+  """Stores the entire program in the Intermediate Representation form.
+  """
+
+  INSTRUCTION_MAP = {
+      '+': ['add'],
+      '-': ['sub'],
+      '*': ['mul'],
+      '/': ['div'],
+      '=': ['move'],
+      '==': ['cmp', 'beq'],
+      '!=': ['cmp', 'bne'],
+      '<': ['cmp', 'blt'],
+      '<=': ['cmp', 'ble'],
+      '>': ['cmp', 'bgt'],
+      '>=': ['cmp', 'bge'],
+      }
+
+  def __init__(self, parse_tree):
+    """Initializes the datastructres required for Intermediate Representation.
+
+    Args:
+      parse_tree: The parse tree for which the IR should be generated.
+    """
+    self.original_parse_tree = copy.deepcopy(parse_tree)
+
+    self.parse_tree = parse_tree
+    self.ir = []
+
+    self.scope_stack = []
+
+  def push_scope(self, scope):
+    """Pushes the scope to the scope stack.
+
+    Args:
+      scope: A string that represents the current scope.
+    """
+    self.scope_stack.append(scope)
+
+  def pop_scope(self):
+    """Pops and returns the element from the top of the scope stack.
+    """
+    return self.scope_stack.pop(len(self.scope_stack) - 1)
+
+  def current_scope(self):
+    """Returns the current scope of the program, which is the top of the stack.
+    """
+    return self.scope_stack[-1]
+
+  def instruction(self, operator, *operands):
+    """Builds the instruction for the given arguments.
+
+    Args:
+      operator: Determines the type of instruction.
+      operands: tuple of operands for the instruction.
+    """
+    operand1 = operands[0]
+
+    for ins, operand2 in zip(self.INSTRUCTION_MAP[operator], operands[1:]):
+      self.ir.append(Instruction(i, operand1, operand2))
+      operand1 = instruction.label
+
+    return operand1
+
+  def generate(self):
+    """Generates the Intermediate Representation from the parse tree.
+    """
+    # We need to only convert function bodies to IR. The declaration of
+    # variables really exist for scope checking. So we can directly skip to
+    # generate IR for the first function we encounter.
+    for c in self.parse_tree.root.children:
+      if c.type == 'abstract' and c.value == 'varDecl':
+        continue
+      elif c.type == 'keyword' and c.value == 'function':
+        self.function(c)
+      elif c.type == 'abstract' and c.value == 'statSeq':
+        self.funcBody(c, 'main')
+
+  def abstract(self, root):
+    """Process the abstract nodes in the parse tree.
+    """
+    func = getattr(self, root.value)
+    return func(root)
+
+  def function(self, root):
+    """Process the complete function and generate IR for it.
+    """
+    ident, formal_param, func_body = root.children
+    stat_seq = func_body.children[-1]
+    self.funcBody(stat_seq, ident)
+
+  def funcBody(self, root, scope):
+    """Process the body of the function and generate IR for it.
+    """
+    self.push_scope(scope)
+
+    self.dfs(root)
+
+  def statement(self, root):
+    """Processes statement type node.
+    """
+    for children in root.children:
+      self.dfs(children)
+
+  def keyword(self, root):
+    """Processes keyword type node.
+    """
+    # We prefix keyword_ to the methods of keywords because they may clash
+    # with Python's keywords
+    func = getattr(self, 'keyword_%s' % root.value)
+    return func(root)
+
+  def keyword_if(self, root):
+    """Process the if statement.
+    """
+    pass
+
+  def keyword_call(self, root):
+    """Process the call statement.
+    """
+    pass
+
+  def keyword_let(self, root):
+    """Process the let statement.
+    """
+    pass
+
+  def term(self, root):
+    """Generate the IR for "term" nodes.
+    """
+    operand1 = self.dfs(root.children[0])
+    num_children = len(root.children)
+    i = 1
+    while i < num_children:
+      operator = root.children[i]
+      operand2 = self.dfs(root.children[i + 1])
+      operand1 = self.instruction(operator, operand1, operand2)
+      i += 2
+
+    return operand1
+
+  def statSeq(self, root):
+    """Process the statSeq type node in the parse tree.
+    """
+    for statement in root.children:
+      self.dfs(statement)
+
+  def ident(self, root):
+    """Return identifier as the operator.
+    """
+    return '%s/%s' % (self.current_scope(), root.value)
+
+  def dfs(self, root):
+    """Depth-first search the parse tree and translate node by node.
+
+    Although the only common part it shares with other trees is the depth-first
+    recursion, but requires special processing at each step.
+    """
+    root.compress()
+
+    func = getattr(self, root.type)
+    print "Once: %s: %s" % (root.type, root.value)
+    return func(root)
 
 
 def bootstrap():
@@ -75,14 +259,13 @@ def bootstrap():
 
   try:
     p = Parser(args.file_names[0])
-    return p
+    i = IntermediateRepresentation(p)
+    return i
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
 if __name__ == '__main__':
-  parsed = bootstrap()
-  from pprint import pprint
-  pprint(parsed.symbol_table)
-
+  i = bootstrap()
+  i.generate()
 
