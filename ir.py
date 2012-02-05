@@ -284,8 +284,12 @@ class IntermediateRepresentation(object):
     # Initalize the first function IR with the scope label for the function IR.
     self.instruction('.%s' % (scope))
 
-    result = self.instruction('adda', '!FP', '#0')
-    return_label = self.instruction('load', result)
+    start = self.instruction('+', '!FP', '#0')
+    fp_label = self.instruction('load', start)
+    self.instruction('mov', fp_label, '[framesize]')
+
+    ret = self.instruction('+', start, '#4')
+    return_label = self.instruction('load', ret)
     self.instruction('mov', return_label, '[ret]')
 
     self.formalParam(formal_param)
