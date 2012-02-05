@@ -382,6 +382,9 @@ class Parser(object):
         leftbracket_node = Node(
             'operator', self.__token_stream.next(), node)
         self.__parse_abstract_expression(leftbracket_node)
+        if self.__token_stream.look_ahead() == ']':
+          self.__token_stream.next()
+          self.__parse_rightbracket(node)
       except RightBracketFoundException:
         continue
 
@@ -545,7 +548,10 @@ class Parser(object):
     do_node = Node('keyword', 'do', node)
 
     try:
-      self.__parse_abstract_stat_sequence(self, do_node)
+      self.__parse_abstract_stat_sequence(do_node)
+      if self.__token_stream.look_ahead() == 'od':
+        self.__token_stream.next()
+        self.__parse_od(node)
     except OdFoundException:
       return
 
