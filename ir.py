@@ -419,7 +419,6 @@ class IntermediateRepresentation(object):
     root.compress()
 
     func = getattr(self, root.type)
-    print "Once: %s: %s" % (root.type, root.value)
     return func(root)
 
 
