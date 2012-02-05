@@ -113,6 +113,11 @@ class IntermediateRepresentation(object):
       '<=': ['cmp', 'ble'],
       '>': ['cmp', 'bgt'],
       '>=': ['cmp', 'bge'],
+      'mov': ['mov'],
+      'store': ['store'],
+      'adda': ['adda'],
+      'load': ['load'],
+      'bra': ['bra'],
       }
 
   def __init__(self, parse_tree):
