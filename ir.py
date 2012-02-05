@@ -193,14 +193,23 @@ class IntermediateRepresentation(object):
         continue
       elif c.type == 'keyword' and c.value == 'function':
         self.function(c)
-      elif c.type == 'abstract' and c.value == 'statSeq':
-        self.funcBody(c, 'main')
+      elif c.type == 'abstract' and c.value == 'funcBody':
+        # Initalize the first function IR with the scope label for
+        # the function IR.
+        scope = 'main'
+        self.push_scope(scope)
+        self.instruction('.%s' % scope)
+        self.funcBody(c.children[0], 'main')
 
     # Generate the entire IR by concatenating all the functional IRs.
     # First add main to the instruction set.
     self.ir.extend(self.function_ir)
     for ir_set in self.temp_ir:
       self.ir.extend(ir_set)
+
+    # Add the end instruction.
+    instruction = Instruction('end')
+    self.ir.append(instruction)
 
 
   def abstract(self, root):
