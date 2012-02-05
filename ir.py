@@ -262,11 +262,13 @@ class IntermediateRepresentation(object):
   def formalParam(self, root):
     """Generates the IR for loading formal paramters.
     """
-    start = '!FP'
+    # The first formal parameter value is after framelength and return
+    # label, so advance it by 8 bytes.
+    start = self.instruction('+', '!FP', '#8')
     for parameter in root.children:
-      start = self.instruction('adda', start, '#4')
-      instruction_label = self.instruction('load', result)
+      instruction_label = self.instruction('load', start)
       instruction_label = self.instruction('mov', instruction_label, '[ret]')
+      start = self.instruction('+', start, '#4')
 
     return instruction_label
 
