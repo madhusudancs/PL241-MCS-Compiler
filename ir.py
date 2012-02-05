@@ -323,7 +323,12 @@ class IntermediateRepresentation(object):
   def keyword_let(self, root):
     """Process the let statement.
     """
-    pass
+    lvalue = self.designator(root.children[0])
+    rvalue = self.expression(root.children[2])
+
+    # FIXME: When lvalue is an array.
+    return self.instruction('mov', lvalue, rvalue)
+
   def keyword_return(self, root):
     """Process the return statement.
     """
@@ -341,6 +346,16 @@ class IntermediateRepresentation(object):
 
     return result
 
+  def designator(self, root):
+    """Generate the IR for "designator" nodes.
+    """
+    #FIXME: Fix the designator for array case.
+    return self.dfs(root.children[0])
+
+  def factor(self, root):
+    """Generate the IR for "factor" nodes.
+    """
+    return self.dfs(root.children[0])
 
   def term(self, root):
     """Generate the IR for "term" nodes.
@@ -351,7 +366,21 @@ class IntermediateRepresentation(object):
     while i < num_children:
       operator = root.children[i]
       operand2 = self.dfs(root.children[i + 1])
-      operand1 = self.instruction(operator, operand1, operand2)
+      operand1 = self.instruction(operator.value, operand1, operand2)
+      i += 2
+
+    return operand1
+
+  def expression(self, root):
+    """Process an expression.
+    """
+    operand1 = self.dfs(root.children[0])
+    num_children = len(root.children)
+    i = 1
+    while i < num_children:
+      operator = root.children[i]
+      operand2 = self.dfs(root.children[i + 1])
+      operand1 = self.instruction(operator.value, operand1, operand2)
       i += 2
 
     return operand1
@@ -360,12 +389,19 @@ class IntermediateRepresentation(object):
     """Process the statSeq type node in the parse tree.
     """
     for statement in root.children:
-      self.dfs(statement)
+      result = self.dfs(statement)
+
+    return result
 
   def ident(self, root):
     """Return identifier as the operator.
     """
     return '%s/%s' % (self.current_scope(), root.value)
+
+  def number(self, root):
+    """Returns the number by prefixing # as per convention.
+    """
+    return '#%s' % (root.value)
 
   def dfs(self, root):
     """Depth-first search the parse tree and translate node by node.
