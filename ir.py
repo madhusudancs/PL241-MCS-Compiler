@@ -129,7 +129,12 @@ class IntermediateRepresentation(object):
     self.original_parse_tree = copy.deepcopy(parse_tree)
 
     self.parse_tree = parse_tree
+    # We will have an IR per function which we concatenate in the end.
     self.ir = []
+    # This holds the IR per function.
+    self.function_ir = []
+    # This stores the list of function_irs
+    self.temp_ir = []
 
     self.scope_stack = []
 
@@ -179,6 +184,13 @@ class IntermediateRepresentation(object):
         self.function(c)
       elif c.type == 'abstract' and c.value == 'statSeq':
         self.funcBody(c, 'main')
+
+    # Generate the entire IR by concatenating all the functional IRs.
+    # First add main to the instruction set.
+    self.ir.extend(self.function_ir)
+    for ir_set in self.temp_ir:
+      self.ir.extend(ir_set)
+
 
   def abstract(self, root):
     """Process the abstract nodes in the parse tree.
