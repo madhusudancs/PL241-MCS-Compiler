@@ -1,7 +1,7 @@
 main
 var first;
-array [10][20] a, b, c;
-array [10] singledimension;
+array [10][20] doubledimension, b, c;
+array [10] a;
 var some123name,some45,varname;function firstfunc (a, b);
 var funcvar1, funcvar2;
 {
@@ -10,14 +10,36 @@ var funcvar1, funcvar2;
     else
         return b
     fi};
+    function sum(a, len);
+var temp;
+var count;
+{
+    let count <- 0;
+    let temp <- 0;
+    while count < len do
+        let temp <- temp + a[count];
+        let count <- count + 1
+    od;
+    return temp
+};
 {
     let first <- 10;
     let varname <- -20;
+
+    let some45 <- 0;
+    while some45 < first do
+        let a[some45] <- some45;
+        let some45 <- some45 + 1;
+    od;
+
     let some123name <- first + varname;
     let some123name <- first - varname;
     let some123name <- first * varname;
     let some123name <- first / varname;
     let some123name <- (first + varname)-varname *first/some45;
+
+    let some123name <- call sum(a, 4);
+    call OutputNum(some123name);
+
     call OutputNum(call firstfunc(first, varname))
 }.
-
