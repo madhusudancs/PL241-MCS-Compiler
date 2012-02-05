@@ -1,0 +1,3 @@
+* Take care of statSeq which are empty (optional) especially in case of if-then-else-fi, function body and while statements.
+* Handle function branch and return
+
