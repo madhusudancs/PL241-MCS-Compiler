@@ -320,6 +320,8 @@ class Parser(object):
     # function declarations.
     self.__update_scope('main')
 
+    main_body = Node('abstract', 'funcBody', node)
+
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != '{':
       raise LanguageSyntaxError('%d: Expected "{" but "%s" was found.' % (
@@ -328,10 +330,10 @@ class Parser(object):
     self.__token_stream.next()
 
     try:
-      self.__parse_abstract_stat_sequence(node)
+      self.__parse_abstract_stat_sequence(main_body)
       if self.__token_stream.look_ahead() == '}':
         self.__token_stream.next()
-        self.__parse_rightbrace(node)
+        self.__parse_rightbrace(main_body)
     except RightBraceFoundException:
       pass
 
