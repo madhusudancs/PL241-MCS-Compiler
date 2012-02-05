@@ -1,3 +1,7 @@
 * Take care of statSeq which are empty (optional) especially in case of if-then-else-fi, function body and while statements.
 * Handle function branch and return
+* Every call to a function should check if the function is already defined.
+* Implement the parser and stuff for procedures.
+* Function/Procedures cannot take arrays as arguments.
+* For function calls do calling vs formal parameters checking if the numbers match.
 
