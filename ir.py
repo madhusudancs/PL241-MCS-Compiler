@@ -163,10 +163,21 @@ class IntermediateRepresentation(object):
       operator: Determines the type of instruction.
       operands: tuple of operands for the instruction.
     """
+    # If there are no operands such instructions update through backpatching.
+    # These are also special instructions in the sense that they are passed
+    # as the instruction itself as the value to the operator parameter to this
+    # function.
+    if not operands:
+      instruction = Instruction(operator)
+      self.function_ir.append(instruction)
+      return instruction.label
+
     operand1 = operands[0]
 
-    for ins, operand2 in zip(self.INSTRUCTION_MAP[operator], operands[1:]):
-      self.ir.append(Instruction(i, operand1, operand2))
+    for ins, operand2 in zip(
+        self.INSTRUCTION_MAP[operator], operands[1:]):
+      instruction = Instruction(ins, operand1, operand2)
+      self.function_ir.append(instruction)
       operand1 = instruction.label
 
     return operand1
