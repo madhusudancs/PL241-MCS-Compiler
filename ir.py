@@ -110,6 +110,8 @@ class IntermediateRepresentation(object):
   """Stores the entire program in the Intermediate Representation form.
   """
 
+  BUILT_INS = ['InputNum', 'OutputNum', 'OutputNewLine']
+
   INSTRUCTION_MAP = {
       '+': ['add'],
       '-': ['sub'],
@@ -127,6 +129,9 @@ class IntermediateRepresentation(object):
       'adda': ['adda'],
       'load': ['load'],
       'bra': ['bra'],
+      'InputNum': ['read'],
+      'OutputNum': ['write'],
+      'OutputNewLine': ['writeLn'],
       }
 
   def __init__(self, parse_tree):
