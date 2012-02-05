@@ -410,6 +410,11 @@ class IntermediateRepresentation(object):
 
     return result
 
+  def keyword_while(self, root):
+    """Generate the IR for while statement.
+    """
+    pass
+
   def designator(self, root):
     """Generate the IR for "designator" nodes.
     """
