@@ -66,7 +66,8 @@ class Instruction(object):
   """Abstraction for all the instruction in the Intermediate Representation.
   """
 
-  label_counter = 0
+  global_counter = 0
+  local_counter = 0
 
   def __init__(self, instruction, operand1=None, operand2=None):
     """Constructs the 3-address code for the instruction.
@@ -81,8 +82,16 @@ class Instruction(object):
     self.instruction = instruction
     self.operand1 = operand1
     self.operand2 = operand2
-    self.label = self.__class__.label_counter
-    self.__class__.label_counter += 1
+    self.label = self.__class__.global_counter
+    self.local_label = self.__class__.local_counter
+    self.__class__.global_counter += 1
+    self.__class__.local_counter += 1
+
+  @classmethod
+  def local_reset(cls):
+    """Reset the label counter variable.
+    """
+    cls.local_counter = 0
 
   def update(self, operand1=None, operand2=None):
     """Update the instruction operands at a later point.
