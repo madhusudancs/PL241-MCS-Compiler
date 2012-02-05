@@ -222,6 +222,8 @@ class IntermediateRepresentation(object):
         self.instruction('.%s' % scope)
         self.funcBody(c.children[0], 'main')
 
+    # FIXME: Backpatch branches for function calls.
+
     # Generate the entire IR by concatenating all the functional IRs.
     # First add main to the instruction set.
     self.ir.extend(self.function_ir)
@@ -403,7 +405,6 @@ class IntermediateRepresentation(object):
     self.instruction('store', result, '[%s]' % (self.current_scope()))
     result = self.instruction('bra')
 
-    # FIXME: Return to where?
     # Backpatch with dummy value for now.
     self.function_ir[result].update(operand1='[ret]')
 
