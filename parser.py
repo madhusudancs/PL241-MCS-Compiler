@@ -63,7 +63,7 @@ IDENT_PATTERN = r'[a-zA-Z][a-zA-Z0-9]*'
 NUMBER_PATTERN = r'-?\d+'
 IDENT_RE = re.compile(IDENT_PATTERN)
 NUMBER_RE = re.compile(NUMBER_PATTERN)
-TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[^\s+])' % (
+TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t +])' % (
     NUMBER_PATTERN, IDENT_PATTERN))
 
 
@@ -77,7 +77,7 @@ class ParserBaseException(Exception):
 
 class LanguageSyntaxError(ParserBaseException):
   def __str__(self):
-    return 'SyntaxError: %s' % self._msg
+    return 'SyntaxError:%s' % self._msg
 
 
 class EndControlException(ParserBaseException):
@@ -134,18 +134,36 @@ class TokenStream(object):
     # The stream pointers that keep track of where in the source code our
     # parser currently is.
     self.__stream_pointer = None
+    self.__tokens = None
+    self.__line_track = None
 
     self.__tokenize()
 
   def __tokenize(self):
     """Splits the entire source code stream into tokens using regular expression.
     """
-    self.__tokens = TOKEN_RE.findall(self.src)
+    initial_tokens = TOKEN_RE.findall(self.src)
+
+    line_num = 1
+    self.__tokens = []
+    self.__line_track = []
+
+    for i, token in enumerate(initial_tokens):
+      if token == '\n':
+        line_num += 1
+        continue
+      self.__tokens.append(token)
+      self.__line_track.append(line_num)
 
     LOGGER.debug('Parsed tokens: %s' % self.__tokens)
 
     # Initializes the stream to the beginning of the tokens list.
     self.__stream_pointer = 0
+
+  def linenum(self):
+    """Returns the current line number in the source program as seen by stream.
+    """
+    return self.__line_track[self.__stream_pointer]
 
   def fastforward(self, token):
     """Fast forward the stream upto the point we find the given token.
@@ -280,7 +298,8 @@ class Parser(object):
       except EndOfStatementFoundException:
         continue
       except LanguageSyntaxError, e:
-        if str(e).startswith('SyntaxError: Expected "var" or "array" but "'):
+        if str(e).startswith('SyntaxError:%d: Expected "var" or "array" but "'
+            % (self.__token_stream.linenum())):
           break
         else:
           raise
@@ -290,7 +309,8 @@ class Parser(object):
         self.__parse_abstract_func_decl(node)
       except LanguageSyntaxError, e:
         if str(e).startswith(
-            'SyntaxError: Expected "function" or "procedure" but "'):
+            'SyntaxError:%d: Expected "function" or "procedure" but "' % (
+                self.__token_stream.linenum())):
           break
         else:
           raise
@@ -302,8 +322,8 @@ class Parser(object):
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != '{':
-      raise LanguageSyntaxError('Expected "{" but "%s" was found.' % (
-          look_ahead_token))
+      raise LanguageSyntaxError('%d: Expected "{" but "%s" was found.' % (
+          self.__token_stream.linenum(), look_ahead_token))
 
     self.__token_stream.next()
 
@@ -319,7 +339,8 @@ class Parser(object):
     # a period token, otherwise there is a syntax error in the program
     # according to the grammar.
     if self.__token_stream.next() != '.':
-      raise LanguageSyntaxError('Program does not end with a "."')
+      raise LanguageSyntaxError('%d: Program does not end with a "."',
+                                self.__token_stream.linenum(), )
 
     return node
 
@@ -336,8 +357,8 @@ class Parser(object):
 
     self.__token_stream.debug()
 
-    raise LanguageSyntaxError('Expected identifier but "%s" found.' % (
-        look_ahead_token))
+    raise LanguageSyntaxError('%d: Expected identifier but "%s" found.' % (
+        self.__token_stream.linenum(), look_ahead_token))
 
   def __parse_abstract_number(self, parent):
     look_ahead_token = self.__token_stream.look_ahead()
@@ -346,8 +367,8 @@ class Parser(object):
       Node('number', next_token, parent)
       return
 
-    raise LanguageSyntaxError('Expected number but "%s" found.' % (
-        look_ahead_token))
+    raise LanguageSyntaxError('%d: Expected number but "%s" found.' % (
+        self.__token_stream.linenum(), look_ahead_token))
 
   def __parse_abstract_designator(self, parent):
     node = Node('abstract', 'designator', parent)
@@ -421,8 +442,9 @@ class Parser(object):
 
     look_ahead_token = self.__token_stream.look_ahead()
     if self.__token_stream.look_ahead() not in self.RELATIONAL_OPERATORS:
-      raise LanguageSyntaxError('Relational operator expected but "%s" was found'
-          % (look_ahead_token))
+      raise LanguageSyntaxError(
+          '%d: Relational operator expected but "%s" was found'
+              % (self.__token_stream.linenum(), look_ahead_token))
 
     next_token = self.__token_stream.next()
     self.__parse_generic_operator(node, next_token)
@@ -439,7 +461,8 @@ class Parser(object):
       self.__parse_assignment_operator(node)
     else:
       raise LanguageSyntaxError(
-          '<- operator was expected but "%s" was found' % (next_token))
+          '%d: <- operator was expected but "%s" was found' % (
+          self.__token_stream.linenum(), next_token))
 
     self.__parse_abstract_expression(node)
 
@@ -476,8 +499,8 @@ class Parser(object):
 
     next_token = self.__token_stream.next()
     if next_token != 'then':
-      raise LanguageSyntaxError('Expected "then" but "%s" was found.' % (
-          next_token))
+      raise LanguageSyntaxError('%d: Expected "then" but "%s" was found.' % (
+          self.__token_stream.linenum(), next_token))
 
     then_node = Node('keyword', 'then', node)
 
@@ -544,7 +567,8 @@ class Parser(object):
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != '[':
-      raise LanguageSyntaxError('"[" missing from array declaration.')
+      raise LanguageSyntaxError('%d: "[" missing from array declaration.' % (
+          self.__token_stream.linenum()))
 
     while self.__token_stream.look_ahead() == '[':
       next_token = self.__token_stream.next()
@@ -554,8 +578,8 @@ class Parser(object):
         next_token = self.__token_stream.next()
         continue
       else:
-        raise LanguageSyntaxError('Expected "]" but "%s" was found."' % (
-            look_ahead_token))
+        raise LanguageSyntaxError('%d: Expected "]" but "%s" was found."' % (
+            self.__token_stream.linenum(), look_ahead_token))
 
   def __parse_function(self, parent):
     node = Node('keyword', 'function', parent)
@@ -584,23 +608,23 @@ class Parser(object):
         look_ahead_token = self.__token_stream.look_ahead()
 
     if look_ahead_token != ';':
-      raise LanguageSyntaxError('Expected ";" but "%s" was found.' % (
-          look_ahead_token))
+      raise LanguageSyntaxError('%d: Expected ";" but "%s" was found.' % (
+          self.__token_stream.linenum(), look_ahead_token))
     next_token = self.__token_stream.next()
 
     self.__parse_abstract_func_body(parent)
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != ';':
-      raise LanguageSyntaxError('Expected ";" but "%s" was found.' % (
-          look_ahead_token))
+      raise LanguageSyntaxError('%d: Expected ";" but "%s" was found.' % (
+          self.__token_stream.linenum(), look_ahead_token))
     next_token = self.__token_stream.next()
 
   def __parse_abstract_statement(self, parent):
     next_token = self.__token_stream.next()
     if not self.is_keyword(next_token):
-      raise LanguageSyntaxError('Expected a keyword but "%s" was found.' %
-          (next_token))
+      raise LanguageSyntaxError('%d: Expected a keyword but "%s" was found.' %
+          (self.__token_stream.linenum(), next_token))
 
     try:
       parse_method = getattr(self, '_Parser__parse_%s' % (next_token))
@@ -632,8 +656,8 @@ class Parser(object):
       self.__parse_array(parent)
       return
 
-    raise LanguageSyntaxError('Expected "var" or "array" but "%s" was found.' %
-        (look_ahead_token))
+    raise LanguageSyntaxError('%d: Expected "var" or "array" but "%s" was '
+        'found.' % (self.__token_stream.linenum(), look_ahead_token))
 
   def __parse_abstract_var_decl(self, parent):
     node = Node('abstract', 'varDecl', parent)
@@ -649,8 +673,8 @@ class Parser(object):
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != ';':
-      raise LanguageSyntaxError('Expected ";" but "%s" was found' % (
-          look_ahead_token))
+      raise LanguageSyntaxError('%d: Expected ";" but "%s" was found' % (
+          self.__token_stream.linenum(), look_ahead_token))
 
     next_token = self.__token_stream.next()
 
@@ -660,8 +684,8 @@ class Parser(object):
     look_ahead_token = self.__token_stream.look_ahead()
     if not (look_ahead_token == 'function' or look_ahead_token == 'procedure'):
       raise LanguageSyntaxError(
-          'Expected "function" or "procedure" but "%s" was found.' % (
-              look_ahead_token))
+          '%d: Expected "function" or "procedure" but "%s" was found.' % (
+              self.__token_stream.linenum(), look_ahead_token))
 
     next_token = self.__token_stream.next()
     parser_method = getattr(self, '_Parser__parse_%s' % (next_token))
@@ -692,15 +716,16 @@ class Parser(object):
       except EndOfStatementFoundException:
         continue
       except LanguageSyntaxError, e:
-        if str(e).startswith('SyntaxError: Expected "var" or "array" but "'):
+        if str(e).startswith('SyntaxError:%d: Expected "var" or "array" but "'
+            % (self.__token_stream.linenum())):
           break
         else:
           raise
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != '{':
-      raise LanguageSyntaxError('Expected "{" but "%s" was found' % (
-          look_ahead_token))
+      raise LanguageSyntaxError('%d: Expected "{" but "%s" was found' % (
+          self.__token_stream.linenum(), look_ahead_token))
 
     self.__token_stream.next()
 
