@@ -89,13 +89,19 @@ class Node(object):
     """Compress the tree path as up as there is only one child up the hierarchy.
     """
     parent = self.parent
-    parent_children = parent.children
-    if len(parent_children) == 1:
-      index = parent.parent.children.index(parent)
-      self.parent = parent.parent
-      self.parent.children[index] = self
 
-      self.parent.compress()
+    if not parent:
+      return
+
+    parent_children = parent.children
+    if len(parent_children) != 1:
+      return
+
+    index = parent.parent.children.index(parent)
+    self.parent = parent.parent
+    self.parent.children[index] = self
+
+    self.parent.compress()
 
   def generate_tree_for_vcg(self, tree):
     """Recursively visit nodes of the tree with the given argument as the root.
