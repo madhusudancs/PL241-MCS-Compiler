@@ -346,7 +346,42 @@ class IntermediateRepresentation(object):
   def keyword_call(self, root):
     """Process the call statement.
     """
-    pass
+    func_name = root.children[0]
+    arguments = root.children[1:]
+
+    # Advance the frame pointer by the framesize of the calling function
+    advance = self.instruction('+', '!FP', '[framesize]')
+    # Store it as the current framepointer
+    self.instruction('mov', advance, '!FP')
+
+    offset = 0
+    # The length of the new function's frame will be number of arguments
+    # + the framelength storage + return label storage + return value
+    # storage multiplied by size of each storage which is 4
+    self.instruction('store', '#%d' % ((len(arguments) + 3) * 4), '!FP')
+
+    # Store the return label in the next storage area.
+    storage = self.instruction('+', '!FP', '#4')
+    # We do not know the return instruction label yet, so have to
+    # be backpatched.
+    return_store_result = self.instruction('store', None, storage)
+
+    argument_results = []
+    for arg in arguments:
+      storage = self.instruction('+', storage, '#4')
+      expression_result = self.expression(arg)
+      argument_results.append(self.instruction('store', expression_result,
+                                               storage))
+
+    if func_name in self.BUILT_INS:
+      result = self.instruction(func_name)
+    else:
+      # Currently a dummy value which is the label of the function is inserted
+      # but will later be updated with the actual value when merging IR for
+      # each individual functions.
+      result = self.instruction('bra', '.%s' % (func_name))
+
+    self.function_ir[return_store_result].update(operand1=result+1)
 
   def keyword_let(self, root):
     """Process the let statement.
