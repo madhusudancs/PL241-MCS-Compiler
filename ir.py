@@ -211,6 +211,26 @@ class IntermediateRepresentation(object):
     instruction = Instruction('end')
     self.ir.append(instruction)
 
+  def condition(self, root):
+    """Process the condition node.
+    """
+    op_node1, relational_operator, op_node2 = root.children
+    operand1 = self.dfs(op_node1)
+    operand2 = self.dfs(op_node2)
+
+    return self.instruction(relational_operator.value, operand1,
+                            operand2, None)
+
+  def taken(self, root):
+    """Process the taken branch in the branch instructions.
+    """
+    return self.dfs(root.children[0])
+
+  def fallthrough(self, root):
+    """Process the fallthrough branch in the branch instructions.
+    """
+    self.dfs(root.children[0])
+    return self.instruction('bra')
 
   def abstract(self, root):
     """Process the abstract nodes in the parse tree.
@@ -249,7 +269,17 @@ class IntermediateRepresentation(object):
   def keyword_if(self, root):
     """Process the if statement.
     """
-    pass
+    condition = root.children[0]
+    taken = root.children[1]
+    fallthrough = root.children[2] if len(root.children) == 3 else None
+
+    condition_result = self.condition(condition)
+    fallthrough_result = self.fallthrough(fallthrough)
+    self.function_ir[condition_result].update(operand2=fallthrough_result+1)
+    taken_result = self.taken(taken)
+    self.function_ir[fallthrough_result].update(operand1=taken_result+1)
+
+    return taken_result
 
   def keyword_call(self, root):
     """Process the call statement.
