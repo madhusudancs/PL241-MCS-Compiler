@@ -138,6 +138,13 @@ class IntermediateRepresentation(object):
 
     self.scope_stack = []
 
+  def print_ir(self):
+    """Prints the current instructions in the IR.
+    """
+    for n in i.ir:
+      print "%d: %s %s\t\t%s" % (n.label, n.instruction,
+                                 n.operand1, n.operand2)
+
   def push_scope(self, scope):
     """Pushes the scope to the scope stack.
 
@@ -441,4 +448,4 @@ def bootstrap():
 if __name__ == '__main__':
   i = bootstrap()
   i.generate()
-
+  i.print_ir()
