@@ -68,19 +68,33 @@ class Instruction(object):
 
   label_counter = 0
 
-  def __init__(self, label, instruction, op1, op2=None):
+  def __init__(self, instruction, operand1=None, operand2=None):
     """Constructs the 3-address code for the instruction.
 
     Args:
       instruction: contains the instruction type for this instruction.
-      op1: The first operator for the instruction.
+      op1: The first operator for the instruction. This operand is not
+          optional, should at least be updated later in case of branch
+          instructions using the update method.
       op2: The second operator for the instruction. This operand is optional.
     """
     self.instruction = instruction
-    self.op1 = op1
-    self.op2 = op2
+    self.operand1 = operand1
+    self.operand2 = operand2
     self.label = self.__class__.label_counter
     self.__class__.label_counter += 1
+
+  def update(self, operand1=None, operand2=None):
+    """Update the instruction operands at a later point.
+
+    In some instructions like branch we will not know what the end of the
+    taken or fall through branches to assign the branch labels, so in such
+    cases we will have to update the operands at a later point.
+    """
+    if operand1:
+      self.operand1 = operand1
+    if operand2:
+      self.operand2 = operand2
 
 
 class IntermediateRepresentation(object):
