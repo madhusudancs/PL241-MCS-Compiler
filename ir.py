@@ -44,6 +44,11 @@ Allowed Intermediate Representation instructions are:
     read                  read
     write                 write
     wln                   writeLn
+
+Conventions followed:
+    [a] value loaded from memory at memory address a
+    #X X is a literal number
+    !FP Frame Pointer register
 """
 
 import copy
