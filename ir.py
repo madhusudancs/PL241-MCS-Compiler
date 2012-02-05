@@ -302,6 +302,7 @@ class IntermediateRepresentation(object):
     # for the next function.
     self.temp_ir.append(self.function_ir)
     self.function_ir = []
+    Instruction.local_reset()
 
     self.pop_scope()
 
