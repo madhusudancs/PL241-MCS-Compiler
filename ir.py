@@ -238,25 +238,59 @@ class IntermediateRepresentation(object):
     func = getattr(self, root.value)
     return func(root)
 
+  def formalParam(self, root):
+    """Generates the IR for loading formal paramters.
+    """
+    start = '!FP'
+    for parameter in root.children:
+      start = self.instruction('adda', start, '#4')
+      instruction_label = self.instruction('load', result)
+      instruction_label = self.instruction('mov', instruction_label, '[ret]')
+
+    return instruction_label
+
   def function(self, root):
     """Process the complete function and generate IR for it.
     """
     ident, formal_param, func_body = root.children
+
+    scope = ident.value
+
+    self.push_scope(scope)
+
+    # Initalize the first function IR with the scope label for the function IR.
+    self.instruction('.%s' % (scope))
+
+    result = self.instruction('adda', '!FP', '#0')
+    return_label = self.instruction('load', result)
+    self.instruction('mov', return_label, '[ret]')
+
+    self.formalParam(formal_param)
+
     stat_seq = func_body.children[-1]
-    self.funcBody(stat_seq, ident)
+    self.funcBody(stat_seq, ident.value)
+
+    # Indicate the end of current function by adding all the function
+    # IR code to the temp_ir list and empty the function_ir to prepare
+    # for the next function.
+    self.temp_ir.append(self.function_ir)
+    self.function_ir = []
+
+    self.pop_scope()
 
   def funcBody(self, root, scope):
     """Process the body of the function and generate IR for it.
     """
-    self.push_scope(scope)
-
+    # Generate IR for the function.
     self.dfs(root)
 
   def statement(self, root):
     """Processes statement type node.
     """
     for children in root.children:
-      self.dfs(children)
+      result = self.dfs(children)
+
+    return result
 
   def keyword(self, root):
     """Processes keyword type node.
@@ -290,6 +324,23 @@ class IntermediateRepresentation(object):
     """Process the let statement.
     """
     pass
+  def keyword_return(self, root):
+    """Process the return statement.
+    """
+    result = self.dfs(root.children[0])
+
+    # Store the result of the return in the memory address corresponding
+    # to the return value of this function which is denoted by the function
+    # name.
+    self.instruction('store', result, '[%s]' % (self.current_scope()))
+    result = self.instruction('bra')
+
+    # FIXME: Return to where?
+    # Backpatch with dummy value for now.
+    self.function_ir[result].update(operand1='[ret]')
+
+    return result
+
 
   def term(self, root):
     """Generate the IR for "term" nodes.
