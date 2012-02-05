@@ -542,8 +542,8 @@ class Parser(object):
 
     next_token = self.__token_stream.next()
     if next_token != 'do':
-      raise LanguageSyntaxError('Expected "do" but "%s" was found.' % (
-          next_token))
+      raise LanguageSyntaxError('%d: Expected "do" but "%s" was found.' % (
+          self.__token_stream.linenum(), next_token))
 
     do_node = Node('keyword', 'do', node)
 
