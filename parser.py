@@ -367,7 +367,7 @@ class Parser(object):
     if NUMBER_RE.match(look_ahead_token):
       next_token = self.__token_stream.next()
       Node('number', next_token, parent)
-      return
+      return next_token
 
     raise LanguageSyntaxError('%d: Expected number but "%s" found.' % (
         self.__token_stream.linenum(), look_ahead_token))
@@ -379,9 +379,8 @@ class Parser(object):
 
     while self.__token_stream.look_ahead() == '[':
       try:
-        leftbracket_node = Node(
-            'operator', self.__token_stream.next(), node)
-        self.__parse_abstract_expression(leftbracket_node)
+        self.__token_stream.next()
+        self.__parse_abstract_expression(node)
         if self.__token_stream.look_ahead() == ']':
           self.__token_stream.next()
           self.__parse_rightbracket(node)
@@ -578,9 +577,11 @@ class Parser(object):
       raise LanguageSyntaxError('%d: "[" missing from array declaration.' % (
           self.__token_stream.linenum()))
 
+    dimensions = []
     while self.__token_stream.look_ahead() == '[':
       next_token = self.__token_stream.next()
-      self.__parse_abstract_number(node)
+      number = self.__parse_abstract_number(node)
+      dimensions.append(int(number))
       look_ahead_token = self.__token_stream.look_ahead()
       if look_ahead_token == ']':
         next_token = self.__token_stream.next()
@@ -588,6 +589,8 @@ class Parser(object):
       else:
         raise LanguageSyntaxError('%d: Expected "]" but "%s" was found."' % (
             self.__token_stream.linenum(), look_ahead_token))
+
+    return dimensions
 
   def __parse_function(self, parent):
     node = Node('keyword', 'function', parent)
@@ -661,8 +664,8 @@ class Parser(object):
       return
     elif look_ahead_token == 'array':
       next_token = self.__token_stream.next()
-      self.__parse_array(parent)
-      return
+      dimensions = self.__parse_array(parent)
+      return dimensions
 
     raise LanguageSyntaxError('%d: Expected "var" or "array" but "%s" was '
         'found.' % (self.__token_stream.linenum(), look_ahead_token))
@@ -670,9 +673,10 @@ class Parser(object):
   def __parse_abstract_var_decl(self, parent):
     node = Node('abstract', 'varDecl', parent)
 
-    self.__parse_abstract_type_decl(node)
+    dimensions = self.__parse_abstract_type_decl(node)
 
-    self.__parse_abstract_ident(node)
+    ident = self.__parse_abstract_ident(node)
+    self.symbol_table[self.__current_scope][ident] = dimensions
 
     while self.__token_stream.look_ahead() == ',':
       self.__token_stream.next()
