@@ -51,11 +51,15 @@ Conventions followed:
     !FP Frame Pointer register
 """
 
+import collections
 import copy
 import logging
 
 from argparse import ArgumentParser
 
+from datastructures import CFG
+from datastructures import CFGNode
+from parser import LanguageSyntaxError
 from parser import Parser
 
 
@@ -260,7 +264,117 @@ class IntermediateRepresentation(object):
     instruction = Instruction('end')
     self.ir.append(instruction)
 
-  def condition(self, root):
+  def identify_basic_blocks(self):
+    """Identifies the basic block for the IR.
+    """
+    self.basic_blocks = collections.OrderedDict()
+
+    # Entry instruction is always a leader
+    leaders = [0]
+
+    targets = collections.defaultdict(list)
+    func_ends = {}
+    return_targets = {}
+
+    current_func = 0 if self.ir[0].instruction.startswith('.begin_') else None
+
+    i = 1
+    while i < len(self.ir):
+      instruction = self.ir[i]
+      if instruction.instruction == 'bra':
+        target = instruction.operand1
+        if target == '[ret]':
+          return_targets[i] = current_func
+        else:
+          if self.ir[target].instruction.startswith('.begin_'):
+            # We need to skip this iteration because the next instruction
+            # is not a leader
+            i += 1
+            continue
+          else:
+            leaders.append(target)
+            targets[i].append(target)
+
+        leaders.append(i + 1)
+      elif instruction.instruction in ['beq', 'bne', 'blt',
+                                       'ble', 'bgt', 'bge']:
+        leaders.append(instruction.operand2)
+        targets[i].append(instruction.operand2)
+
+        leaders.append(i + 1)
+        targets[i].append(i+1)
+      elif instruction.instruction.startswith('.end_'):
+        func_ends[current_func] = i
+      elif instruction.instruction.startswith('.begin_'):
+        current_func = i
+        leaders.append(i)
+
+      i += 1
+
+    sorted_leaders = sorted(set(leaders))
+    i = 1
+    while i < len(sorted_leaders):
+      leader = sorted_leaders[i - 1]
+
+      # End if before the next leader
+      end = sorted_leaders[i] - 1
+
+      block_dict = {
+          'end': end,
+          'targets': targets.get(end, []),
+          'return_target': func_ends.get(return_targets.get(end, None), None)
+          }
+
+      if not (block_dict['targets'] or block_dict['return_target'] or
+          self.ir[block_dict['end']].instruction.startswith('.end')):
+        block_dict['targets'].append(block_dict['end'] + 1)
+
+      self.basic_blocks[leader] = block_dict
+      i += 1
+
+    # For the last block the last instruction is the end of the basic block.
+    leader = sorted_leaders[-1]
+    self.basic_blocks[leader] = {
+        'end': len(self.ir) - 1,
+        'return_target': len(self.ir) - 1,
+        }
+
+    # Create a basic block that grounds all the nodes in the end.
+    self.basic_blocks[len(self.ir) - 1] = {
+        'end': len(self.ir) - 1
+    }
+
+    return self.basic_blocks
+
+  def build_cfg(self):
+    """Build the Control Flow Graph for the IR.
+    """
+    i = 1
+    nodes = collections.OrderedDict()
+
+    for leader, leader_dict in self.basic_blocks.iteritems():
+      node = CFGNode(value=(leader, leader_dict['end']))
+      nodes[leader] = node
+
+    end = len(self.ir) - 1
+    nodes[end] = CFGNode(value=(end, end))
+
+    for node in nodes.values():
+      basic_block = self.basic_blocks.get(node.value[0], None)
+      for target_leader in basic_block.get('targets', []):
+        node.append_out_edges(nodes[target_leader])
+
+      return_target = basic_block.get('return_target', None)
+      if return_target:
+        node.append_out_edges(nodes[return_target])
+
+    cfg_nodes = nodes.values()
+
+    self.cfg = CFG(cfg_nodes)
+
+    return self.cfg
+
+  def condition(self, root, complement=False):
     """Process the condition node.
     """
     op_node1, relational_operator, op_node2 = root.children
