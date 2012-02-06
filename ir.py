@@ -92,9 +92,9 @@ class Instruction(object):
     taken or fall through branches to assign the branch labels, so in such
     cases we will have to update the operands at a later point.
     """
-    if operand1:
+    if operand1 != None:
       self.operand1 = operand1
-    if operand2:
+    if operand2 != None:
       self.operand2 = operand2
 
 
@@ -132,24 +132,39 @@ class IntermediateRepresentation(object):
     Args:
       parse_tree: The parse tree for which the IR should be generated.
     """
-    self.original_parse_tree = copy.deepcopy(parse_tree)
-
     self.parse_tree = parse_tree
+
+    self.symbol_table = None
+
     # We will have an IR per function which we concatenate in the end.
-    self.ir = []
-    # This holds the IR per function.
-    self.function_ir = []
-    # This stores the list of function_irs
-    self.temp_ir = []
+    self.ir = None
+
+    self.basic_blocks = None
+
+    # Stores all the call statements branch instructions that will be
+    # backpatched in the end.
+    self.backpatch_function_branch = None
+
+    # Map for each function name to its start label.
+    self.function_pointer = None
+
+    # Control Flow Graph for the IR.
+    self.cfg = None
 
     self.scope_stack = []
 
   def print_ir(self):
     """Prints the current instructions in the IR.
     """
-    for n in i.ir:
-      print "%d: %s %s\t\t%s" % (n.label, n.instruction,
-                                 n.operand1, n.operand2)
+    for n in self.ir:
+      print '%4d: %5s' % (n.label, n.instruction),
+      if n.operand1 != None:
+        print '%50s' % (n.operand1),
+      if n.operand2 != None:
+        print '%50s' % (n.operand2),
+
+      print
+      print
 
   def push_scope(self, scope):
     """Pushes the scope to the scope stack.
