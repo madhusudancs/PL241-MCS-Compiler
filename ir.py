@@ -207,15 +207,20 @@ class IntermediateRepresentation(object):
     # function.
     if not operands:
       instruction = Instruction(operator)
-      self.function_ir.append(instruction)
+      self.ir.append(instruction)
       return instruction.label
 
     operand1 = operands[0]
 
+    if len(operands) == 1:
+      instruction = Instruction(self.INSTRUCTION_MAP[operator][0], operand1)
+      self.ir.append(instruction)
+      return instruction.label
+
     for ins, operand2 in zip(
         self.INSTRUCTION_MAP[operator], operands[1:]):
       instruction = Instruction(ins, operand1, operand2)
-      self.function_ir.append(instruction)
+      self.ir.append(instruction)
       operand1 = instruction.label
 
     return operand1
@@ -223,9 +228,17 @@ class IntermediateRepresentation(object):
   def generate(self):
     """Generates the Intermediate Representation from the parse tree.
     """
+    self.ir = []
+
+    self.backpatch_function_branch = []
+
+    self.function_pointer = {}
+
     # We need to only convert function bodies to IR. The declaration of
     # variables really exist for scope checking. So we can directly skip to
     # generate IR for the first function we encounter.
+    self.symbol_table = self.parse_tree.symbol_table
+
     for c in self.parse_tree.root.children:
       if c.type == 'abstract' and c.value == 'varDecl':
         continue
@@ -236,16 +249,12 @@ class IntermediateRepresentation(object):
         # the function IR.
         scope = 'main'
         self.push_scope(scope)
-        self.instruction('.%s' % scope)
+        self.instruction('.begin_%s' % scope)
         self.funcBody(c.children[0], 'main')
 
-    # FIXME: Backpatch branches for function calls.
-
-    # Generate the entire IR by concatenating all the functional IRs.
-    # First add main to the instruction set.
-    self.ir.extend(self.function_ir)
-    for ir_set in self.temp_ir:
-      self.ir.extend(ir_set)
+    for bra in self.backpatch_function_branch:
+      self.ir[bra].update(
+          operand1=self.function_pointer[self.ir[bra].operand1])
 
     # Add the end instruction.
     instruction = Instruction('end')
@@ -258,8 +267,9 @@ class IntermediateRepresentation(object):
     operand1 = self.dfs(op_node1)
     operand2 = self.dfs(op_node2)
 
-    return self.instruction(relational_operator.value, operand1,
-                            operand2, None)
+    return self.instruction(
+        self.COMPLEMENT_OPERATORS[relational_operator.value], operand1,
+        operand2, None)
 
   def taken(self, root):
     """Process the taken branch in the branch instructions.
@@ -282,12 +292,16 @@ class IntermediateRepresentation(object):
     """Generates the IR for loading formal paramters.
     """
     # The first formal parameter value is after framelength and return
-    # label, so advance it by 8 bytes.
-    start = self.instruction('+', '!FP', '#8')
+    # label. But we know return label's address was calculated three
+    # instructions before we came here, so get the label of that instruction.
+    start = self.ir[-3].label
+
     for parameter in root.children:
-      instruction_label = self.instruction('load', start)
-      instruction_label = self.instruction('mov', instruction_label, '[ret]')
       start = self.instruction('+', start, '#4')
+      instruction_label = self.instruction('load', start)
+      ident_label = self.ident(parameter)
+      instruction_label = self.instruction('move', instruction_label,
+                                           ident_label)
 
     return instruction_label
 
@@ -301,27 +315,26 @@ class IntermediateRepresentation(object):
     self.push_scope(scope)
 
     # Initalize the first function IR with the scope label for the function IR.
-    self.instruction('.%s' % (scope))
+    func_label = self.instruction('.begin_%s' % (scope))
+    self.function_pointer['.begin_%s' % (scope)] = func_label
 
     start = self.instruction('+', '!FP', '#0')
     fp_label = self.instruction('load', start)
-    self.instruction('mov', fp_label, '[framesize]')
+    self.instruction('move', fp_label, '[framesize]')
 
     ret = self.instruction('+', start, '#4')
     return_label = self.instruction('load', ret)
-    self.instruction('mov', return_label, '[ret]')
+    self.instruction('move', return_label, '[ret]')
+
+    return_value = self.instruction('+', ret, '#4')
+    self.instruction('move', return_value, '[%s]' % (scope))
 
     self.formalParam(formal_param)
 
     stat_seq = func_body.children[-1]
     self.funcBody(stat_seq, ident.value)
 
-    # Indicate the end of current function by adding all the function
-    # IR code to the temp_ir list and empty the function_ir to prepare
-    # for the next function.
-    self.temp_ir.append(self.function_ir)
-    self.function_ir = []
-    Instruction.local_reset()
+    func_label = self.instruction('.end_%s' % (scope))
 
     self.pop_scope()
 
@@ -356,22 +369,23 @@ class IntermediateRepresentation(object):
 
     condition_result = self.condition(condition)
     fallthrough_result = self.fallthrough(fallthrough)
-    self.function_ir[condition_result].update(operand2=fallthrough_result+1)
+    self.ir[condition_result].update(operand2=fallthrough_result+1)
     taken_result = self.taken(taken)
-    self.function_ir[fallthrough_result].update(operand1=taken_result+1)
+    self.ir[fallthrough_result].update(operand1=taken_result+1)
 
     return taken_result
 
   def keyword_call(self, root):
     """Process the call statement.
     """
-    func_name = root.children[0]
+    func_node = root.children[0]
+    func_name = func_node.value
     arguments = root.children[1:]
 
     # Advance the frame pointer by the framesize of the calling function
     advance = self.instruction('+', '!FP', '[framesize]')
     # Store it as the current framepointer
-    self.instruction('mov', advance, '!FP')
+    self.instruction('move', advance, '!FP')
 
     offset = 0
     # The length of the new function's frame will be number of arguments
@@ -379,11 +393,14 @@ class IntermediateRepresentation(object):
     # storage multiplied by size of each storage which is 4
     self.instruction('store', '#%d' % ((len(arguments) + 3) * 4), '!FP')
 
+    # Store the return label, we don't know the exact label, we will
+    # backpatch it.
+    ret = self.instruction('+', advance, '#4')
+    return_label = self.instruction('store', None, ret)
+
+    # FIXME: For procedures
     # Store the return label in the next storage area.
-    storage = self.instruction('+', '!FP', '#4')
-    # We do not know the return instruction label yet, so have to
-    # be backpatched.
-    return_store_result = self.instruction('store', None, storage)
+    storage = self.instruction('+', ret, '#4')
 
     argument_results = []
     for arg in arguments:
@@ -392,15 +409,23 @@ class IntermediateRepresentation(object):
       argument_results.append(self.instruction('store', expression_result,
                                                storage))
 
-    if func_name in self.BUILT_INS:
-      result = self.instruction(func_name)
+    if func_name in self.BUILT_INS_MAP:
+      result = self.instruction(self.BUILT_INS_MAP[func_name])
     else:
       # Currently a dummy value which is the label of the function is inserted
       # but will later be updated with the actual value when merging IR for
       # each individual functions.
-      result = self.instruction('bra', '.%s' % (func_name))
+      result = self.instruction('bra', '.begin_%s' % (func_name))
+      self.backpatch_function_branch.append(result)
 
-    self.function_ir[return_store_result].update(operand1=result+1)
+    # FIXME: For procedures.
+    # Need to store the return result.
+    return_store_result = self.instruction('load', storage)
+
+    # Backpatch return label
+    self.ir[return_label].update(operand1=return_store_result)
+
+    return return_store_result
 
   def keyword_let(self, root):
     """Process the let statement.
@@ -414,16 +439,13 @@ class IntermediateRepresentation(object):
   def keyword_return(self, root):
     """Process the return statement.
     """
-    result = self.dfs(root.children[0])
+    result = self.expression(root.children[0])
 
     # Store the result of the return in the memory address corresponding
     # to the return value of this function which is denoted by the function
     # name.
     self.instruction('store', result, '[%s]' % (self.current_scope()))
-    result = self.instruction('bra')
-
-    # Backpatch with dummy value for now.
-    self.function_ir[result].update(operand1='[ret]')
+    result = self.instruction('bra', '[ret]')
 
     return result
 
