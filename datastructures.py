@@ -489,4 +489,3 @@ class Dominator(object):
     for v in self.vertices:
       if self.vertices[v]['dom']:
         self.vertices[v]['dom'].append_dom_children(v)
-

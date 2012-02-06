@@ -1,4 +1,4 @@
-# Copyright 2012 Madhusudan C.S. 
+# Copyright 2012 Madhusudan C.S.
 #
 # This file parser.py is part of PL241-MCS compiler.
 #
@@ -57,6 +57,7 @@ import logging
 from argparse import ArgumentParser
 
 from parser import Parser
+
 
 # Module level logger object
 LOGGER = logging.getLogger(__name__)
