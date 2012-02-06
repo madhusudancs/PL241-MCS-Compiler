@@ -454,9 +454,19 @@ class IntermediateRepresentation(object):
   def keyword_while(self, root):
     """Generate the IR for while statement.
     """
-    pass
+    condition = root.children[0]
+    taken = root.children[1]
 
-  def designator(self, root):
+    condition_result = self.condition(condition, complement=True)
+    self.taken(taken)
+    # We are branching to condition_result - 1 because condition consists
+    # of two instructions, cmp and condition, we need to go back to condition.
+    branch_result = self.instruction('bra', condition_result-1)
+    self.ir[condition_result].update(operand2=branch_result+1)
+
+    return branch_result
+
+  def designator(self, root, lvalue=False):
     """Generate the IR for "designator" nodes.
     """
     result = self.dfs(root.children[0])
