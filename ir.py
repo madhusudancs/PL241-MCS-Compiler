@@ -430,11 +430,13 @@ class IntermediateRepresentation(object):
   def keyword_let(self, root):
     """Process the let statement.
     """
-    lvalue = self.designator(root.children[0])
+    lvalue, array = self.designator(root.children[0], lvalue=True)
     rvalue = self.expression(root.children[2])
 
-    # FIXME: When lvalue is an array.
-    return self.instruction('mov', lvalue, rvalue)
+    if array:
+      return self.instruction('store', rvalue, lvalue)
+    else:
+      return self.instruction('move', rvalue, lvalue)
 
   def keyword_return(self, root):
     """Process the return statement.
@@ -457,8 +459,28 @@ class IntermediateRepresentation(object):
   def designator(self, root):
     """Generate the IR for "designator" nodes.
     """
-    #FIXME: Fix the designator for array case.
-    return self.dfs(root.children[0])
+    result = self.dfs(root.children[0])
+    if len(root.children) <= 1:
+      return (result, False) if lvalue else result
+
+    dimensions = self.symbol_table[self.current_scope()][
+        result.split('/')[-1]]
+    expression_result = self.expression(root.children[1])
+    for i, offset in enumerate(root.children[2:]):
+      temp_result = self.instruction('*', expression_result,
+                                     '#%s' % dimensions[i + 1])
+      offset_result = self.expression(offset)
+      expression_result = self.instruction('+', offset_result,
+                                           temp_result)
+
+    offset_result = self.instruction('*', expression_result, '#4')
+    base_result = self.instruction('+', '!FP', '#%s' % result)
+    result = self.instruction('adda', offset_result, base_result)
+    if lvalue:
+      return result, True
+
+    result = self.instruction('load', result)
+    return result
 
   def factor(self, root):
     """Generate the IR for "factor" nodes.
