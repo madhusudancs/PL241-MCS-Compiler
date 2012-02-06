@@ -257,6 +257,40 @@ class CFGNode(Node):
         }
 
 
+class CFG(object):
+  """Stores the Control Flow Graph for the given source.
+  """
+
+  def __init__(self, nodes):
+    """Initializes the control flow graph.
+
+    Args:
+      nodes: The set of nodes which are of CFGNode type that constitute this
+          graph
+    """
+    self.nodes = nodes
+
+    self.num_nodes = len(nodes)
+
+    self.iter_count = 0
+
+  def __iter__(self):
+    """The iterator for this class is the object of this class itself.
+    """
+    self.iter_count = 0
+    return self
+
+  def next(self):
+    """The next method as required by the iterator protocol.
+    """
+    if self.iter_count == self.num_nodes:
+      raise StopIteration
+
+    node = self.nodes[self.iter_count]
+    self.iter_count += 1
+    return node
+
+
 class Dominator(object):
   """Stores the dominator tree for a given Graph.
 
