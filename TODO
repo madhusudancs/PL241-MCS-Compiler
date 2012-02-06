@@ -4,4 +4,5 @@
 * Implement the parser and stuff for procedures.
 * Function/Procedures cannot take arrays as arguments.
 * For function calls do calling vs formal parameters checking if the numbers match.
-
+* Take care of "return" with no expression case.
+* Array dimension checking in parser.
