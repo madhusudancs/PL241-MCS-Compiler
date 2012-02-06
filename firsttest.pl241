@@ -28,8 +28,8 @@ var count;
 
     let some45 <- 0;
     while some45 < first do
-        let a[some45] <- some45;
-        let some45 <- some45 + 1;
+        let doubledimension[some45] <- some45;
+        let some45 <- some45 + 1
     od;
 
     let some123name <- first + varname;
@@ -38,7 +38,7 @@ var count;
     let some123name <- first / varname;
     let some123name <- (first + varname)-varname *first/some45;
 
-    let some123name <- call sum(a, 4);
+    let some123name <- call sum(a, 9);
     call OutputNum(some123name);
 
     call OutputNum(call firstfunc(first, varname))
