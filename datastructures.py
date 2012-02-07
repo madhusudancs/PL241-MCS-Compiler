@@ -652,3 +652,78 @@ class Dominator(object):
     for v in self.vertices:
       if self.vertices[v]['dom']:
         self.vertices[v]['dom'].append_dom_children(v)
+
+
+class DominanceFrontier(object):
+  """Implements the dominance frontier algorithm for the control flow graph.
+
+  NOTE: We don't store DF local and DF up separately since we can
+  directly combine them together in our program and they are anyway
+  not required separately after we compute the dominance frontier.
+
+  This class implements dominance frontier construction as presented in
+  the paper by Ron Cytron, Jeanne Ferrante, Barry K. Rosen, Mark N. Wegman,
+  and Z. Kenneth Zadeck in their landmark paper on minimal-SSA construction,
+  "Efficiently Computing Static Single Assignment Form and the Control
+  Dependence Graph" available at:
+
+  http://dl.acm.org/citation.cfm?doid=115372.115320
+  """
+
+  def __init__(self, domtree):
+    """Initalizes the datastructures required for computing dominance frontier.
+    """
+    self.domtree = domtree
+
+  def compute_df_local(self, node):
+    """Computes the DF local part of the algorithm for the given node.
+
+    NOTE: The parameter used for this function is called "node" and not
+    "root" unlike other methods because here we are working with the node
+    in the control flow graph by computing values for its successors not
+    with the dominator tree.
+
+    Args:
+      node: The node of the control flow graph for which the DF local should
+          be calculated.
+    """
+    for out_node in node.out_edges:
+      if self.idom(out_node) != node:
+        node.dominance_frontier.append(out_node)
+
+  def compute_df_up(self, root):
+    """Computes the DF up part for the given root of the subtree.
+
+    Args:
+      root: The root of the dominator sub-tree for which the DF up should
+          be computed.
+    """
+    for child in root.dom_children:
+      for domnode in child.dominance_frontier:
+        if self.idom(domnode) != root:
+          root.dominance_frontier.append(domnode)
+
+  def post_order(self, root):
+    """Does the post order traversal of the dominator tree.
+
+    Args:
+      The root of the subtree that must be traversed in post order fashion.
+    """
+    for child in root.dom_children:
+      self.post_order(child)
+
+    self.compute_df_local(root)
+    self.compute_df_up(root)
+
+  def compute_dominance_frontier(self):
+    """Computes the dominance frontier for the given tree.
+    """
+    self.post_order(self.domtree)
+
+  def idom(self, root):
+    """Returns the immediate dominator of the given root in the dominator tree.
+
+    Args:
+      root: The node for which the immediate dominator should be found
+    """
+    return root.dom_parent
