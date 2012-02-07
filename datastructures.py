@@ -457,7 +457,9 @@ class Dominator(object):
 
   This class implements dominator tree construction algorithm proposed by
   Thomas Lengauer and Robert Endre Tarjan in their landmark paper
-  "Fast Algorithm for Finding Dominators in a Flowgraph"
+  "Fast Algorithm for Finding Dominators in a Flowgraph" available at:
+
+  http://dl.acm.org/citation.cfm?doid=357062.357071
   """
 
   def __init__(self, graph):
