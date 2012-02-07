@@ -1,6 +1,6 @@
 # Copyright 2012 Madhusudan C.S.
 #
-# This file parser.py is part of PL241-MCS compiler.
+# This file ir.py is part of PL241-MCS compiler.
 #
 # PL241-MCS compiler is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as published
