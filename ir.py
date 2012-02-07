@@ -676,6 +676,32 @@ class IntermediateRepresentation(object):
     func = getattr(self, root.type)
     return func(root)
 
+  def __iter__(self):
+    """Implements the bootstrapping part of the Python iterator protocol.
+    """
+    self.count = 0
+    self.len_of_ir = len(self.ir)
+    return self
+
+  def next(self):
+    """Returns the next element in the instruction for the iterator protocol.
+    """
+    if self.count < self.len_of_ir:
+      instruction = self.ir[self.count]
+      self.count += 1
+      return instruction
+    else:
+      raise StopIteration
+
+  def __str__(self):
+    """Prints the current instructions in the IR.
+    """
+    ir = ''
+    for instruction in self.ir:
+      ir += '%s\n' % (instruction)
+
+    return ir
+
 
 def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
