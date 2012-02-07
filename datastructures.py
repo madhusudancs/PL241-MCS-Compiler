@@ -244,13 +244,182 @@ class CFGNode(Node):
         }
 
 
+class CFG(list):
+  """Stores the Control Flow Graph for the given source.
+  """
+
+  def __init__(self, *args, **kwargs):
+    """Initializes the datastructures required for the graph.
+
+    Delegates most of the construction to the list class which is the parent
+    class for this class.
+    """
+    super(CFG, self).__init__(*args, **kwargs)
+
+    # Stores a list of root nodes pointing to each of the dominator tree
+    # in the control flow graph.
+    self.dom_trees = []
+
+    # Contains the lists of connected components. Each entry, i.e. connected
+    # components are in turn lists.
+    self.connected_components = []
+
+  def dfs_connected_components(self, root, graph_copy, current_component):
+    """Implements the DFS for finding connected components.
+
+    This is different from general DFS in that it gives up when the node
+    is already identified as part of the component.
+
+    Args:
+      root: The root node on which the DFS should be performed/
+      graph_copy: a copy of the GRAPH as a dictionary with nodes as keys
+         and all values are True
+      current_component: The dictionary of currently found connected
+          components.
+    """
+    if root in current_component or root not in graph_copy:
+      return
+
+    current_component[root] = True
+    graph_copy.pop(root)
+    for child in root.out_edges:
+      self.dfs_connected_components(child, graph_copy, current_component)
+
+    for child in root.in_edges:
+      self.dfs_connected_components(child, graph_copy, current_component)
+
+  def compute_connected_components(self):
+    """Identifies the connected components in the graph.
+    """
+    self.connected_components = []
+    graph_copy = dict([(n, True) for n in self])
+    for node in graph_copy.keys():
+      component = {}
+      self.dfs_connected_components(node, graph_copy, component)
+
+      nodes = component.keys()
+      if not nodes:
+        continue
+
+      for i, comp in enumerate(nodes):
+        if comp.entry:
+          break
+
+      node = nodes.pop(i)
+      nodes.insert(0, node)
+
+      self.connected_components.append(nodes)
+
+    return self.connected_components
+
+  def compute_dominators(self):
+    """Computes the dominator tree for the given graph.
+    """
+    self.compute_connected_components()
+    self.dom_trees = []
+    for component in self.connected_components:
+      dom = Dominator(component)
+      self.dom_trees.append(dom.construct())
+
+    return self.dom_trees
+
+  def compute_dominance_frontiers(self):
+    """Computes the dominance frotiers for the control flow graph.
+    """
+    self.compute_dominators()
+    for tree in self.dom_trees:
+      df = DominanceFrontier(tree)
+      df.compute_dominance_frontier()
+
+    return self.dom_trees
+
+  def generate_graph_for_vcg(self, node, ir=None):
+    """Generate this node and all the outward edges from this node.
+
+    Args:
+      node: The node for which we need to generate the VCG output.
+      ir: The Intermediate Representation object, if specified adds that to
+          the node description.
+    """
+    node_str = ('node: { title: "%(id)s" color: lightgrey '
+        'label: "CFGNode: %(value)s' % {
+        'id': id(node),
+        'value': node.value,
+        })
+
+    if node.dominance_frontier:
+      dominance_edges = []
+      node_str += '\n\nDominance Frontier: '
+      for n in node.dominance_frontier:
+        node_str += '%s' % (str(id(n)))
+        dominance_edges.append('edge: {sourcename: "%s" color: green '
+            'targetname: "%s" }' % (id(node), id(n)))
+
+      node_str += '\n'
+
+      self.vcg_output.extend(dominance_edges)
+
+    if node.assignments:
+      node_str += '\nAssignment Variables: %s\n' % (node.assignments.keys())
+
+    if node.mentions:
+      node_str += '\nMention Variables: %s\n' % (node.mentions.keys())
+
+    if ir:
+      instructions = []
+      instructions = [str(ir.ir[i]) for i in range(
+          node.value[0], node.value[1] + 1)]
+
+      for i in range(node.value[0], node.value[1] + 1):
+        node_str += '\n%s' % (ir.ir[i])
+
+    node_str += '" }'
+
+    self.vcg_output.append(node_str)
+    for out_edge in node.out_edges:
+      self.vcg_output.append(
+          'edge: {sourcename: "%s" targetname: "%s" }' % (
+              id(node), id(out_edge)))
+
+  def generate_vcg(self, title="Control Flow Graph", ir=None):
+    """Generate the Visualization of Compiler Graphs for this node as the root.
+    """
+    self.vcg_output = []
+    for node in self:
+      self.generate_graph_for_vcg(node, ir)
+
+    return """graph: { title: "%(title)s"
+    folding: 1
+    hidden: 2
+    height: 700
+    width: 700
+    x: 30
+    y: 30
+    color: lightcyan
+    stretch: 7
+    shrink: 10
+    orientation: top_to_bottom
+    layout_downfactor: 10
+    layout_upfactor:   1
+    layout_nearfactor: 0
+    manhattan_edges: yes
+    %(nodes_edges)s
+}""" % {
+        'title': title,
+        'nodes_edges': '\n    '.join(self.vcg_output)
+        }
+
   def generate_dom_tree_for_vcg(self, tree):
     """Recursively visit nodes of the tree with the given argument as the root.
 
     Args:
       tree: The root of the sub-tree whose nodes we must visit recursively.
     """
-    self.vcg_output.append(str(tree))
+    node_str = 'node: { title: "%(id)s" label: "CFGNode: %(value)s" }' % {
+        'id': id(self),
+        'value': self.value,
+        }
+    self.vcg_output.append(node_str)
     for child in tree.dom_children:
       self.generate_dom_tree_for_vcg(child)
       self.vcg_output.append(
@@ -260,7 +429,8 @@ class CFGNode(Node):
     """Generate the Visualization of Compiler Graphs for this node as the root.
     """
     self.vcg_output = []
-    self.generate_dom_tree_for_vcg(self)
+    for dom_tree in self.dom_trees:
+      self.generate_dom_tree_for_vcg(dom_tree)
 
     return """graph: { title: "%(title)s"
     height: 700
@@ -280,46 +450,6 @@ class CFGNode(Node):
         'title': title,
         'nodes_edges': '\n    '.join(self.vcg_output)
         }
-
-  def __str__(self):
-    return 'node: { title: "%(id)s" label: "CFGNode: %(value)s" }' % {
-        'id': id(self),
-        'value': self.value,
-        }
-
-
-class CFG(object):
-  """Stores the Control Flow Graph for the given source.
-  """
-
-  def __init__(self, nodes):
-    """Initializes the control flow graph.
-
-    Args:
-      nodes: The set of nodes which are of CFGNode type that constitute this
-          graph
-    """
-    self.nodes = nodes
-
-    self.num_nodes = len(nodes)
-
-    self.iter_count = 0
-
-  def __iter__(self):
-    """The iterator for this class is the object of this class itself.
-    """
-    self.iter_count = 0
-    return self
-
-  def next(self):
-    """The next method as required by the iterator protocol.
-    """
-    if self.iter_count == self.num_nodes:
-      raise StopIteration
-
-    node = self.nodes[self.iter_count]
-    self.iter_count += 1
-    return node
 
 
 class Dominator(object):
