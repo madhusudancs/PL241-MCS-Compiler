@@ -15,8 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
 
+"""Collection of all the datastructures required for PL241-MCS Compiler.
+"""
 
-from collections import OrderedDict
+
+import collections
 
 
 class NodeProcessedException(Exception):
