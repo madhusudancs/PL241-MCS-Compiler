@@ -350,11 +350,15 @@ class IntermediateRepresentation(object):
   def build_cfg(self):
     """Build the Control Flow Graph for the IR.
     """
+    self.identify_basic_blocks()
+
     i = 1
     nodes = collections.OrderedDict()
 
     for leader, leader_dict in self.basic_blocks.iteritems():
-      node = CFGNode(value=(leader, leader_dict['end']))
+      entry = True if self.ir[leader].instruction.startswith('.begin_') \
+          else False
+      node = CFGNode(value=(leader, leader_dict['end']), entry=entry)
       nodes[leader] = node
 
     end = len(self.ir) - 1
