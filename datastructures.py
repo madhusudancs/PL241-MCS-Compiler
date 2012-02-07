@@ -237,6 +237,13 @@ class CFGNode(Node):
     for child in children:
       child.dom_parent = self
 
+  def __str__(self):
+    return 'node: { title: "%(id)s" label: "CFGNode: %(value)s" }' % {
+        'id': id(self),
+        'value': self.value,
+        }
+
+
   def generate_dom_tree_for_vcg(self, tree):
     """Recursively visit nodes of the tree with the given argument as the root.
 
