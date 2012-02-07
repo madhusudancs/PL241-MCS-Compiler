@@ -105,6 +105,16 @@ class Instruction(object):
     if operand2 != None:
       self.operand2 = operand2
 
+  def __str__(self):
+    """Prints the current instructions in the IR.
+    """
+    ir = '%4d: %5s' % (self.label, self.instruction)
+    if self.operand1 != None:
+      ir = ir + '%50s' % (self.operand1)
+    if self.operand2 != None:
+      ir = ir + '%50s' % (self.operand2)
+
+    return ir
 
 class IntermediateRepresentation(object):
   """Stores the entire program in the Intermediate Representation form.
@@ -170,19 +180,6 @@ class IntermediateRepresentation(object):
     self.cfg = None
 
     self.scope_stack = []
-
-  def print_ir(self):
-    """Prints the current instructions in the IR.
-    """
-    for n in self.ir:
-      print '%4d: %5s' % (n.label, n.instruction),
-      if n.operand1 != None:
-        print '%50s' % (n.operand1),
-      if n.operand2 != None:
-        print '%50s' % (n.operand2),
-
-      print
-      print
 
   def push_scope(self, scope):
     """Pushes the scope to the scope stack.
