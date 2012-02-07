@@ -382,9 +382,12 @@ class IntermediateRepresentation(object):
     operand1 = self.dfs(op_node1)
     operand2 = self.dfs(op_node2)
 
-    return self.instruction(
-        self.COMPLEMENT_OPERATORS[relational_operator.value], operand1,
-        operand2, None)
+    if complement:
+      operator = self.COMPLEMENT_OPERATORS[relational_operator.value]
+    else:
+      operator = relational_operator.value
+
+    return self.instruction(operator, operand1, operand2, None)
 
   def taken(self, root):
     """Process the taken branch in the branch instructions.
