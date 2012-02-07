@@ -709,6 +709,16 @@ def bootstrap():
                       help='name of the input files.')
   parser.add_argument('-d', '--debug', action='store_true',
                       help='Enable debug logging to the console.')
+  parser.add_argument('-g', '--vcg', metavar="VCG", type=str,
+                      nargs='?', const=True,
+                      help='Generate the Visualization Compiler Graph output.')
+  parser.add_argument('-r', '--ir', metavar="IR", type=str,
+                      nargs='?', const=True,
+                      help='Generate the Intermediate Representation.')
+  parser.add_argument('-t', '--dom', metavar="DominatorTree", type=str,
+                      nargs='?', const=True,
+                      help='Generate the Dominator Tree VCG output.')
+
   args = parser.parse_args()
 
   if args.debug:
@@ -719,13 +729,40 @@ def bootstrap():
 
   try:
     p = Parser(args.file_names[0])
-    i = IntermediateRepresentation(p)
-    return i
+    ir = IntermediateRepresentation(p)
+
+    ir.generate()
+    cfg = ir.build_cfg()
+    cfg.compute_dominance_frontiers()
+
+    if args.vcg:
+      external_file = isinstance(args.vcg, str)
+      vcg_file = open(args.vcg, 'w') if external_file else \
+          sys.stdout
+      vcg_file.write(cfg.generate_vcg(ir=ir))
+      if external_file:
+        vcg_file.close()
+
+    if args.ir:
+      external_file = isinstance(args.ir, str)
+      ir_file = open(args.ir, 'w') if external_file else \
+          sys.stdout
+      ir_file.write(str(ir))
+      if external_file:
+        ir_file.close()
+
+    if args.dom:
+      external_file = isinstance(args.dom, str)
+      dom_file = open(args.dom, 'w') if external_file else \
+          sys.stdout
+      dom_file.write(str(cfg.generate_dom_vcg()))
+      if external_file:
+        dom_file.close()
+
+    return ir
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
 if __name__ == '__main__':
-  i = bootstrap()
-  i.generate()
-  i.print_ir()
+  ir = bootstrap()
