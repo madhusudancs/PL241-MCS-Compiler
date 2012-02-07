@@ -129,10 +129,10 @@ class IntermediateRepresentation(object):
   COMPLEMENT_OPERATORS = {
       '==': '!=',
       '!=': '==',
-      '<': '>',
-      '>': '<',
-      '<=': '>=',
-      '>=': '<=',
+      '<': '>=',
+      '>': '<=',
+      '<=': '>',
+      '>=': '<',
       }
 
   INSTRUCTION_MAP = {
