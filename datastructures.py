@@ -168,13 +168,15 @@ class CFGNode(Node):
     dom_parent: The parent in the dominator tree for this node.
   """
 
-  def __init__(self, value=None, in_edges=None, out_edges=None):
+  def __init__(self, value=None, in_edges=None,
+               out_edges=None, entry=False):
     """Constructs a node of the Control Flow Graph.
 
     Args:
       value: The value to be stored in the current node.
       in_edges: The set of nodes which have an edge to this node.
       out_edges: The set of nodes to which this node has an edge.
+      entry: True if this node is the entry node else False.
     """
     self.value = value
 
@@ -183,8 +185,27 @@ class CFGNode(Node):
     self.in_edges = list(in_edges) if in_edges else []
     self.out_edges = list(out_edges) if out_edges else []
 
+    # True if this node is an entry node, a beginning for a function.
+    # This is needed to build the connected components and the start
+    # of the graph for computing dominator trees.
+    self.entry = entry
+
+    # The node which is the parent of this node in the dominator tree.
     self.dom_parent = None
+
+    # The nodes that are the children of this node in the dominator tree.
     self.dom_children = []
+
+    # The dominance frontier for this node
+    self.dominance_frontier = []
+
+    # Dictionary storing every variable to which there is an assignment in
+    # this node as key and a dummy value "True" as its value.
+    self.assignments = {}
+
+    # Dictionary storing every variable which is used in this node as
+    # key and a dummy value "True" as its value.
+    self.mentions = {}
 
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
