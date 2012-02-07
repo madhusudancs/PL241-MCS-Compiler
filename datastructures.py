@@ -499,7 +499,7 @@ class Dominator(object):
   def construct(self):
     """Constructs the dominator tree for this object.
     """
-    self.vertices = OrderedDict()
+    self.vertices = collections.OrderedDict()
 
     # Step 1 in the paper
     self.dfs(self.graph[0])
