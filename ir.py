@@ -46,14 +46,18 @@ Allowed Intermediate Representation instructions are:
     wln                   writeLn
 
 Conventions followed:
-    [a] value loaded from memory at memory address a
-    #X X is a literal number
-    !FP Frame Pointer register
+    [a]                value loaded from memory at memory address a
+    #X                 X is a literal number
+    !FP                Frame Pointer register
+    .begin_funcname    Beginning of the function
+    .end_funcname      Ending of the function
 """
+
 
 import collections
 import copy
 import logging
+import sys
 
 from argparse import ArgumentParser
 
