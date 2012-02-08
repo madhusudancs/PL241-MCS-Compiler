@@ -21,6 +21,7 @@
 
 
 import collections
+import copy
 import logging
 import sys
 
@@ -28,6 +29,8 @@ from argparse import ArgumentParser
 
 from datastructures import CFG
 from datastructures import CFGNode
+from datastructures import Stack
+from ir import Instruction
 from ir import IntermediateRepresentation
 from parser import LanguageSyntaxError
 from parser import Parser
@@ -65,8 +68,15 @@ class SSA(object):
     self.ir = ir
     self.cfg = cfg
 
-    # Stores the SSA form the IR as a list.
+    # Stores the SSA form of the IR as a list.
     self.ssa = []
+
+    # ---------------------------------IMPORTANT---------------------------
+    # A separate CFG for SSA but not complete. Do not use for anything
+    # other than instructions contained, in and outedges and dominance
+    # frontier. None of the other properties like dominator trees, connected
+    # components, etc are computed correctly!
+    self.ssa_cfg = None
 
     # Like an inverted index, for every label as key its value is the
     # CFG node it corresponds to.
@@ -85,6 +95,9 @@ class SSA(object):
     # Again like an inverted index, for every variable, stores the nodes
     # where it is mentioned.
     self.variable_mentions = collections.defaultdict(list)
+
+    # Contains a mapping of labels from IR to SSA
+    self.labels_ir_to_ssa = {}
 
   def populate_labels(self):
     """Populates the begin labels for each CFG Node.
@@ -216,6 +229,87 @@ class SSA(object):
       count = collections.defaultdict(lambda: 0)
 
       self.search(tree, stacks, count)
+
+  def regenerate_ir(self):
+    """Regenerate Intermediate Representation by inserting phi instructions.
+    """
+    Instruction.reset_counter()
+
+    new_ssa = []
+    nodes_phi_ed = {}
+    # Creates new instruction for every phi instruction and the old instruction.
+    # Also creates a new CFG for the old CFG
+    for instruction in self.ssa:
+      node = self.label_nodes[instruction.label]
+
+
+      # Generate phi instructions.
+      if node not in nodes_phi_ed:
+        for phi in node.phi_functions.values():
+          new_instruction = Instruction('phi', phi['LHS'], *phi['RHS'])
+          new_ssa.append(new_instruction)
+
+        nodes_phi_ed[node] = True
+
+      # Just regenerate the old instructions.
+      new_instruction = Instruction(
+          instruction.instruction, instruction.operand1, instruction.operand2)
+      new_ssa.append(new_instruction)
+
+      self.labels_ir_to_ssa[instruction.label] = new_instruction.label
+
+    # FIXME: This may be a possible source of error, since this instruction
+    # may be referring to the result of some 10 instructions before and
+    # "phi" functions may have been inserted in between. First checkpoint
+    # if bug appears.
+    # Post processing to adjust all the instructions whose operands are
+    # other instruction labels. We are doing a scan again because, we do
+    # not know how branch instructions behave in the previous processing,
+    # i.e. if "phi" instruction gets inserted anywhere in the future before
+    # we regenerate the instruction to which this branch statement targets.
+    for instruction in new_ssa:
+      operand1 = instruction.operand1
+      operand2 = instruction.operand2
+      if isinstance(instruction.operand1, int):
+        if operand1 in self.labels_ir_to_ssa:
+          operand1 = self.labels_ir_to_ssa[operand1]
+      if isinstance(instruction.operand2, int):
+        if operand2 in self.labels_ir_to_ssa:
+          operand2 = self.labels_ir_to_ssa[operand2]
+
+      instruction.update(operand1=operand1, operand2=operand2)
+
+    # Throw away old ssa copy, we don't want it anymore!
+    self.ssa = new_ssa
+
+  def regenerate_cfg(self):
+    """Regenerate a new CFG for the SSA.
+    """
+    nodes_ir_to_ssa = {}
+    new_nodes = []
+
+    for node in self.cfg:
+      start, end = node.value
+      new_start = self.labels_ir_to_ssa[start] - len(node.phi_functions)
+      new_end = self.labels_ir_to_ssa[end]
+      new_node = copy.deepcopy(node)
+      new_node.value = (new_start, new_end)
+      new_nodes.append(new_node)
+      nodes_ir_to_ssa[node] = new_node
+
+    for node in self.cfg:
+      new_node = nodes_ir_to_ssa[node]
+      new_node.out_edges = []
+      new_node.in_edges = []
+      new_node.dominance_frontier = []
+      for edge in node.out_edges:
+        new_node.out_edges.append(nodes_ir_to_ssa[edge])
+      for edge in node.in_edges:
+        new_node.in_edges.append(nodes_ir_to_ssa[edge])
+      for dominance_frontier in node.dominance_frontier:
+        new_node.dominance_frontier.append(nodes_ir_to_ssa[dominance_frontier])
+
+    self.ssa_cfg = CFG(new_nodes)
 
   def construct(self):
     """Constructs the SSA form of the IR.
