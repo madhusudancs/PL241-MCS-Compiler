@@ -304,8 +304,12 @@ class IntermediateRepresentation(object):
           return_targets[i] = current_func
         else:
           if self.ir[target].instruction.startswith('.begin_'):
-            # We need to skip this iteration because the next instruction
-            # is not a leader
+            # We need to skip this iteration because this instruction is
+            # a function call and we don't treat this branch instruction
+            # the same way we treat the regular branch instructions within
+            # a function. Function starting points are added as leaders
+            # separately below. And we consider call instructions as
+            # continuous flow without a branch within a function.
             i += 1
             continue
           else:
