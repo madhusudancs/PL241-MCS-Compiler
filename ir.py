@@ -83,19 +83,23 @@ class Instruction(object):
     """
     cls.label_counter = 0
 
-  def __init__(self, instruction, operand1=None, operand2=None):
+  def __init__(self, instruction, operand1=None, operand2=None, *operands):
     """Constructs the 3-address code for the instruction.
 
     Args:
       instruction: contains the instruction type for this instruction.
-      op1: The first operator for the instruction. This operand is not
+      operand1: The first operator for the instruction. This operand is not
           optional, should at least be updated later in case of branch
           instructions using the update method.
-      op2: The second operator for the instruction. This operand is optional.
+      operand2: The second operator for the instruction. This operand is optional.
+      operands: A tuple of operands other than first two. We only want this
+          in case of phi instructions.
     """
     self.instruction = instruction
     self.operand1 = operand1
     self.operand2 = operand2
+    self.operands = operands
+
     self.label = self.__class__.label_counter
     self.__class__.label_counter += 1
 
