@@ -253,6 +253,11 @@ class CFGNode(Node):
     # key and a dummy value "True" as its value.
     self.mentions = {}
 
+    # Stores the dictionary of phi-functions added to this node where the
+    # key is the variable name and the value is the dictionary containing
+    # the LHS and the RHS of the phi function.
+    self.phi_functions = {}
+
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
 
@@ -411,13 +416,20 @@ class CFG(list):
     if node.mentions:
       node_str += '\nMention Variables: %s\n' % (node.mentions.keys())
 
+    if node.phi_functions:
+      node_str += '\nPhi Functions\n'
+      for v in node.phi_functions:
+        node_str += '\n%s = phi(...)' % (v)
+
+      node_str += '\n\n'
+
     if ir:
       instructions = []
-      instructions = [str(ir.ir[i]) for i in range(
+      instructions = [str(ir[i]) for i in range(
           node.value[0], node.value[1] + 1)]
 
       for i in range(node.value[0], node.value[1] + 1):
-        node_str += '\n%s' % (ir.ir[i])
+        node_str += '\n%s' % (ir[i])
 
     node_str += '" }'
 
