@@ -120,9 +120,15 @@ class Instruction(object):
     """
     ir = '%4d: %5s' % (self.label, self.instruction)
     if self.operand1 != None:
-      ir = ir + '%50s' % (self.operand1)
+      ir = ir + '%50s' % ('(%d)' % (self.operand1) if \
+          isinstance(self.operand1, int) else self.operand1)
     if self.operand2 != None:
-      ir = ir + '%50s' % (self.operand2)
+      ir = ir + '%50s' % ( '(%d)' % (self.operand2) if \
+          isinstance(self.operand2, int) else self.operand2)
+
+    for operand in self.operands:
+      ir = ir + '%50s' % ('(%d)' % (operand) if \
+          isinstance(operand, int) else operand)
 
     return ir
 
