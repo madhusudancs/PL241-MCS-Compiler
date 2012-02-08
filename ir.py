@@ -329,6 +329,7 @@ class IntermediateRepresentation(object):
       elif instruction.instruction.startswith('.begin_'):
         current_func = i
         leaders.append(i)
+        leaders.append(i + 1)
 
       i += 1
 
