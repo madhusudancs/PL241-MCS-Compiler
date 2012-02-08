@@ -314,8 +314,16 @@ class SSA(object):
   def construct(self):
     """Constructs the SSA form of the IR.
     """
+    # Begin with a completely new copy of original IR.
+    self.ssa = copy.deepcopy(self.ir.ir)
+
     self.populate_labels()
     self.identify_assignment_and_usage_nodes()
+
+    self.place_phi()
+    self.rename()
+
+    self.regenerate_ir()
 
   def __str__(self):
     """Prints the SSA stored for the program
