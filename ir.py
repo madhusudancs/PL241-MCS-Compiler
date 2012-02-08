@@ -77,6 +77,12 @@ class Instruction(object):
 
   label_counter = 0
 
+  @classmethod
+  def reset_counter(cls):
+    """Resets the label counter for new IR generation.
+    """
+    cls.label_counter = 0
+
   def __init__(self, instruction, operand1=None, operand2=None):
     """Constructs the 3-address code for the instruction.
 
