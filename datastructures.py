@@ -22,6 +22,19 @@
 import collections
 
 
+class StackUnderflowException(Exception):
+  """Exception to represent the stack underflow operation.
+  """
+  def __init__(self, msg=None):
+    self._msg = msg if msg else "There was a stack underflow."
+
+  def __str__(self):
+    return self._msg
+
+  def __repr__(self):
+    return self.__str__()
+
+
 class NodeProcessedException(Exception):
   """Exception to indicate that the node is already processed
   """
@@ -33,6 +46,39 @@ class NodeProcessedException(Exception):
 
   def __repr__(self):
     return self.__str__()
+
+
+class Stack(list):
+  """Implements the stack datastructure.
+
+  NOTE: pop operation is not implemented because the pop method provided
+  by the list type which this class inherits by default removes the last
+  element which is the top of the stack.
+  """
+
+  def push(self, element):
+    """Pushes a single element to the top of the stack.
+
+    Args:
+      elements: An element that should be pushed to the top of the stack.
+    """
+    self.append(element)
+
+  def top(self):
+    """Returns the element at the top of the stack without removing it.
+    """
+    try:
+      return self[-1]
+    except IndexError:
+      raise StackUnderflowException
+
+  def pop(self, *args, **kwargs):
+    """Pops the element out of the top of stack.
+    """
+    try:
+      return super(Stack, self).pop(*args, **kwargs)
+    except IndexError:
+      raise StackUnderflowException
 
 
 class Node(object):
