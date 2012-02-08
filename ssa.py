@@ -325,10 +325,27 @@ class SSA(object):
 
     self.regenerate_ir()
 
+  def is_variable(self, operand):
+    """Returns True if the operand is a variable.
+
+    Args:
+      operand: The operand to an instruction which must be checked for whether
+          it is a variable or not.
+    """
+    if operand and isinstance(operand, str) and (
+          operand[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
+      return True
+
+    return False
+
   def __str__(self):
     """Prints the SSA stored for the program
     """
-    pass
+    ssa = ''
+    for instruction in self.ssa:
+      ssa += '%s\n' % (instruction)
+
+    return ssa
 
 
 def bootstrap():
