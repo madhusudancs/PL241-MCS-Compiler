@@ -113,6 +113,110 @@ class SSA(object):
           node.mentions[i.operand2] = True
           self.variable_mentions[i.operand2].append(node)
 
+  def place_phi(self):
+    """Places the phi functions for the nodes in the control flow graph.
+    """
+    iter_count = 0
+    has_already = collections.defaultdict(lambda: 0)
+    work = collections.defaultdict(lambda: 0)
+
+    current_work_list = []
+    for variable, assignment_nodes in self.variable_assignments.items():
+      iter_count += 1
+      for node in assignment_nodes:
+        work[node] = iter_count
+        current_work_list.append(node)
+
+      while current_work_list:
+        node = current_work_list.pop(0)
+        for frontier_node in node.dominance_frontier:
+          if has_already[frontier_node] < iter_count:
+            # We are just placing the phi functions here.
+            # We will fill up the values, when renaming the
+            # variables.
+            frontier_node.phi_functions[variable] = {
+                'LHS': None,
+                'RHS': [0] * len(frontier_node.in_edges),
+                }
+            has_already[frontier_node] = iter_count
+            if work[frontier_node] < iter_count:
+              work[frontier_node] = iter_count
+              current_work_list.append(frontier_node)
+
+  def search(self, root, stacks, count):
+    """Performs a top-down search of dominator tree for renaming variables.
+
+    Args:
+      stacks: contains a stack for every variable.
+      count: contains a count of the number of assignments to a variable.
+    """
+    for label in range(root.value[0], root.value[1] + 1):
+      instruction = self.ssa[label]
+      if instruction.instruction == 'move':
+        variable = instruction.operand1
+        if self.is_variable(variable):
+          i = stacks[variable].top()
+          instruction.operand1 = '%s_%d' % (variable, i)
+
+        variable = instruction.operand2
+        if self.is_variable(variable):
+          i = count[variable]
+          instruction.operand2 = '%s_%d' % (variable, i)
+          stacks[variable].push(i)
+          count[variable] = i + 1
+
+          # This is transient, but we want this for later use in renaming
+          # so store it as a variable although not explicitly mentioned
+          # in the class.
+          instruction.old_operand2 = variable
+      else:
+        variable1 = instruction.operand1
+        if self.is_variable(variable1):
+          i = stacks[variable1].top()
+          instruction.operand1 = '%s_%d' % (variable1, i)
+
+        variable2 = instruction.operand2
+        if self.is_variable(variable2):
+          i = stacks[variable2].top()
+          instruction.operand2 = '%s_%d' % (variable2, i)
+
+    for variable in root.phi_functions:
+      i = count[variable]
+      root.phi_functions[variable]['LHS'] = '%s_%d' % (variable, i)
+      stacks[variable].push(i)
+      count[variable] = i + 1
+
+    for successor in root.out_edges:
+      # My implementation of WhichPred(Y, X)
+      j = successor.in_edges.index(root)
+      for variable in successor.phi_functions:
+        i = stacks[variable].top()
+        successor.phi_functions[variable]['RHS'][j] = '%s_%d' % (variable, i)
+
+    for child in root.dom_children:
+      self.search(child, stacks, count)
+
+    for label in range(root.value[0], root.value[1] + 1):
+      instruction = self.ssa[label]
+      if instruction.instruction == 'move' and hasattr(
+          instruction, 'old_operand2'):
+        stacks[instruction.old_operand2].pop()
+
+
+  def rename(self):
+    """Rename all the variables for SSA representation.
+    """
+    for tree in self.cfg.dom_trees:
+      # Dictionary containing all the variables as the keys and stack
+      # for each variable as the value.
+      stacks = collections.defaultdict(lambda: Stack([0]))
+
+      # Dictionary containing all the variables as the keys and the count
+      # of how many times they are assigned.
+      count = collections.defaultdict(lambda: 0)
+
+      self.search(tree, stacks, count)
+
   def construct(self):
     """Constructs the SSA form of the IR.
     """
