@@ -749,7 +749,7 @@ def bootstrap():
       external_file = isinstance(args.vcg, str)
       vcg_file = open(args.vcg, 'w') if external_file else \
           sys.stdout
-      vcg_file.write(cfg.generate_vcg(ir=ir))
+      vcg_file.write(cfg.generate_vcg(ir=ir.ir))
       if external_file:
         vcg_file.close()
 

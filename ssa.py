@@ -360,6 +360,9 @@ def bootstrap():
   parser.add_argument('-r', '--ir', metavar="IR", type=str,
                       nargs='?', const=True,
                       help='Generate the Intermediate Representation.')
+  parser.add_argument('-s', '--ssa', metavar="SSA", type=str,
+                      nargs='?', const=True,
+                      help='Generate the Static Single Assignment.')
   parser.add_argument('-t', '--dom', metavar="DominatorTree", type=str,
                       nargs='?', const=True,
                       help='Generate the Dominator Tree VCG output.')
@@ -384,10 +387,11 @@ def bootstrap():
     ssa.construct()
 
     if args.vcg:
+      ssa.regenerate_cfg()
       external_file = isinstance(args.vcg, str)
       vcg_file = open(args.vcg, 'w') if external_file else \
           sys.stdout
-      vcg_file.write(cfg.generate_vcg(ir=ir))
+      vcg_file.write(ssa.ssa_cfg.generate_vcg(ir=ssa.ssa))
       if external_file:
         vcg_file.close()
 
@@ -406,6 +410,14 @@ def bootstrap():
       dom_file.write(str(cfg.generate_dom_vcg()))
       if external_file:
         dom_file.close()
+
+    if args.ssa:
+      external_file = isinstance(args.ssa, str)
+      ssa_file = open(args.ssa, 'w') if external_file else \
+          sys.stdout
+      ssa_file.write(str(ssa))
+      if external_file:
+        ssa_file.close()
 
     return ssa
   except LanguageSyntaxError, e:
