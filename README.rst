@@ -78,26 +78,26 @@ run the compiler by running the following command::
 
 $ python ssa.py <source-file-name> [options]
 
-The options available at the moment are:
+The options available at the moment are::
 
-usage: ssa.py [-h] [-d] [-g [VCG]] [-r [IR]] [-s [SSA]] [-t [DominatorTree]]
-              File Names [File Names ...]
+  usage: ssa.py [-h] [-d] [-g [VCG]] [-r [IR]] [-s [SSA]] [-t [DominatorTree]]
+                File Names [File Names ...]
 
-Compiler arguments.
+  Compiler arguments.
 
-positional arguments:
-  File Names            name of the input files.
+  positional arguments:
+    File Names            name of the input files.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -d, --debug           Enable debug logging to the console.
-  -g [VCG], --vcg [VCG]
-                        Generate the Visualization Compiler Graph output.
-  -r [IR], --ir [IR]    Generate the Intermediate Representation.
-  -s [SSA], --ssa [SSA]
-                        Generate the Static Single Assignment.
-  -t [DominatorTree], --dom [DominatorTree]
-                        Generate the Dominator Tree VCG output.
+  optional arguments:
+    -h, --help            show this help message and exit
+    -d, --debug           Enable debug logging to the console.
+    -g [VCG], --vcg [VCG]
+                          Generate the Visualization Compiler Graph output.
+    -r [IR], --ir [IR]    Generate the Intermediate Representation.
+    -s [SSA], --ssa [SSA]
+                          Generate the Static Single Assignment.
+    -t [DominatorTree], --dom [DominatorTree]
+                          Generate the Dominator Tree VCG output.
 
 
 For convenience, 3 test programs are supplied along with the source of which
