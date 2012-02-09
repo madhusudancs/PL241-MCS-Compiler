@@ -6,3 +6,4 @@
 * For function calls do calling vs formal parameters checking if the numbers match.
 * Take care of "return" with no expression case.
 * Array dimension checking in parser.
+* http://www.dwheeler.com/essays/high-assurance-floss.html for SAT solver.
