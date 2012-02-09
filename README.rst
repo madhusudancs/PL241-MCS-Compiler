@@ -70,6 +70,40 @@ very easily replaced with the older optparse library since all the argparse
 related code is just in the end of every file in the bootstrap() function.
 This has not been tested on Python 3.x.
 
+How to compile the code?
+------------------------
+
+Since the compiler is only implemented upto generating SSA till now, we can
+run the compiler by running the following command::
+
+$ python ssa.py <source-file-name> [options]
+
+The options available at the moment are:
+
+usage: ssa.py [-h] [-d] [-g [VCG]] [-r [IR]] [-s [SSA]] [-t [DominatorTree]]
+              File Names [File Names ...]
+
+Compiler arguments.
+
+positional arguments:
+  File Names            name of the input files.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d, --debug           Enable debug logging to the console.
+  -g [VCG], --vcg [VCG]
+                        Generate the Visualization Compiler Graph output.
+  -r [IR], --ir [IR]    Generate the Intermediate Representation.
+  -s [SSA], --ssa [SSA]
+                        Generate the Static Single Assignment.
+  -t [DominatorTree], --dom [DominatorTree]
+                        Generate the Dominator Tree VCG output.
+
+
+For convenience, 3 test programs are supplied along with the source of which
+two of them intentionally include syntax errors. firsttest.pl241 is expected
+to generate SSA correctly.
+
 
 What algorithms are implemented?
 --------------------------------
