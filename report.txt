@@ -1,0 +1,30 @@
+Progress Report
+
+I have completed the implementation of SSA. For the given source program
+as input the SSA is being generated and I believe the SSA being generated
+is correct. One exception I have made is with the procedures. At the moment
+I have considered both functions and procedures to be identical and hence
+generating the SSA form only for functions to keep things simple for testing.
+I am currently working on implementing Common Sub-expression Elimination.
+
+I have used the following algorithms:
+  * Lengauer and Tarjan's algorithm for finding dominator trees.
+  * SSA generation as presented in the paper by R. Cytron, J. Ferrante,
+    B. K. Rosen, M. N. Wegman and F. K. Zadeck
+
+Other than this I will let the code speak for itself. I have the code
+maintained at https://github.com/madhusudancs/PL241-MCS-Compiler There is
+a README supplied on how to use. The source repository also contains 3
+test programs written in PL241 of which 2 syntax errors which is intentional.
+For the valid program I have made all the intermediate files that I am
+generating available at the downloads section at:
+https://github.com/madhusudancs/PL241-MCS-Compiler/downloads
+It contains the VCG output for the parse tree, intermediate representation
+before SSA and intermediate representation after SSA and the dominator
+tree. It also contains the actual intermediate representation and the SSA
+form of the instructions in a text format. All the VCG files have the SVG
+exported versions available too.
+
+And I am completely excited about this project! I will be very happy if you
+can you take a look at the source code once. If possible, please please
+take a look at the source code! 
