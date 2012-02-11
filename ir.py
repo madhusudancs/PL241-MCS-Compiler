@@ -153,6 +153,12 @@ class Instruction(object):
 
     return ir
 
+  def __hash__(self):
+    return hash('%s %s %s %s' % (
+        self.instruction, self.operand1,
+        self.operand2, ' '.join(['%s' % (o) for o in self.operands])))
+
+
 class IntermediateRepresentation(object):
   """Stores the entire program in the Intermediate Representation form.
   """
