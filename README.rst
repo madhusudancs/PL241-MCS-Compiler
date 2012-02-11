@@ -11,41 +11,46 @@ Franz (http://www.ics.uci.edu/~franz/) offers a graduate level course at
 University of California, Irvine, on Advanced Compiler Construction
 (http://www.ics.uci.edu/~franz/Site/w12cs241.html). This compiler is being
 written as part of the course work. Although I have a very limited knowledge
-about compiler construction, I believe this compiler implements some of the
-most basic components that are expected of any reasonable compiler today.
+about compiler construction, I believe that this compiler implements some
+of the most basic components that are expected of any reasonable compiler
+today.
 
 While implementing this compiler I stumbled upon certain interesting concepts
-for which I could not find simple and quickly understandable materials. Some
-of them boiled down to reading the papers and toiling for days to understand
+in compiler construction. I could not find simple and quickly understandable
+materials for many of them. In most cases it boiled down to reading the
+original papers that introduced the idea, toiling for days to understand
 how the concepts introduced in the paper worked before actually sitting
-down to implement this. So while implementing these algorithms I have spent
-good amount of time to make the code as readable as possible hoping that it
-may help some one who is trying to do the same things. And what more, it
-is written in Python! What is more readable than Python anyway!?
+down to implement that concept. I hope that I can be of some help to others
+who are trying to do the same. So while implementing these algorithms I
+have spent good amount of time to make the code as readable as possible
+And what more, it is written in Python! What is more readable than Python
+anyway!?
 
 I would really like to make this a repository of algorithms that are used
-in writing compilers today. So if you would like to use it or think you
-can improve it further, fork it away! And if you want to push it back, I
-will be happy to merge the pull requests!
+in writing compilers today. So if you would like to use these algorithms
+or think you can improve them further, fork it away! And if you want to
+push those changes back to this repository, I will be happy to merge the
+pull requests!
 
 
 What is the status? Is this compiler complete?
 ----------------------------------------------
 
-I would say this is about 40% complete at this point. The source program is
+I would say this is about 50% complete at this point. The source program is
 being parsed and translated to an Intermediate Representation (IR) and then
-transformed again to Static Single Assignment (SSA) form. I will be
-implementing a couple of optimizations and then doing the final code generation
-in the coming weeks.
+transformed again to Static Single Assignment (SSA) form. A couple of very
+simple yet powerful optimizations, Common Sub-expression Elimination and
+Copy Propagation are implemented. I will be implementing a register allocation
+algorithm and then doing the final code generation in the coming weeks.
 
 
 Which programming languages is this compiler written for?
 ---------------------------------------------------------
 
 As it is required for the course, at the moment this compiler is planned to
-compile only PL241. I am not sure about the copyright and stuff about the
-Professor's material. The spec document for the programming language is
-available from the Professor's website at
+compile only PL241. I am not sure about the copyrights of the Professor's
+material to put the language spec here. So the document that contains
+the spec for the language is available from the Professor's website at
 http://www.ics.uci.edu/~franz/Site/2012WinterCS241/2012CS241Project.pdf
 
 In the future I would like to make this a compiler collection for major
@@ -66,9 +71,11 @@ Other than the standard Python 2.7 installation, you will not want any
 additional libraries. Deliberate care has been taken not to use any
 third-party libraries. However, since argparse is used for command line
 parsing, Python 2.6 or earlier don't work. But argparse component can be
-very easily replaced with the older optparse library since all the argparse
-related code is just in the end of every file in the bootstrap() function.
-This has not been tested on Python 3.x.
+very easily replaced with the older optparse library code which is at the
+end of each file in the bootstrap() function.
+
+This code has not been tested on Python 3.x.
+
 
 How to compile the code?
 ------------------------
@@ -116,8 +123,8 @@ What algorithms are implemented?
 Contributing
 ------------
 
-As mentioned in the previous sections it will be nice to see at the following
-implemented
+As mentioned in the previous sections it will be nice to see at least the
+following implemented
 
   * Parsing major programming languages
   * Generating binaries for ARM
@@ -125,4 +132,4 @@ implemented
   * Instruction scheduling
   * Various types of register allocation algorithms
 
-And if you are interested, please send me the pull requests!
+If you are interested in contributing, please send me the pull requests!
