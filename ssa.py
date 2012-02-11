@@ -318,6 +318,17 @@ class SSA(object):
 
     self.regenerate_ir()
 
+  def optimized(self):
+    """Yields the optimized SSA form of the IR as an iterator.
+    """
+    i = 0
+    while i < len(self.ssa):
+      i += 1
+      if i - 1 in self.optimized_removal:
+        continue
+
+      yield self.ssa[i - 1]
+
   def __str__(self):
     """Prints the SSA stored for the program
     """
