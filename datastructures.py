@@ -474,8 +474,8 @@ class CFG(list):
       tree: The root of the sub-tree whose nodes we must visit recursively.
     """
     node_str = 'node: { title: "%(id)s" label: "CFGNode: %(value)s" }' % {
-        'id': id(self),
-        'value': self.value,
+        'id': id(tree),
+        'value': tree.value,
         }
     self.vcg_output.append(node_str)
     for child in tree.dom_children:
