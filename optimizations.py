@@ -19,11 +19,19 @@
 """
 
 
+import logging
+
 from argparse import ArgumentParser
 
+from ir import Instruction
 from ir import IntermediateRepresentation
 from parser import LanguageSyntaxError
 from parser import Parser
+from ssa import SSA
+
+
+# Module level logger object
+LOGGER = logging.getLogger(__name__)
 
 
 def cse_cp(ssa):
@@ -46,6 +54,9 @@ def bootstrap():
                       help='name of the input files.')
   parser.add_argument('-d', '--debug', action='store_true',
                       help='Enable debug logging to the console.')
+  parser.add_argument('-t', '--trace', metavar="Trace Mode", type=str,
+                      nargs='?', const=True,
+                      help='Enable trace mode for optimizations.')
   parser.add_argument('-g', '--vcg', metavar="VCG", type=str,
                       nargs='?', const=True,
                       help='Generate the Visualization Compiler Graph output.')
@@ -68,7 +79,7 @@ def bootstrap():
     ssa = SSA(ir, cfg)
     ssa.construct()
 
-    optimized = cse_cp(ssa)
+    ssa = cse_cp(ssa)
 
     if args.vcg:
       vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
@@ -76,11 +87,11 @@ def bootstrap():
       vcg_file.write(p.root.generate_vcg())
       vcg_file.close()
 
-    return p.root
+    return ssa
 
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
 if __name__ == '__main__':
-  root = bootstrap()
+  ssa = bootstrap()
