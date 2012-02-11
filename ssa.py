@@ -90,6 +90,11 @@ class SSA(object):
     # Contains a mapping of labels from IR to SSA
     self.labels_ir_to_ssa = {}
 
+    # Dictionary of SSA instruction labels that were removed during
+    # optimization. Should generate the machine code by not generating
+    # the code for these instructions.
+    self.optimized_removal = {}
+
   def populate_labels(self):
     """Populates the begin labels for each CFG Node.
     """
