@@ -74,6 +74,14 @@ LOGGER = logging.getLogger(__name__)
 class Instruction(object):
   """Abstraction for all the instruction in the Intermediate Representation.
   """
+  # Anything that begins with this is not a valid variable in the source
+  # program and hence can be ignored during SSA construction.
+  NON_VARIABLE_OPERANDS_STARTSWITH = {
+      '#': True,
+      '.': True,
+      '!': True,
+      '[': True,
+      }
 
   label_counter = 0
 
@@ -114,6 +122,19 @@ class Instruction(object):
       self.operand1 = operand1
     if operand2 != None:
       self.operand2 = operand2
+
+  def is_variable(self, operand):
+    """Returns True if the operand is a variable.
+
+    Args:
+      operand: The operand to an instruction which must be checked for whether
+          it is a variable or not.
+    """
+    if operand and isinstance(operand, str) and (
+          operand[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
+      return True
+
+    return False
 
   def __str__(self):
     """Prints the current instructions in the IR.

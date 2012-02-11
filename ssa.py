@@ -53,15 +53,6 @@ class SSA(object):
   http://dl.acm.org/citation.cfm?doid=115372.115320
   """
 
-  # Anything that begins with this is not a valid variable in the source
-  # program and hence can be ignored during SSA construction.
-  NON_VARIABLE_OPERANDS_STARTSWITH = {
-      '#': True,
-      '.': True,
-      '!': True,
-      '[': True,
-      }
-
   def __init__(self, ir, cfg):
     """Intializes the datastructures required for SSA construction.
     """
@@ -110,14 +101,12 @@ class SSA(object):
     """Linearly scans the IR to determine assignment and usage nodes in CFG.
     """
     for i in self.ir:
-      if i.operand1 and isinstance(i.operand1, str) and (
-            i.operand1[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
+      if i.is_variable(i.operand1):
         node = self.label_nodes[i.label]
         node.mentions[i.operand1] = True
         self.variable_mentions[i.operand1].append(node)
 
-      if i.operand2 and isinstance(i.operand2, str) and (
-          i.operand2[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
+      if i.is_variable(i.operand2):
         node = self.label_nodes[i.label]
         if i.instruction == 'move':
           node.assignments[i.operand2] = True
@@ -167,12 +156,12 @@ class SSA(object):
       instruction = self.ssa[label]
       if instruction.instruction == 'move':
         variable = instruction.operand1
-        if self.is_variable(variable):
+        if instruction.is_variable(variable):
           i = stacks[variable].top()
           instruction.operand1 = '%s_%d' % (variable, i)
 
         variable = instruction.operand2
-        if self.is_variable(variable):
+        if instruction.is_variable(variable):
           i = count[variable]
           instruction.operand2 = '%s_%d' % (variable, i)
           stacks[variable].push(i)
@@ -184,12 +173,12 @@ class SSA(object):
           instruction.old_operand2 = variable
       else:
         variable1 = instruction.operand1
-        if self.is_variable(variable1):
+        if instruction.is_variable(variable1):
           i = stacks[variable1].top()
           instruction.operand1 = '%s_%d' % (variable1, i)
 
         variable2 = instruction.operand2
-        if self.is_variable(variable2):
+        if instruction.is_variable(variable2):
           i = stacks[variable2].top()
           instruction.operand2 = '%s_%d' % (variable2, i)
 
@@ -214,7 +203,6 @@ class SSA(object):
       if instruction.instruction == 'move' and hasattr(
           instruction, 'old_operand2'):
         stacks[instruction.old_operand2].pop()
-
 
   def rename(self):
     """Rename all the variables for SSA representation.
@@ -324,19 +312,6 @@ class SSA(object):
     self.rename()
 
     self.regenerate_ir()
-
-  def is_variable(self, operand):
-    """Returns True if the operand is a variable.
-
-    Args:
-      operand: The operand to an instruction which must be checked for whether
-          it is a variable or not.
-    """
-    if operand and isinstance(operand, str) and (
-          operand[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
-      return True
-
-    return False
 
   def __str__(self):
     """Prints the SSA stored for the program
