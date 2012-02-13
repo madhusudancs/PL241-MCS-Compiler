@@ -3,6 +3,22 @@ PL241 Compiler
 
 ** **Work In Progress** **
 
+**Transparency about my course work:** When you are reading the document
+below if you by any chance get into the feeling that I am trying to take
+advantage of the open source community for my course work, please come back
+and read this again. Initially my thought was to keep all the course work
+specific code in a separate private branch, which I would not push to this
+repository. The reason for that was, that branch had some materials that
+are totally irrelevant in public like my progress report, etc. But with
+this private branch approach, it looks like it is hard to convince
+open source contributors that I am not trying to get the grades from their
+work. So I have decided to make the branch public here and the branch is
+called **course-specific**. I will be merging **course-specific** branch to
+**master** whenever there is something relevant here committed to that
+branch and but in the other direction, I will only cherry-pick my changes
+from **master** to **course-specific**.
+
+
 What is this all about?
 -----------------------
 
