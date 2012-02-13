@@ -14,8 +14,8 @@ this private branch approach, it looks like it is hard to convince
 open source contributors that I am not trying to get the grades from their
 work. So I have decided to make the branch public here and the branch is
 called **course-specific**. I will be merging **course-specific** branch to
-**master** whenever there is something relevant here committed to that
-branch and but in the other direction, I will only cherry-pick my changes
+**master** whenever there is something relevant to **master** committed to
+that branch but in the other direction I will only cherry-pick my changes
 from **master** to **course-specific**.
 
 
