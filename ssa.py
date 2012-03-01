@@ -322,6 +322,7 @@ class SSA(object):
     self.rename()
 
     self.regenerate_ir()
+    self.regenerate_cfg()
 
   def optimized(self, start=None, stop=None, reversed=False):
     """Yields the optimized SSA form of the IR as an iterator.
@@ -392,7 +393,6 @@ def bootstrap():
     ssa.construct()
 
     if args.vcg:
-      ssa.regenerate_cfg()
       external_file = isinstance(args.vcg, str)
       vcg_file = open(args.vcg, 'w') if external_file else \
           sys.stdout
