@@ -306,6 +306,7 @@ class IntermediateRepresentation(object):
   def generate(self):
     """Generates the Intermediate Representation from the parse tree.
     """
+    Instruction.reset_counter()
     self.ir = []
 
     self.backpatch_function_branch = []
