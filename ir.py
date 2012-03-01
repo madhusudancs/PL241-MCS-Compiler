@@ -330,14 +330,12 @@ class IntermediateRepresentation(object):
         self.push_scope(scope)
         self.instruction('.begin_%s' % scope)
         self.funcBody(c.children[0], 'main')
+        # Add the end instruction.
+        self.instruction('.end_%s' % scope)
 
     for bra in self.backpatch_function_branch:
       self.ir[bra].update(
           operand1=self.function_pointer[self.ir[bra].operand1])
-
-    # Add the end instruction.
-    instruction = Instruction('end')
-    self.ir.append(instruction)
 
   def identify_basic_blocks(self):
     """Identifies the basic block for the IR.
