@@ -108,6 +108,19 @@ class Instruction(object):
     self.operand2 = operand2
     self.operands = operands
 
+    # Stores the result of the instruction.
+    # Used only when we start register allocation. While in the IR/SSA form
+    # the instruction label itself is used as the result of the instruction.
+    # However on real machine this should be stored in a register, so an
+    # explicit result is required.
+    # This is also introduced instead of using operands for storing the result
+    # because, to be consistent with the way 'move' instruction works in our
+    # IR move y x => x := y, we will have to place the result as the last
+    # operand, but since operands are operand1, operand2 and then any
+    # arbitrary number of operands finding the last operand becomes a pain.
+    # So easiest way is to store the result separately
+    self.result = None
+
     self.label = self.__class__.label_counter
     self.__class__.label_counter += 1
 
