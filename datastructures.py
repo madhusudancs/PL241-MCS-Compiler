@@ -258,6 +258,23 @@ class CFGNode(Node):
     # the LHS and the RHS of the phi function.
     self.phi_functions = {}
 
+    # Maintain pointers to ssa node in the ir node and vice-versa.
+    self.other_universe_node = None
+
+    # Dictionary of the live-in variables for each basic block where the
+    # keys of the dictionary are the variable names and values are the
+    # label of the instruction where the variable goes dead in this
+    # block. If the label is live at out of the block then the value is
+    # None and there must be a live_out entry for that variable.
+    self.live_in = {}
+
+    # Dictionary of the live-out variables for each basic block where the
+    # keys of the dictionary are the variable names and values are the
+    # label of the instruction where the variable becomes live in this
+    # block. If the label is live at beginning of the block then the
+    # value is None and there must be a live_in entry for that variable.
+    self.live_out = {}
+
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
 
