@@ -149,6 +149,23 @@ class Instruction(object):
 
     return False
 
+  def is_variable_or_label(self, operand):
+    """Returns True if the operand is a variable or a label of another
+    instruction.
+
+    Args:
+      operand: The operand to an instruction which must be checked for whether
+          it is a variable or a label of another instruction not.
+    """
+    if operand:
+      if isinstance(operand, str) and (
+          operand[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
+        return True
+      elif isinstance(operand, int):
+        return True
+
+    return False
+
   def __str__(self):
     """Prints the current instructions in the IR.
     """
