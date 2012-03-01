@@ -18,7 +18,12 @@ var count;
     let temp <- 0;
     while count < len do
         let temp <- temp + a[count];
-        let count <- count + 1
+        let count <- count + 1;
+        if temp >= len then
+            let count <- count - 1
+        else
+            let count <- count + 1
+        fi
     od;
     return temp
 };
