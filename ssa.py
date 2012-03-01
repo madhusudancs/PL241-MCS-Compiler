@@ -287,6 +287,11 @@ class SSA(object):
       new_end = self.labels_ir_to_ssa[end]
       new_node = copy.deepcopy(node)
       new_node.value = (new_start, new_end)
+
+      # Maintain pointers to the nodes in both directions.
+      new_node.other_universe_node = node
+      node.other_universe_node = new_node
+
       new_nodes.append(new_node)
       nodes_ir_to_ssa[node] = new_node
 
