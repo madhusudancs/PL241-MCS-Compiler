@@ -40,6 +40,12 @@ def cse_cp(ssa):
   Args:
     ssa: The SSA object.
   """
+  # FIXME: Don't copy-propagate main function variables since they are global
+  # variables!!! That is the most dangerous thing because any function can
+  # use the global variables! So we cannot copy-propagate it in the function
+  # since it changes for every function call whose exact value cannot be
+  # determined statically (i.e. until runtime)
+
   # For each statement stores its replacement for either the statement
   # itself or the result of the statement if the statement was removed
   # because of Common Sub-expression elimination or Copy propogation.
