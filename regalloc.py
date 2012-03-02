@@ -227,6 +227,9 @@ class RegisterAllocator(object):
 
     # Walk the instructions in the reverse order, note -1 for stepping.
     for instruction in self.ssa.optimized(end, start - 1, reversed=True):
+      if instruction.instruction == 'phi':
+        continue
+
       if self.is_register(instruction.result):
         if instruction.result not in live:
           # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
