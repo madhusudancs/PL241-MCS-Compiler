@@ -622,7 +622,7 @@ class IntermediateRepresentation(object):
     return_store_result = self.instruction('load', storage)
 
     # Backpatch return label
-    self.ir[return_label].update(operand1=return_store_result)
+    self.ir[return_label].update(operand1='#%d' % return_store_result)
 
     return return_store_result
 
