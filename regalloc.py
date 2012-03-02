@@ -319,14 +319,13 @@ class RegisterAllocator(object):
         # Add a new interval
         start_node.live_intervals[operand] = intervals[operand]
 
-  def liveness(self):
+  def liveness(self, start):
     """Computes the liveness range for each variable.
-    """
-    # A temporary dictionary containing the nodes visited as the keys and
-    # dummy True as the value. This dictionary must be reset for every
-    # traversal.
-    self.visited = {}
 
+    Args:
+      start: the starting node of the subgraph on which liveness must be
+          computed.
+    """
     # FIXME: Liveness checking for global variables is completely different
     # since they are live until the last call to the function that uses
     # global variables return. So may be it is easier to keep the live
@@ -334,15 +333,19 @@ class RegisterAllocator(object):
     # spilling? Actually Prof. Franz seeded this idea about which I had
     # not thought about till now. "Compile each function independently."
 
-    for dom_tree in self.ssa.cfg.dom_trees:
-      self.analyze_basic_block_liveness(dom_tree.other_universe_node,
-                                        dom_tree.other_universe_node)
+    # A temporary dictionary containing the nodes visited as the keys and
+    # dummy True as the value. This dictionary must be reset for every
+    # traversal.
+    self.visited = {}
+    self.analyze_basic_block_liveness(start, start)
+
 
   def allocate(self):
     """Allocate the registers to the program.
     """
     self.allocate_virtual_registers()
-    self.liveness()
+    for dom_tree in self.ssa.cfg.dom_trees:
+      self.liveness(dom_tree.other_universe_node)
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
