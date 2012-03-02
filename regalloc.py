@@ -79,6 +79,7 @@ class RegisterAllocator(object):
         continue
       elif instruction.instruction.startswith('.end_'):
         self.register_count = 0
+        self.variable_register_map = {}
         continue
       elif instruction.instruction == 'bra':
         continue
