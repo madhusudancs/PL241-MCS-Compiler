@@ -338,7 +338,7 @@ def bootstrap():
     if args.vcg:
       vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
           sys.stdout
-      vcg_file.write(p.root.generate_vcg())
+      vcg_file.write(ssa.cfg.generate_virtual_reg_vcg(ssa=ssa))
       vcg_file.close()
 
     if args.virtual:
