@@ -228,13 +228,15 @@ class SSA(object):
     """
     Instruction.reset_counter()
 
+    # This mapping should be recreated.
+    new_label_nodes = {}
+
     new_ssa = []
     nodes_phi_ed = {}
-    # Creates new instruction for every phi instruction and the old instruction.
-    # Also creates a new CFG for the old CFG
+    # Creates new instruction for every phi instruction and the old
+    # instruction. Also creates a new CFG for the old CFG
     for instruction in self.ssa:
       node = self.label_nodes[instruction.label]
-
 
       # Generate phi instructions.
       if node not in nodes_phi_ed:
@@ -242,14 +244,23 @@ class SSA(object):
           new_instruction = Instruction('phi', phi['LHS'], *phi['RHS'])
           new_ssa.append(new_instruction)
 
+          # Update labels to nodes mapping
+          new_label_nodes[new_instruction.label] = node
+
         nodes_phi_ed[node] = True
 
       # Just regenerate the old instructions.
       new_instruction = Instruction(
-          instruction.instruction, instruction.operand1, instruction.operand2)
+          instruction.instruction, instruction.operand1,
+          instruction.operand2)
       new_ssa.append(new_instruction)
 
+      # Update labels to nodes mapping
+      new_label_nodes[new_instruction.label] = node
+
       self.labels_ir_to_ssa[instruction.label] = new_instruction.label
+
+    self.label_nodes = new_label_nodes
 
     # FIXME: This may be a possible source of error, since this instruction
     # may be referring to the result of some 10 instructions before and
@@ -297,6 +308,11 @@ class SSA(object):
 
     for node in self.cfg:
       new_node = nodes_ir_to_ssa[node]
+
+      # Make the label_nodes map point to SSA CFG nodes.
+      for i in range(new_node.value[0], new_node.value[1] + 1):
+        self.label_nodes[i] = new_node
+
       new_node.out_edges = []
       new_node.in_edges = []
       new_node.dominance_frontier = []
