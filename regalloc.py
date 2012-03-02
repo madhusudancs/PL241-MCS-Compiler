@@ -371,7 +371,12 @@ def bootstrap():
   parser.add_argument('-g', '--vcg', metavar="VCG", type=str,
                       nargs='?', const=True,
                       help='Generate the Visualization Compiler Graph '
-                          'output.')
+                           'of the interference graph.')
+  parser.add_argument('--virtualreggraph', metavar="Virtual Registers Graph",
+                      type=str, nargs='?', const=True,
+                      help='Generate the Visualization Compiler Graph '
+                           'for the virtual registers allocated and liveness '
+                           'computed for the subgraphs.')
   parser.add_argument('--virtual', metavar="Allocate Virtual Register ",
                       type=str, nargs='?', const=True,
                       help='Allocate registers in the virtual space of '
@@ -402,10 +407,19 @@ def bootstrap():
     regalloc.allocate()
 
     if args.vcg:
-      vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
-          sys.stdout
-      vcg_file.write(ssa.ssa_cfg.generate_virtual_reg_vcg(ssa=ssa))
-      vcg_file.close()
+      external_file = isinstance(args.vcg, str)
+      vcg_file = open(args.vcg, 'w') if external_file else sys.stdout
+      vcg_file.write(regalloc.iterference_graphs.generate_vcg())
+      if external_file:
+        vcg_file.close()
+
+    if args.virtualreggraph:
+      external_file = isinstance(args.virtualreggraph, str)
+      virtualreggraph_file = open(args.virtualreggraph, 'w') if \
+          external_file else sys.stdout
+      virtualreggraph_file.write(ssa.ssa_cfg.generate_virtual_reg_vcg(ssa=ssa))
+      if external_file:
+        virtualreggraph_file.close()
 
     if args.virtual:
       external_file = isinstance(args.virtual, str)
