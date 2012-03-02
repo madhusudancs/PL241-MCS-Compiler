@@ -493,7 +493,7 @@ class IntermediateRepresentation(object):
     # The first formal parameter value is after framelength and return
     # label. But we know return label's address was calculated three
     # instructions before we came here, so get the label of that instruction.
-    start = self.ir[-3].label
+    start = self.ir[-2].label
 
     for parameter in root.children:
       start = self.instruction('+', start, '#4')
