@@ -303,7 +303,7 @@ class RegisterAllocator(object):
     """
     virtual_alloc_str = ''
     for instruction in self.ssa.optimized():
-       virtual_alloc_str += '%s\t<- %s\n' % (
+       virtual_alloc_str += '%10s  <- %s\n' % (
            instruction.result if instruction.result else '', instruction)
     return virtual_alloc_str
 
