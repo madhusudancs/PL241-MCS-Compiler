@@ -262,6 +262,7 @@ class RegisterAllocator(object):
           live[operand] = True
 
     for phi_function in root.phi_functions.values():
+      intervals[phi_function['LHS']][0] = root.value[0]
       live.pop(phi_function['LHS'])
 
       # Handle loop headers
