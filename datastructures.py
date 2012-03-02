@@ -508,12 +508,13 @@ class CFG(list):
       liveness = node.live_intervals[variable]
       node_str += '%s: (%s...%s)\n' % (
           variable,
-          liveness[0] if liveness[0] else node.value[0],
-          liveness[1] if liveness[1] else node.value[1])
+          liveness[0] if liveness[0] else 'None',
+          liveness[1] if liveness[1] else 'None')
 
     for instruction in ssa.optimized(node.value[0],
                                      node.value[1] + 1):
-      node_str += '\n%s' % (instruction)
+      node_str += '\n%10s <-%s' % (
+          instruction.result if instruction.result else '', instruction)
 
     node_str += '" }'
 
