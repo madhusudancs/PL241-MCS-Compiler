@@ -20,6 +20,7 @@
 
 
 import logging
+import sys
 
 from argparse import ArgumentParser
 
@@ -184,6 +185,9 @@ def bootstrap():
   parser.add_argument('-t', '--trace', metavar="Trace Mode", type=str,
                       nargs='?', const=True,
                       help='Enable trace mode for optimizations.')
+  parser.add_argument('-o', '--optimized', metavar="Optimized", type=str,
+                      nargs='?', const=True,
+                      help='Generates the optimized output.')
   parser.add_argument('-g', '--vcg', metavar="VCG", type=str,
                       nargs='?', const=True,
                       help='Generate the Visualization Compiler Graph output.')
@@ -208,6 +212,14 @@ def bootstrap():
 
     optimize = Optimize(ssa)
     optimize.optimize()
+
+    if args.optimized:
+      external_file = isinstance(args.optimized, str)
+      optimized_file = open(args.optimized, 'w') if external_file \
+          else sys.stdout
+      optimized_file.write('\n'.join([str(s) for s in ssa.optimized()]))
+      if external_file:
+        optimized_file.close()
 
     if args.vcg:
       vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
