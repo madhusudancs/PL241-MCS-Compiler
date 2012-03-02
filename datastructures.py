@@ -267,15 +267,12 @@ class CFGNode(Node):
     # the dummy True values.
     self.live_in = {}
 
-    # Dictionary of the live variables intervals for each basic block
+    # Dictionary of the live variables intervals for only the start node
     # where the keys of the dictionary are the variable names and values
     # two tuples where first element of the tuple is the label of the
-    # instruction where the variable goes live in this block. If the
-    # variable is live at beginning of the block then the value is None
-    # and there must be a live_in entry for that variable. The second
+    # instruction where the variable goes live in the subgraph. The second
     # element of the tuple is the label of the instruction where the
-    # variable goes dead in this basic block. If variable is live somewhere
-    # in the successor basic blocks its value is stored as None.
+    # variable goes dead in this subgraph.
     self.live_intervals = {}
 
     # Dictionary whose keys are the in_edges and the values are list of

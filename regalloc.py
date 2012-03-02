@@ -58,6 +58,9 @@ class RegisterAllocator(object):
     # loop footer nodes.
     self.loop_pair = {}
 
+    # Dictionary containing the live ranges for each register
+    self.live_ranges = {}
+
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
 
@@ -174,7 +177,7 @@ class RegisterAllocator(object):
         self.variable_register_map[instruction.label] = register
         instruction.result = register
 
-  def analyze_basic_block_liveness(self, root):
+  def analyze_basic_block_liveness(self, start_node, node):
     """Analyzes the liveness of the variables in the given basic block
 
     Performs a post-order traversal of the dominator tree for processing
@@ -186,17 +189,20 @@ class RegisterAllocator(object):
     http://www.christianwimmer.at/Publications/Wimmer10a/Wimmer10a.pdf
 
     Args:
-      root: The root of the dominator subtree on which post-order traversal
-          should be performed.
+      start: The starting node of the control flow subgraph that stores the
+          complete subgraph specific information like liveness of each
+          variable etc.
+      node: The node of the control flow subgraph on which post-order
+          traversal should be performed.
     """
-    for child in root.out_edges:
+    for child in node.out_edges:
       if self.visited.get(child, False):
-        self.loop_pair[child] = root
+        self.loop_pair[child] = node
         continue
 
       self.visited[child] = True
 
-      self.analyze_basic_block_liveness(child)
+      self.analyze_basic_block_liveness(start_node, child)
 
     # The live variables set in the block where each key is the variable and
     # the value is a two elements first representing the start of the range
@@ -208,10 +214,10 @@ class RegisterAllocator(object):
     # should be included only for those predecessors
     include = collections.defaultdict(list)
 
-    for successor in root.out_edges:
+    for successor in node.out_edges:
       exclude = []
       for successor_in in successor.live_include:
-        if successor_in != root:
+        if successor_in != node:
           exclude.extend(successor.live_include[successor_in])
 
       successor_live_in = set(successor.live_in.keys()) - set(exclude)
@@ -223,7 +229,7 @@ class RegisterAllocator(object):
         # __init__() method for matching how things work with live
         # dictionaries.
         live[variable] = True
-        intervals[variable] = [None, None]
+        intervals[variable] = list(node.value)
 
       for phi_function in successor.phi_functions.values():
         # Get the in-edges of the successor to determine which entry in the
@@ -235,19 +241,19 @@ class RegisterAllocator(object):
         # This is adding one more degree to the O(n) polynomial since the
         # index implementation on the Python lists is O(n) and this is within
         # a nested loop. Think of something efficient?
-        input_position = successor.in_edges.index(root)
+        input_position = successor.in_edges.index(node)
 
         operand = phi_function['RHS'][input_position]
         if self.is_register(operand):
           live[operand] = True
-          intervals[operand] = [None, None]
+          intervals[operand] = list(node.value)
 
     # start and end labels of the basic blocks in the SSA CFG which is the
     # other universe of regular IR's CFG.
-    start, end = root.value
+    start, end = node.value
 
     # Adjust start ignoring phi instructions, since they are dealt separately
-    start -= len(root.phi_functions)
+    start -= len(node.phi_functions)
 
     # Walk the instructions in the reverse order, note -1 for stepping.
     for instruction in self.ssa.optimized(end, start - 1, reversed=True):
@@ -273,34 +279,45 @@ class RegisterAllocator(object):
       operand1 = instruction.operand1
       if self.is_register(operand1) and operand1 not in live:
         live[instruction.operand1] = True
-        intervals[instruction.operand1] = [None, instruction.label]
+        intervals[instruction.operand1] = [node.value[0], instruction.label]
 
       operand2 = instruction.operand2
       if self.is_register(operand2) and operand2 not in live:
         live[instruction.operand2] = True
-        intervals[instruction.operand2] = [None, instruction.label]
+        intervals[instruction.operand2] = [node.value[0], instruction.label]
 
       for operand in instruction.operands:
         if self.is_register(operand) and operand not in live:
-          intervals[operand] = [None, instruction.label]
+          intervals[operand] = [node.value[0], instruction.label]
           live[operand] = True
 
-    for phi_function in root.phi_functions.values():
-      intervals[phi_function['LHS']][0] = root.value[0]
+    for phi_function in node.phi_functions.values():
+      intervals[phi_function['LHS']][0] = node.value[0]
       live.pop(phi_function['LHS'])
 
-    for phi_function in root.phi_functions.values():
+    for phi_function in node.phi_functions.values():
       for i, operand in enumerate(phi_function['RHS']):
-        include[root.in_edges[i]].append(operand)
+        include[node.in_edges[i]].append(operand)
         if operand in intervals:
           intervals[operand][1] = phi_function['instruction'].label
         elif self.is_register(operand):
           live[operand] = True
-          intervals[operand] = [None, phi_function['instruction'].label]
+          intervals[operand] = [node.value[0],
+                                phi_function['instruction'].label]
 
-    root.live_in = live
-    root.live_intervals = intervals
-    root.live_include = include
+    node.live_in = live
+    node.live_include = include
+
+    for operand in intervals:
+      if operand in start_node.live_intervals:
+        # Merge the intervals
+        start_node.live_intervals[operand] = [
+            min(intervals[operand][0], start_node.live_intervals[operand][0]),
+            max(intervals[operand][1], start_node.live_intervals[operand][1]),
+            ]
+      else:
+        # Add a new interval
+        start_node.live_intervals[operand] = intervals[operand]
 
   def liveness(self):
     """Computes the liveness range for each variable.
@@ -318,7 +335,8 @@ class RegisterAllocator(object):
     # not thought about till now. "Compile each function independently."
 
     for dom_tree in self.ssa.cfg.dom_trees:
-      self.analyze_basic_block_liveness(dom_tree.other_universe_node)
+      self.analyze_basic_block_liveness(dom_tree.other_universe_node,
+                                        dom_tree.other_universe_node)
 
   def allocate(self):
     """Allocate the registers to the program.
