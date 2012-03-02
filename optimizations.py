@@ -99,6 +99,23 @@ def cse_cp(ssa):
       # replacements dictionary.
       instruction_replacements[hash(instruction)] = instruction.label
 
+    # FIXME: This may not be required at all.
+    # Additionally if an instruction is a phi instruction update update
+    # the corresponding phi functions in the corresponding basic blocks
+    if instruction.instruction == 'phi':
+      original_variable = instruction.operand1.rsplit('_', 1)[0]
+      node = ssa.label_nodes[instruction.label]
+      phi_function = node.phi_functions[original_variable]
+      if phi_function['LHS'] in operand_replacements:
+        phi_function['LHS'] = operand_replacements[phi_function['LHS']]
+
+      new_operands = []
+      for operand in phi_function['RHS']:
+        if operand in operand_replacements:
+          new_operands.append(operand_replacements[operand])
+        else:
+          new_operands.append(operand)
+      phi_function['RHS'] = new_operands
 
   return ssa
 
