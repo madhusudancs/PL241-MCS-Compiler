@@ -295,7 +295,7 @@ class RegisterAllocator(object):
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
     """
-    return True if (isinstance(operand, str) and operand and \
+    return True if (operand and isinstance(operand, str) and \
         operand[0] == 'r' and operand[1:].isdigit()) else False
 
   def str_virtual_register_allocation(self):
