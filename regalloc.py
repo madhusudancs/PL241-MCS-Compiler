@@ -84,21 +84,39 @@ class RegisterAllocator(object):
       elif instruction.instruction == 'bra':
         continue
       elif instruction.instruction == 'phi':
+        # Phi functions in the original basic blocks should be
+        # updated as well
+        node = self.ssa.label_nodes[instruction.label]
+
+        original_variable = instruction.operand1.rsplit('_', 1)[0]
+        phi_function = node.phi_functions[original_variable]
+
         # phi instructions are special cases, so handle them separately
         # The first operand of the phi instruction is actually the result
         # of the phi function and the operands from 2 to all other operands
         # are the inputs to the phi function.
-        if instruction.is_variable_or_label(instruction.operand1):
-          instruction.operand1 = self.register_for_operand(
-              instruction.operand1)
-        if instruction.is_variable_or_label(instruction.operand2):
-          instruction.operand2 = self.register_for_operand(
-              instruction.operand2)
+        operand1 = instruction.operand1
+        if instruction.is_variable_or_label(operand1):
+          new_register = self.register_for_operand(operand1)
+          instruction.operand1 = new_register
+
+          phi_function['LHS'] = new_register
+
+        operand2 = instruction.operand2
+        if instruction.is_variable_or_label(operand2):
+          new_register = self.register_for_operand(operand2)
+          instruction.operand2 = new_register
+
+          phi_function['RHS'][0] = new_register
+
         new_operands = []
-        for operand in instruction.operands:
+        for i, operand in enumerate(instruction.operands):
           if instruction.is_variable_or_label(operand):
-            new_operands.append(self.register_for_operand(operand))
-  
+            new_register = self.register_for_operand(operand)
+            new_operands.append(new_register)
+
+            phi_function['RHS'][i + 1] = new_register
+
         instruction.operands = new_operands
 
       else:
