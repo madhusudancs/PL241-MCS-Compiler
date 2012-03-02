@@ -78,16 +78,49 @@ class RegisterAllocator(object):
     This is the most important phase because, we actually explicitly allocate
     some register for the result of the instructions in this phase.
     """
+    # List of (phi instruction, phi function) tuples. Ordering is important,
+    # so no dictionary only a list of tuples. Further we only do sequential
+    # processing so doesn't make sense to use a dictionary.
+    phi_instructions = []
+
     for instruction in self.ssa.optimized():
       if instruction.instruction.startswith('.begin_'):
         continue
       elif instruction.instruction.startswith('.end_'):
+        # Process all the phi-functions in the end of the function because
+        # there are phi-functions especially in case of blocks whose operands
+        # are defined after this block. And also it may so happen that, that
+        # definition is removed because of copy propagation and only some
+        # other instructions label remaining. This cannot be determined or
+        # fixed before the result of the instruction whose result is the
+        # operand for the phi function is computed
+        for instruction, phi_function in phi_instructions:
+          operand2 = instruction.operand2
+          if instruction.is_variable_or_label(operand2):
+            new_register = self.register_for_operand(operand2)
+            instruction.operand2 = new_register
+
+            phi_function['RHS'][0] = new_register
+
+          new_operands = []
+          for i, operand in enumerate(instruction.operands):
+            if instruction.is_variable_or_label(operand):
+              new_register = self.register_for_operand(operand)
+              new_operands.append(new_register)
+
+              phi_function['RHS'][i + 1] = new_register
+
+          instruction.operands = new_operands
+
+        # Reset all the function level datastructures
         self.register_count = 0
         self.variable_register_map = {}
-        continue
+        phi_instructions = []
+
       elif instruction.instruction == 'bra':
         continue
       elif instruction.instruction == 'phi':
+        # phi instructions are special cases, so handle them separately
         # Phi functions in the original basic blocks should be
         # updated as well
         node = self.ssa.label_nodes[instruction.label]
@@ -95,7 +128,6 @@ class RegisterAllocator(object):
         original_variable = instruction.operand1.rsplit('_', 1)[0]
         phi_function = node.phi_functions[original_variable]
 
-        # phi instructions are special cases, so handle them separately
         # The first operand of the phi instruction is actually the result
         # of the phi function and the operands from 2 to all other operands
         # are the inputs to the phi function.
@@ -104,25 +136,12 @@ class RegisterAllocator(object):
           new_register = self.register_for_operand(operand1)
           instruction.operand1 = new_register
 
-          phi_function['LHS'] = new_register
+        phi_function['LHS'] = new_register
 
-        operand2 = instruction.operand2
-        if instruction.is_variable_or_label(operand2):
-          new_register = self.register_for_operand(operand2)
-          instruction.operand2 = new_register
-
-          phi_function['RHS'][0] = new_register
-
-        new_operands = []
-        for i, operand in enumerate(instruction.operands):
-          if instruction.is_variable_or_label(operand):
-            new_register = self.register_for_operand(operand)
-            new_operands.append(new_register)
-
-            phi_function['RHS'][i + 1] = new_register
-
-        instruction.operands = new_operands
-
+        # The operands/RHS of the phi function are handled at the end of the
+        # function call. See the comment where it is handled to know why.
+        # Just record the phi instruction here, process later
+        phi_instructions.append((instruction, phi_function))
       else:
         if instruction.is_variable_or_label(instruction.operand1):
           instruction.operand1 = self.register_for_operand(

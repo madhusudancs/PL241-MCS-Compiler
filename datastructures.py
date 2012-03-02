@@ -255,7 +255,8 @@ class CFGNode(Node):
 
     # Stores the dictionary of phi-functions added to this node where the
     # key is the variable name and the value is the dictionary containing
-    # the LHS and the RHS of the phi function.
+    # the LHS and RHS of the phi function, and a pointer to the
+    # instruction in SSA.
     self.phi_functions = {}
 
     # Maintain pointers to ssa node in the ir node and vice-versa.

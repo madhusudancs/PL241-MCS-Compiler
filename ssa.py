@@ -242,6 +242,9 @@ class SSA(object):
       if node not in nodes_phi_ed:
         for phi in node.phi_functions.values():
           new_instruction = Instruction('phi', phi['LHS'], *phi['RHS'])
+
+          phi['instruction'] = new_instruction
+
           new_ssa.append(new_instruction)
 
           # Update labels to nodes mapping
