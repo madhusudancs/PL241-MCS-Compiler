@@ -491,6 +491,72 @@ class CFG(list):
         'nodes_edges': '\n    '.join(self.vcg_output)
         }
 
+  def generate_virtual_reg_graph_for_vcg(self, node, ssa=None):
+    """Generate this node and all the outward edges from this node.
+
+    Args:
+      node: The node for which we need to generate the VCG output.
+      ssa: The SSA object required to generate optimized output.
+    """
+    node_str = ('node: { title: "%(id)s" color: lightgrey '
+        'label: "CFGNode: %(value)s\nLive-In:\n' % {
+        'id': id(node),
+        'value': node.value,
+        })
+
+    for variable in sorted(node.live_intervals, key=lambda k: int(k[1:])):
+      liveness = node.live_intervals[variable]
+      node_str += '%s: (%s...%s)\n' % (
+          variable,
+          liveness[0] if liveness[0] else node.value[0],
+          liveness[1] if liveness[1] else node.value[1])
+
+    for instruction in ssa.optimized(node.value[0],
+                                     node.value[1] + 1):
+      node_str += '\n%s' % (instruction)
+
+    node_str += '" }'
+
+    self.vcg_output.append(node_str)
+    for out_edge in node.out_edges:
+      self.vcg_output.append(
+          'edge: {sourcename: "%s" targetname: "%s" }' % (
+              id(node), id(out_edge)))
+
+  def generate_virtual_reg_vcg(
+      self, title="Control Flow Graph For Optimized SSA After Virtual "
+      "Register Allocation", ssa=None):
+    """Generate the Visualization of Compiler Graphs for this node as the root.
+
+    Args:
+      title: Title of the graph
+      ssa: The SSA object needed to generate this graph.
+    """
+    self.vcg_output = []
+    for node in self:
+      self.generate_virtual_reg_graph_for_vcg(node, ssa)
+
+    return """graph: { title: "%(title)s"
+    folding: 1
+    hidden: 2
+    height: 700
+    width: 700
+    x: 30
+    y: 30
+    color: lightcyan
+    stretch: 7
+    shrink: 10
+    orientation: top_to_bottom
+    layout_downfactor: 10
+    layout_upfactor:   1
+    layout_nearfactor: 0
+    manhattan_edges: yes
+    %(nodes_edges)s
+}""" % {
+        'title': title,
+        'nodes_edges': '\n    '.join(self.vcg_output)
+        }
+
   def generate_dom_tree_for_vcg(self, tree):
     """Recursively visit nodes of the tree with the given argument as the root.
 
