@@ -282,6 +282,11 @@ class RegisterAllocator(object):
     for dom_tree in self.ssa.cfg.dom_trees:
       self.analyze_basic_block_liveness(dom_tree.other_universe_node)
 
+  def is_register(self, operand):
+    """Checks if the given operand is actually a register.
+    """
+    return True if (isinstance(operand, str) and operand and \
+        operand[0] == 'r' and operand[1:].isdigit()) else False
 
   def str_virtual_register_allocation(self):
     """Gets the text representation of the program after virtual allocation.
