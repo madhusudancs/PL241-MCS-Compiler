@@ -262,18 +262,20 @@ class CFGNode(Node):
     self.other_universe_node = None
 
     # Dictionary of the live-in variables for each basic block where the
-    # keys of the dictionary are the variable names and values are the
-    # label of the instruction where the variable goes dead in this
-    # block. If the label is live at out of the block then the value is
-    # None and there must be a live_out entry for that variable.
+    # keys of the dictionary are the variable names and values are just
+    # the dummy True values.
     self.live_in = {}
 
-    # Dictionary of the live-out variables for each basic block where the
-    # keys of the dictionary are the variable names and values are the
-    # label of the instruction where the variable becomes live in this
-    # block. If the label is live at beginning of the block then the
-    # value is None and there must be a live_in entry for that variable.
-    self.live_out = {}
+    # Dictionary of the live variables intervals for each basic block
+    # where the keys of the dictionary are the variable names and values
+    # two tuples where first element of the tuple is the label of the
+    # instruction where the variable goes live in this block. If the
+    # variable is live at beginning of the block then the value is None
+    # and there must be a live_in entry for that variable. The second
+    # element of the tuple is the label of the instruction where the
+    # variable goes dead in this basic block. If variable is live somewhere
+    # in the successor basic blocks its value is stored as None.
+    self.live_intervals = {}
 
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
