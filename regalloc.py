@@ -213,8 +213,10 @@ class RegisterAllocator(object):
         # a nested loop. Think of something efficient?
         input_position = successor.in_edges.index(root)
 
-        live[phi_function['RHS'][input_position]] = True
-        intervals[phi_function['RHS'][input_position]] = [None, None]
+        operand = phi_function['RHS'][input_position]
+        if self.is_register(operand):
+          live[operand] = True
+          intervals[operand] = [None, None]
 
     # start and end labels of the basic blocks in the SSA CFG which is the
     # other universe of regular IR's CFG.
