@@ -278,6 +278,10 @@ class CFGNode(Node):
     # in the successor basic blocks its value is stored as None.
     self.live_intervals = {}
 
+    # Dictionary whose keys are the in_edges and the values are list of
+    # variables that must be included only on that path
+    self.live_include = {}
+
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
 

@@ -204,8 +204,19 @@ class RegisterAllocator(object):
     live = {}
     intervals = {}
 
+    # Dictionary containing the in_edge and the operands that
+    # should be included only for those predecessors
+    include = collections.defaultdict(list)
+
     for successor in root.out_edges:
-      for variable in successor.live_in.keys():
+      exclude = []
+      for successor_in in successor.live_include:
+        if successor_in != root:
+          exclude.extend(successor.live_include[successor_in])
+
+      successor_live_in = set(successor.live_in.keys()) - set(exclude)
+
+      for variable in successor_live_in:
         # None for first element of the list means it starts from the
         # beginning of the block and None for the second element means
         # it runs until the end of the block. See datastructures.CFGNode
@@ -278,14 +289,18 @@ class RegisterAllocator(object):
       intervals[phi_function['LHS']][0] = root.value[0]
       live.pop(phi_function['LHS'])
 
-      # Handle loop headers
-#      if b is loop header then
-#        loopEnd = last block of the loop starting at b
-#        for each opd in live do
-#          intervals[opd].addRange(b.from, loopEnd.to)
+    for phi_function in root.phi_functions.values():
+      for i, operand in enumerate(phi_function['RHS']):
+        include[root.in_edges[i]].append(operand)
+        if operand in intervals:
+          intervals[operand][1] = phi_function['instruction'].label
+        elif self.is_register(operand):
+          live[operand] = True
+          intervals[operand] = [None, phi_function['instruction'].label]
 
     root.live_in = live
     root.live_intervals = intervals
+    root.live_include = include
 
   def liveness(self):
     """Computes the liveness range for each variable.
