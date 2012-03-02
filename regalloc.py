@@ -155,12 +155,6 @@ class RegisterAllocator(object):
         self.variable_register_map[instruction.label] = register
         instruction.result = register
 
-  def allocate(self):
-    """Allocate the registers to the program.
-    """
-    self.allocate_virtual_registers()
-    self.liveness()
-
   def analyze_basic_block_liveness(self, root):
     """Analyzes the liveness of the variables in the given basic block
 
@@ -291,6 +285,12 @@ class RegisterAllocator(object):
 
     for dom_tree in self.ssa.cfg.dom_trees:
       self.analyze_basic_block_liveness(dom_tree.other_universe_node)
+
+  def allocate(self):
+    """Allocate the registers to the program.
+    """
+    self.allocate_virtual_registers()
+    self.liveness()
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
