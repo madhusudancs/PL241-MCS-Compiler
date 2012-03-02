@@ -218,14 +218,51 @@ class RegisterAllocator(object):
 
     # Adjust start ignoring phi instructions, since they are dealt separately
     start -= len(root.phi_functions)
-    # Walk the instructions in the reverse order, note -1 for stepping.
 
-    for instruction in self.ssa.ssa[end:start:-1]:
-      intervals[instruction.operand1][0] = [instruction.label]
-      live.pop(instruction.operand1)
-      # We need to process the input operands if and only if 
-      intervals[instruction.operand2][1] = [instruction.label]
-      live[instruction.operand2] = True
+    # Walk the instructions in the reverse order, note -1 for stepping.
+    for instruction in self.ssa.optimized(end, start - 1, reversed=True):
+      if self.is_register(instruction.result):
+        if instruction.result not in live:
+          # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
+          # optimizations! :-P
+          intervals[instruction.result] = [instruction.label,
+                                           instruction.label]
+          # NOTE: pop is not added because it doesn't even exist
+        else:
+          intervals[instruction.result][0] = instruction.label
+          live.pop(instruction.result)
+
+      # We need to process the input operands if and only if they don't
+      # really exist, if they already exist, it means that they are used
+      # else where after this basic block and hence should stay alive.
+      # Only the last use (or the first sighting since we are coming from
+      # reverse now should get an lifetime end set.)
+      operand1 = instruction.operand1
+      if self.is_register(operand1) and operand1 not in live:
+        live[instruction.operand1] = True
+        intervals[instruction.operand1] = [None, instruction.label]
+
+      operand2 = instruction.operand2
+      if self.is_register(operand2) and operand2 not in live:
+        live[instruction.operand2] = True
+        intervals[instruction.operand2] = [None, instruction.label]
+
+      for operand in instruction.operands:
+        if self.is_register(operand) and operand not in live:
+          intervals[operand] = [None, instruction.label]
+          live[operand] = True
+
+    for phi_function in root.phi_functions.values():
+      live.pop(phi_function['LHS'])
+
+      # Handle loop headers
+#      if b is loop header then
+#        loopEnd = last block of the loop starting at b
+#        for each opd in live do
+#          intervals[opd].addRange(b.from, loopEnd.to)
+
+    root.live_in = live
+    root.live_intervals = intervals
 
   def liveness(self):
     """Computes the liveness range for each variable.
