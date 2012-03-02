@@ -49,22 +49,24 @@ def cse_cp(ssa):
   # For each statement stores its replacement for either the statement
   # itself or the result of the statement if the statement was removed
   # because of Common Sub-expression elimination or Copy propogation.
-  replacements = {}
+  operand_replacements = {}
+
+  instruction_replacements = {}
 
   for instruction in ssa.ssa:
     # Check if the operands exist in the replacements dictionary, if so
     # replace them with the value of the operand key in the replacements
     # dictionary.
-    if instruction.operand1 in replacements:
-      instruction.operand1 = replacements[instruction.operand1]
-    if instruction.operand2 in replacements:
-      instruction.operand2 = replacements[instruction.operand2]
+    if instruction.operand1 in operand_replacements:
+      instruction.operand1 = operand_replacements[instruction.operand1]
+    if instruction.operand2 in operand_replacements:
+      instruction.operand2 = operand_replacements[instruction.operand2]
 
     # Remove all move instructions by copy propagation and record
     # the replacement.
     if (instruction.instruction == 'move' and
         instruction.is_variable(instruction.operand2)):
-      replacements[instruction.operand2] = instruction.operand1
+      operand_replacements[instruction.operand2] = instruction.operand1
 
       ssa.optimized_removal[instruction.label] = True
 
@@ -76,8 +78,8 @@ def cse_cp(ssa):
     # instructions have exactly one or two operands.
     new_operands = []
     for operand in instruction.operands:
-      if operand in replacements:
-        new_operands.append(replacements[operand])
+      if operand in operand_replacements:
+        new_operands.append(operand_replacements[operand])
       else:
         new_operands.append(operand)
 
@@ -85,16 +87,18 @@ def cse_cp(ssa):
 
     # FIXME: This code may become buggy if two values (unrelated
     # instructions) compute to the same hash.
-    if hash(instruction) in replacements:
+    if hash(instruction) in instruction_replacements:
       # This instruction should be a common sub-expression, record the
       # replacement for it and remove it (effectively do not add it to
       # new SSA list)
-      replacements[instruction.label] = replacements[hash(instruction)]
+      instruction_replacements[instruction.label] = \
+          instruction_replacements[hash(instruction)]
       ssa.optimized_removal[instruction.label] = True
     else:
       # We need this instruction, so copy to the new SSA and record it in the
       # replacements dictionary.
-      replacements[hash(instruction)] = instruction.label
+      instruction_replacements[hash(instruction)] = instruction.label
+
 
   return ssa
 
