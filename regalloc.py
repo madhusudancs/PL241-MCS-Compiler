@@ -54,6 +54,10 @@ class RegisterAllocator(object):
     # registers space.
     self.register_count = 0
 
+    # Dictionary of loop header nodes as the keys and the values are the
+    # loop footer nodes.
+    self.loop_pair = {}
+
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
 
