@@ -342,10 +342,12 @@ def bootstrap():
       vcg_file.close()
 
     if args.virtual:
-      virtual_file = open(args.virtual, 'w') if isinstance(args.virtual, str) \
+      external_file = isinstance(args.virtual, str)
+      virtual_file = open(args.virtual, 'w') if external_file \
           else sys.stdout
       virtual_file.write(regalloc.str_virtual_register_allocation())
-      virtual_file.close()
+      if external_file:
+        virtual_file.close()
 
     return ssa
 
