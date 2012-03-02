@@ -27,7 +27,7 @@ import sys
 from argparse import ArgumentParser
 
 from ir import IntermediateRepresentation
-from optimizations import cse_cp
+from optimizations import Optimize
 from parser import LanguageSyntaxError
 from parser import Parser
 from ssa import SSA
@@ -340,7 +340,8 @@ def bootstrap():
     ssa = SSA(ir, cfg)
     ssa.construct()
 
-    ssa = cse_cp(ssa)
+    optimize = Optimize(ssa)
+    optimize.optimize()
 
     regalloc = RegisterAllocator(ssa)
     regalloc.allocate()
@@ -348,7 +349,7 @@ def bootstrap():
     if args.vcg:
       vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
           sys.stdout
-      vcg_file.write(ssa.cfg.generate_virtual_reg_vcg(ssa=ssa))
+      vcg_file.write(ssa.ssa_cfg.generate_virtual_reg_vcg(ssa=ssa))
       vcg_file.close()
 
     if args.virtual:

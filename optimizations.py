@@ -34,90 +34,145 @@ from ssa import SSA
 LOGGER = logging.getLogger(__name__)
 
 
-def cse_cp(ssa):
-  """Performs common sub-expression elimination and copy propogation.
-
-  Args:
-    ssa: The SSA object.
+class Optimize(object):
+  """Implements different types of optimizations for the compiler
   """
-  # FIXME: Don't copy-propagate main function variables since they are global
-  # variables!!! That is the most dangerous thing because any function can
-  # use the global variables! So we cannot copy-propagate it in the function
-  # since it changes for every function call whose exact value cannot be
-  # determined statically (i.e. until runtime)
 
-  # For each statement stores its replacement for either the statement
-  # itself or the result of the statement if the statement was removed
-  # because of Common Sub-expression elimination or Copy propogation.
-  operand_replacements = {}
+  def __init__(self, ssa):
+    """Initializes the optimizations class.
 
-  instruction_replacements = {}
+    Args:
+      ssa: The ssa object on which optimizations must be performed
+    """
+    self.ssa = ssa
 
-  for instruction in ssa.ssa:
-    # Check if the operands exist in the replacements dictionary, if so
-    # replace them with the value of the operand key in the replacements
-    # dictionary.
-    if instruction.operand1 in operand_replacements:
-      instruction.operand1 = operand_replacements[instruction.operand1]
-    if instruction.operand2 in operand_replacements:
-      instruction.operand2 = operand_replacements[instruction.operand2]
+  def replace_phi_functions(self):
+    """Replace all phi functions
+    """
+    for node in set(self.phi_nodes):
+      for phi_function in node.phi_functions.values():
+        new_operands = []
+        for operand in phi_function['RHS']:
+          if operand in self.operand_replacements:
+            new_operands.append(self.operand_replacements[operand])
+          else:
+            new_operands.append(operand)
+        phi_function['RHS'] = new_operands
 
-    # Remove all move instructions by copy propagation and record
-    # the replacement.
-    if (instruction.instruction == 'move' and
-        instruction.is_variable(instruction.operand2)):
-      operand_replacements[instruction.operand2] = instruction.operand1
+  def replace_phis(self):
+    """Replace the operands of the phi instructions with the optimized code.
 
-      ssa.optimized_removal[instruction.label] = True
-
-      # Done with this instruction since we don't want to add it, move on
-      # to next instruction.
-      continue
-
-    # This loop occurs only in the case of phi instructions since all other
-    # instructions have exactly one or two operands.
-    new_operands = []
-    for operand in instruction.operands:
-      if operand in operand_replacements:
-        new_operands.append(operand_replacements[operand])
-      else:
-        new_operands.append(operand)
-
-    instruction.operands = tuple(new_operands)
-
-    # FIXME: This code may become buggy if two values (unrelated
-    # instructions) compute to the same hash.
-    if hash(instruction) in instruction_replacements:
-      # This instruction should be a common sub-expression, record the
-      # replacement for it and remove it (effectively do not add it to
-      # new SSA list)
-      instruction_replacements[instruction.label] = \
-          instruction_replacements[hash(instruction)]
-      ssa.optimized_removal[instruction.label] = True
-    else:
-      # We need this instruction, so copy to the new SSA and record it in the
-      # replacements dictionary.
-      instruction_replacements[hash(instruction)] = instruction.label
-
-    # FIXME: This may not be required at all.
-    # Additionally if an instruction is a phi instruction update update
-    # the corresponding phi functions in the corresponding basic blocks
-    if instruction.instruction == 'phi':
-      original_variable = instruction.operand1.rsplit('_', 1)[0]
-      node = ssa.label_nodes[instruction.label]
-      phi_function = node.phi_functions[original_variable]
-      if phi_function['LHS'] in operand_replacements:
-        phi_function['LHS'] = operand_replacements[phi_function['LHS']]
+    This also replaces the phi functions in the nodes.
+    ALERT! Don't touch the LHS of the phi functions and hence the first
+    operand of the phi instructions! It doesn't make sense to replace them!
+    """
+    self.phi_nodes = []
+    for label in self.phi_instructions:
+      instruction = self.ssa.ssa[label]
+      # We should not touch the first operand of the phi function since it
+      # is the result of the phi function. We only start replacing from the
+      # second operand which are the RHS of the phi-functions.
+      if instruction.operand2 in self.operand_replacements:
+        instruction.operand2 = self.operand_replacements[instruction.operand2]
 
       new_operands = []
-      for operand in phi_function['RHS']:
-        if operand in operand_replacements:
-          new_operands.append(operand_replacements[operand])
+      for operand in instruction.operands:
+        if operand in self.operand_replacements:
+          new_operands.append(self.operand_replacements[operand])
         else:
           new_operands.append(operand)
-      phi_function['RHS'] = new_operands
 
-  return ssa
+      instruction.operands = tuple(new_operands)
+
+      original_variable = instruction.operand1.rsplit('_', 1)[0]
+
+      self.phi_nodes.append(self.ssa.label_nodes.get(label))
+
+  def cse_cp(self):
+    """Performs common sub-expression elimination and copy propogation.
+    """
+    # FIXME: Don't copy-propagate main function variables since they are global
+    # variables!!! That is the most dangerous thing because any function can
+    # use the global variables! So we cannot copy-propagate it in the function
+    # since it changes for every function call whose exact value cannot be
+    # determined statically (i.e. until runtime)
+
+    # For each statement stores its replacement for either the statement
+    # itself or the result of the statement if the statement was removed
+    # because of Common Sub-expression elimination or Copy propogation.
+    self.operand_replacements = {}
+
+    self.instruction_replacements = {}
+
+    self.phi_instructions = []
+
+    for instruction in self.ssa.ssa:
+      # We will process all the phi functions in the end because in some cases
+      # like loops, the phi operands appear before they are actually defined.
+      # We need to take care of those too, so let us process them separately.
+      if instruction.instruction == 'phi':
+        self.phi_instructions.append(instruction.label)
+        continue
+
+      # If end of function is reached reset the instruction_replacements
+      # since we cannot optimize it anyway.
+      # Also we need not reset operand_replacements because they don't
+      # affect each other anyway because of the scoped-representation of
+      # the symbols we have chosen and instruction labels are different
+      # anyway.
+      # FIXME: Get rid of this when functions are compiled independently
+      if instruction.instruction.startswith('.end_'):
+        self.instruction_replacements = {}
+
+      # Check if the operands exist in the replacements dictionary, if so
+      # replace them with the value of the operand key in the replacements
+      # dictionary.
+      if instruction.operand1 in self.operand_replacements:
+        instruction.operand1 = self.operand_replacements[instruction.operand1]
+      if instruction.operand2 in self.operand_replacements:
+        instruction.operand2 = self.operand_replacements[instruction.operand2]
+
+      new_operands = []
+      for operand in instruction.operands:
+        if operand in self.operand_replacements:
+          new_operands.append(self.operand_replacements[operand])
+        else:
+          new_operands.append(operand)
+
+      instruction.operands = tuple(new_operands)
+
+      # Remove all move instructions by copy propagation and record
+      # the replacement.
+      if (instruction.instruction == 'move' and
+          instruction.is_variable(instruction.operand2)):
+        self.operand_replacements[instruction.operand2] = instruction.operand1
+
+        self.ssa.optimized_removal[instruction.label] = True
+
+        # Done with this instruction since we don't want to add it, move on
+        # to next instruction.
+        continue
+
+      # FIXME: This code may become buggy if two values (unrelated
+      # instructions) compute to the same hash.
+      if hash(instruction) in self.instruction_replacements:
+        # This instruction should be a common sub-expression, record the
+        # replacement for it and remove it (effectively do not add it to
+        # new SSA list)
+        self.operand_replacements[instruction.label] = \
+            self.instruction_replacements[hash(instruction)]
+        self.ssa.optimized_removal[instruction.label] = True
+      else:
+        # We need this instruction, so copy to the new SSA and record it in the
+        # replacements dictionary.
+        self.instruction_replacements[hash(instruction)] = instruction.label
+
+  def optimize(self):
+    """Bootstraps the whole optimization process
+    """
+    self.cse_cp()
+    self.replace_phis()
+    self.replace_phi_functions()
 
 
 def bootstrap():
@@ -151,12 +206,13 @@ def bootstrap():
     ssa = SSA(ir, cfg)
     ssa.construct()
 
-    ssa = cse_cp(ssa)
+    optimize = Optimize(ssa)
+    optimize.optimize()
 
     if args.vcg:
       vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
           sys.stdout
-      vcg_file.write(p.root.generate_vcg())
+      vcg_file.write(ssa.ssa_cfg.generate_vcg())
       vcg_file.close()
 
     return ssa
