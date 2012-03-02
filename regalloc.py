@@ -159,7 +159,7 @@ class RegisterAllocator(object):
     """Allocate the registers to the program.
     """
     self.allocate_virtual_registers()
-    #self.liveness()
+    self.liveness()
 
   def analyze_basic_block_liveness(self, root):
     """Analyzes the liveness of the variables in the given basic block
