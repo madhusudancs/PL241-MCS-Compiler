@@ -513,6 +513,9 @@ class CFG(list):
           liveness[0] if liveness[0] else 'None',
           liveness[1] if liveness[1] else 'None')
 
+    for variable in sorted(node.live_in):
+      node_str += '%s\n' % (variable)
+
     for instruction in ssa.optimized(node.value[0],
                                      node.value[1] + 1):
       node_str += '\n%10s <-%s' % (
