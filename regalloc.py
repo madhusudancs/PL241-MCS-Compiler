@@ -201,7 +201,7 @@ class RegisterAllocator(object):
         live[variable] = True
         intervals[variable] = [None, None]
 
-      for phi_function in successor.phi_functions:
+      for phi_function in successor.phi_functions.values():
         # Get the in-edges of the successor to determine which entry in the
         # phi-functions input corresponds to a given node, since the order
         # in the phi-function's input is same as the order of the in-edges.
