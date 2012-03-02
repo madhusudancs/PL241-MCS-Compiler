@@ -881,3 +881,22 @@ class DominanceFrontier(object):
       root: The node for which the immediate dominator should be found
     """
     return root.dom_parent
+
+
+class InterferenceGraph(list):
+  """The interference graph for the interfering registers.
+
+  Essentially contains a list of nodes, so it inherits from the list type.
+  """
+
+  def __init__(self, nodes, start, *args, **kwargs):
+    """Constructs the Interference graph datastructures.
+
+    Args:
+      nodes: List of nodes contained in the graph.
+      start: The start node of the graph.
+      args: positional arguments to be passed to the super class.
+      kwargs: keyword arguments to be passed to the super class.
+    """
+    self.nodes = nodes
+    self.start = start
