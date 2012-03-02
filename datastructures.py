@@ -307,6 +307,11 @@ class CFGNode(Node):
     for child in children:
       child.dom_parent = self
 
+  def __contains__(self, instruction_label):
+    """Checks if instruction label belongs to this basic block.
+    """
+    return self.value[0] <= instruction_label <= self.value[1]
+
   def __str__(self):
     return 'node: { title: "%(id)s" label: "CFGNode: %(value)s" }' % {
         'id': id(self),
