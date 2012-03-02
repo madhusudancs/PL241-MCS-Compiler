@@ -172,7 +172,13 @@ class RegisterAllocator(object):
       root: The root of the dominator subtree on which post-order traversal
           should be performed.
     """
-    for child in root.dom_children:
+    for child in root.out_edges:
+      if self.visited.get(child, False):
+        self.loop_pair[child] = root
+        continue
+
+      self.visited[child] = True
+
       self.analyze_basic_block_liveness(child)
 
     # The live variables set in the block where each key is the variable and
@@ -208,7 +214,7 @@ class RegisterAllocator(object):
 
     # start and end labels of the basic blocks in the SSA CFG which is the
     # other universe of regular IR's CFG.
-    start, end = root.other_universe_node.value
+    start, end = root.value
 
     # Adjust start ignoring phi instructions, since they are dealt separately
     start -= len(root.phi_functions)
@@ -224,13 +230,21 @@ class RegisterAllocator(object):
   def liveness(self):
     """Computes the liveness range for each variable.
     """
+    # A temporary dictionary containing the nodes visited as the keys and
+    # dummy True as the value. This dictionary must be reset for every
+    # traversal.
+    self.visited = {}
+
     # FIXME: Liveness checking for global variables is completely different
-    # since they are live until the last call to the function that uses global
-    # variables return. So may be it is easier to keep the live ranges alive
-    # during the entire range of the program? Too much spilling?
+    # since they are live until the last call to the function that uses
+    # global variables return. So may be it is easier to keep the live
+    # ranges alive during the entire range of the program? Too much
+    # spilling? Actually Prof. Franz seeded this idea about which I had
+    # not thought about till now. "Compile each function independently."
 
     for dom_tree in self.ssa.cfg.dom_trees:
-      self.analyze_basic_block_liveness(dom_tree)
+      self.analyze_basic_block_liveness(dom_tree.other_universe_node)
+
 
   def str_virtual_register_allocation(self):
     """Gets the text representation of the program after virtual allocation.
