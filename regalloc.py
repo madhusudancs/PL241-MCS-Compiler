@@ -26,6 +26,8 @@ import sys
 
 from argparse import ArgumentParser
 
+from datastructures import InterferenceGraph
+from datastructures import InterferenceNode
 from ir import IntermediateRepresentation
 from optimizations import Optimize
 from parser import LanguageSyntaxError
@@ -60,6 +62,9 @@ class RegisterAllocator(object):
 
     # Dictionary containing the live ranges for each register
     self.live_ranges = {}
+
+    # List of interference graphs where each graph corresponds to a function.
+    self.interference_graphs = []
 
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
@@ -339,6 +344,58 @@ class RegisterAllocator(object):
     self.visited = {}
     self.analyze_basic_block_liveness(start, start)
 
+  def populate_collisions(self, index):
+    """Backtracking algorithm to find the register collision.
+
+    Args:
+      index: The index in the list of registers sorted by start first registers
+          but in reverse order. The register that starts last is first in the
+          self.sort_by_start list
+    """
+    # Base case for the backtracking algorithm
+    if index < 0:
+      return []
+
+    self.populate_collisions(index - 1)
+
+    register = self.sort_by_start[index]
+    instructions = self.current_live_intervals[register]
+    current_node = InterferenceNode(self.sort_by_start[index], instructions)
+
+    previous_node = self.register_nodes.get(self.sort_by_start[index - 1],
+                                            None)
+    if previous_node and previous_node.instructions[1] > instructions[0]:
+      current_node.append_edges(previous_node)
+      for previous_collision in previous_node.edges:
+        # Note we are deliberately leaving out the
+        # previous_end == current_start case because in such cases the
+        # previous register can be reused for the current register's
+        # definition.
+        if previous_collision.instructions[1] > instructions[0]:
+          current_node.append_edges(previous_collision)
+
+    self.register_nodes[register] = current_node
+
+  def build_interference_graph(self, start):
+    """Builds the interference graph for the given control flow subgraph.
+
+    Args:
+      node: The starting node of the subgraph that holds the liveness
+          information for all the registers in the entire subgraph.
+    """
+    # Clear the register_nodes dictionary for a new start
+    self.register_nodes = {}
+
+    self.sort_by_start = sorted(
+        start.live_intervals, key=lambda k: start.live_intervals[k][0],
+        reverse=True)
+
+    self.current_live_intervals = start.live_intervals
+    self.populate_collisions(len(self.sort_by_start) - 1)
+
+    nodes = self.register_nodes.values()
+    interference_graph = InterferenceGraph(nodes)
+    self.interference_graphs.append(interference_graph)
 
   def allocate(self):
     """Allocate the registers to the program.
@@ -346,6 +403,7 @@ class RegisterAllocator(object):
     self.allocate_virtual_registers()
     for dom_tree in self.ssa.cfg.dom_trees:
       self.liveness(dom_tree.other_universe_node)
+      self.build_interference_graph(dom_tree.other_universe_node)
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
