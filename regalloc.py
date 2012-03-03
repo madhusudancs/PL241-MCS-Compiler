@@ -467,7 +467,9 @@ def bootstrap():
     if args.vcg:
       external_file = isinstance(args.vcg, str)
       vcg_file = open(args.vcg, 'w') if external_file else sys.stdout
-      vcg_file.write(regalloc.iterference_graphs.generate_vcg())
+      for graph in regalloc.interference_graphs:
+        vcg_file.write('%s\n' % graph.generate_vcg())
+
       if external_file:
         vcg_file.close()
 
