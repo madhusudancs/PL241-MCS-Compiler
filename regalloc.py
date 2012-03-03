@@ -489,11 +489,11 @@ def bootstrap():
       if external_file:
         virtual_file.close()
 
-    return ssa
+    return regalloc
 
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
 if __name__ == '__main__':
-  ssa = bootstrap()
+  regalloc = bootstrap()
