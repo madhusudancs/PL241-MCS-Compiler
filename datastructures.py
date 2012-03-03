@@ -883,6 +883,45 @@ class DominanceFrontier(object):
     return root.dom_parent
 
 
+class InterferenceNode(object):
+  """Represents a node in the interference graph.
+  """
+
+  def __init__(self, register, instructions=None):
+    """Initializes a node in the parse tree along with its pointers.
+
+    Args:
+      register: The name of the register
+      instructions: A two tuple representing the range of the instructions
+          that the register covers.
+    """
+    self.register = register
+    self.instructions = instructions
+
+    # cast the edges argument passed as any type to set before storing
+    # it as class attributes
+    self.edges = set([])
+
+    self.vcg_output = None
+
+  def append_edges(self, *edges):
+    """Appends children to the end of the list of children.
+
+    Args:
+      edges: tuple/set of edges that must be appended to this node.
+    """
+    self.edges.update(edges)
+    for edge in edges:
+      edge.edges.add(self)
+
+  def __str__(self):
+    return 'node: { title: "%s" label: "%s: (%d..%d)" }' % (
+        id(self), self.register, self.instructions[0], self.instructions[1])
+
+  def __repr__(self):
+    return self.__str__()
+
+
 class InterferenceGraph(list):
   """The interference graph for the interfering registers.
 
