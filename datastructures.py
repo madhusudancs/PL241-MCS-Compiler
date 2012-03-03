@@ -937,3 +937,45 @@ class InterferenceGraph(list):
     """
     super(InterferenceGraph, self).__init__(*args, **kwargs)
 
+  def generate_for_vcg(self, node):
+    """Generate the VCG for the given node and all its edges
+
+    Args:
+      node: The node of the graph whose nodes we must visit recursively.
+    """
+    node_str = ('node: { title: "%(id)s" label: '
+          ' "InterferenceNode: %(register)s" }' % {
+          'id': id(node),
+          'register': node.register,
+          })
+
+    self.vcg_output.append(node_str)
+    for edge in node.edges:
+      self.vcg_output.append(
+          'edge: {sourcename: "%s" targetname: "%s" }' % (id(node), id(edge)))
+
+  def generate_vcg(self, title="INTERFERENCE GRAPH"):
+    """Generate the Visualization of Compiler Graphs for this graph.
+    """
+    self.vcg_output = []
+    for node in self:
+      self.generate_for_vcg(node)
+
+    return """graph: { title: "%(title)s"
+    height: 700
+    width: 700
+    x: 30
+    y: 30
+    color: lightcyan
+    stretch: 7
+    shrink: 10
+    layout_downfactor: 10
+    layout_upfactor:   1
+    layout_nearfactor: 0
+    manhattan_edges: no
+    smanhattan_edges: no
+    %(nodes_edges)s
+}""" % {
+        'title': title,
+        'nodes_edges': '\n    '.join(self.vcg_output)
+        }
