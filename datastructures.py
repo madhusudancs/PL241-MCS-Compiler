@@ -928,14 +928,12 @@ class InterferenceGraph(list):
   Essentially contains a list of nodes, so it inherits from the list type.
   """
 
-  def __init__(self, nodes, start, *args, **kwargs):
+  def __init__(self, *args, **kwargs):
     """Constructs the Interference graph datastructures.
 
     Args:
-      nodes: List of nodes contained in the graph.
-      start: The start node of the graph.
       args: positional arguments to be passed to the super class.
       kwargs: keyword arguments to be passed to the super class.
     """
-    self.nodes = nodes
-    self.start = start
+    super(InterferenceGraph, self).__init__(*args, **kwargs)
+
