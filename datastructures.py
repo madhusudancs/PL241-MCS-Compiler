@@ -506,7 +506,7 @@ class CFG(list):
         'value': node.value,
         })
 
-    for variable in sorted(node.live_intervals, key=lambda k: int(k[1:])):
+    for variable in sorted(node.live_intervals, key=lambda k: k.name):
       liveness = node.live_intervals[variable]
       node_str += '%s: (%s...%s)\n' % (
           variable,
