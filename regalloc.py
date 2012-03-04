@@ -29,6 +29,7 @@ from argparse import ArgumentParser
 
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
+from datastructures import LiveIntervalsHeap
 from ir import IntermediateRepresentation
 from optimizations import Optimize
 from parser import LanguageSyntaxError
@@ -466,7 +467,7 @@ class RegisterAllocator(object):
     self.visited = {}
     self.analyze_basic_block_liveness(start, start)
 
-  def populate_collisions(self, index):
+  def populate_collisions(self):
     """Backtracking algorithm to find the register collision.
 
     Next-Farthest-Use for spilling uses the traces of the techniques of
@@ -480,18 +481,25 @@ class RegisterAllocator(object):
           but in reverse order. The register that starts last is first in the
           self.sort_by_start list
     """
-    # Base case for the backtracking algorithm
-    if index < 0:
+    try:
+      # The register object sorted by start of the liveness interval.
+      register = self.live_intervals_heap.pop()
+      self.populate_collisions()
+    except StopIteration:
+      # Base case for the backtracking algorithm, this occurs when there are
+      # no more elements in the heap.
       return []
 
-    self.populate_collisions(index - 1)
-
-    register = self.sort_by_start[index]
+    # Tuple containing the start and end of the liveness range for
+    # register obtained in the previous statement.
     instructions = self.current_live_intervals[register]
-    current_node = InterferenceNode(self.sort_by_start[index], instructions)
 
-    previous_node = self.register_nodes.get(self.sort_by_start[index - 1],
-                                            None)
+    # Create a new interference node for the current register.
+    current_node = InterferenceNode(register, instructions)
+
+    previous_node = self.register_nodes.get(
+        self.live_intervals_heap.last_popped(), None)
+
     if previous_node and previous_node.instructions[1] > instructions[0]:
       current_node.append_edges(previous_node)
       for previous_collision in previous_node.edges:
@@ -579,11 +587,10 @@ class RegisterAllocator(object):
     # Clear the register_nodes dictionary for a new start
     self.register_nodes = {}
 
-    self.sort_by_start = sorted(
-        live_intervals, key=lambda k: live_intervals[k][0], reverse=True)
+    self.live_intervals_heap = LiveIntervalsHeap(live_intervals)
 
     self.current_live_intervals = live_intervals
-    self.populate_collisions(len(self.sort_by_start) - 1)
+    self.populate_collisions()
 
     nodes = self.register_nodes.values()
     interference_graph = InterferenceGraph(nodes)
