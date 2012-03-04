@@ -166,6 +166,28 @@ class Instruction(object):
 
     return False
 
+  def __contains__(self, operand):
+    """Checks if the given operand belongs to the instruction.
+
+    NOTE: If we are comparing with the Register objects == comparisions
+    still work because Register class implements Register.__eq__() method.
+
+    Args:
+      operand: The operand that must be checked if it belongs to the class.
+    """
+    if self.result == operand:
+      return True
+    elif self.operand1 == operand:
+      return True
+    elif self.operand2 == operand:
+      return True
+
+    for additional_operand in self.operands:
+      if operand == additional_operand:
+        return True
+
+    return False
+
   def __str__(self):
     """Prints the current instructions in the IR.
     """

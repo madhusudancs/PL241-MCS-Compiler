@@ -140,6 +140,19 @@ class Register(object):
     """
     return self.use_instructions
 
+  def __eq__(self, register):
+    """Checks if the two registers are same.
+    """
+    # A bit too pessimistic at times, just making sure to check if the
+    # def instructions match. It should not be needed most of the times.
+    # But once we get everything up and running we can get rid of that
+    # additional check of def_instruction.
+    # IMPORTANT: Don't check if they are the same objects using "is", because
+    # later some one may decide to simulate the register but with a new object
+    # is created. The given two checks should be sufficient.
+    return True if (self.name == register.name and
+        self.def_instruction == register.def_instruction) else False
+
   def __str__(self):
     """Returns the string representation for this register (preceded by r).
     """
