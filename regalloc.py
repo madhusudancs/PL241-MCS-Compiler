@@ -43,10 +43,16 @@ class RegisterAllocator(object):
   """Allocates the registers for the given SSA form of the source code.
   """
 
-  def __init__(self, ssa):
+  def __init__(self, ssa, num_registers=8):
     """Initializes the allocator with SSA.
+
+    Args:
+      ssa: the SSA object for the program IR in SSA form.
+      num_registers: Number of Machine registers available.
     """
     self.ssa = ssa
+
+    self.num_registers = num_registers
 
     # Dictionary whose keys are opernads (or variables) and the values are
     # the registers assigned in the virtual registers space.
