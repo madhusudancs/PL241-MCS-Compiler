@@ -40,6 +40,110 @@ from ssa import SSA
 LOGGER = logging.getLogger(__name__)
 
 
+class SSABrokenException(Exception):
+  """Represents the exception when SSA structure is broken.
+  """
+  def __init__(self, instruction, *args, **kwargs):
+    """Constructs the exception with the message.
+
+    Args:
+      instruction: The Instruction object at which the SSA structure is broken.
+    """
+    super(SSABrokenException, self).__init__(*args, **kwargs)
+    self.msg = 'SSA structure broken variable redefined at instruction\n%s.' %(
+        instruction)
+
+  def __str__(self):
+    return '%s: %s' % (self.__class__.__name__, self._msg)
+
+
+class Register(object):
+  """Represents a register.
+  """
+
+  name_counter = 0
+
+  @classmethod
+  def reset_name_counter(cls):
+    """Resets the name counter for the new register allocation.
+    """
+    cls.name_counter = 0
+
+  def __init__(self, name=None, new_allocation=False):
+    """Constructs a register required for the program.
+
+    Args:
+      name: The name of the register this represents. This is an integer
+          although it is called name for easier counting.
+      new_allocation: If the current name run counter should be reset.
+    """
+    if new_allocation:
+      self.__class__.reset_name_counter()
+    if name:
+      self.name = name
+    else:
+      self.name = self.__class__.name_counter
+      self.__class__.name_counter += 1
+
+    # The instruction object where the register is defined, part of the
+    # def-use chain for the register.
+    self.def_instruction = None
+
+    # The list of instructions where the register is defined, part of the
+    # def-use chain for the register.
+    self.use_instructions = []
+
+  def set_def(self, instruction):
+    """Sets the instruction where this register is defined.
+
+    Essentially sets up a def-use chain for the register.
+
+    IMPORTANT: Since the program is in SSA form, if we already have a def for
+               this register we should raise an exception.
+
+    Args:
+      instruction: The Instruction object where the variable is defined.
+    """
+    if self.def_instruction:
+      raise SSABrokenException(instruction)
+    self.def_instruction = instruction
+
+  def defs(self):
+    """Returns the instruction object where this register was defined.
+
+    Returns None if the register is not defined yet.
+    """
+    return self.def_instruction
+
+  def set_use(self, instruction):
+    """Sets the instruction where this register is used.
+
+    Essentially sets up a def-use chain for the register. A register can be
+    used multiple times, so it is a set object.
+
+    Args:
+      instruction: The Instruction object where the variable is defined.
+    """
+    self.use_instructions.append(instruction)
+
+  def uses(self):
+    """Returns the set of instruction objects where this register is used.
+
+    Returns an empty set if it is not used anywhere.
+    """
+    return self.use_instructions
+
+  def __str__(self):
+    """Returns the string representation for this register (preceded by r).
+    """
+    return 'r%d' % self.name
+
+  def __repr__(self):
+    """Returns the object representation string for this register.
+    """
+    return self.__str__()
+
+
 class RegisterAllocator(object):
   """Allocates the registers for the given SSA form of the source code.
   """
