@@ -163,10 +163,6 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
-    # Count holding the currently alloted registers in the virtual
-    # registers space.
-    self.register_count = 0
-
     # Dictionary of loop header nodes as the keys and the values are the
     # loop footer nodes.
     self.loop_pair = {}
@@ -186,8 +182,7 @@ class RegisterAllocator(object):
     if operand in self.variable_register_map:
       return self.variable_register_map[operand]
     else:
-      register = 'r%d' % self.register_count
-      self.register_count += 1
+      register = Register()
       self.variable_register_map[operand] = register
       return register
 
@@ -217,6 +212,8 @@ class RegisterAllocator(object):
           operand2 = instruction.operand2
           if instruction.is_variable_or_label(operand2):
             new_register = self.register_for_operand(operand2)
+            new_register.set_use(instruction)
+
             instruction.operand2 = new_register
 
             phi_function['RHS'][0] = new_register
@@ -225,6 +222,7 @@ class RegisterAllocator(object):
           for i, operand in enumerate(instruction.operands):
             if instruction.is_variable_or_label(operand):
               new_register = self.register_for_operand(operand)
+              new_register.set_use(instruction)
               new_operands.append(new_register)
 
               phi_function['RHS'][i + 1] = new_register
@@ -232,7 +230,7 @@ class RegisterAllocator(object):
           instruction.operands = new_operands
 
         # Reset all the function level datastructures
-        self.register_count = 0
+        Register.reset_name_counter()
         self.variable_register_map = {}
         phi_instructions = []
 
@@ -253,6 +251,8 @@ class RegisterAllocator(object):
         operand1 = instruction.operand1
         if instruction.is_variable_or_label(operand1):
           new_register = self.register_for_operand(operand1)
+          new_register.set_def(instruction)
+
           instruction.operand1 = new_register
 
         phi_function['LHS'] = new_register
@@ -265,6 +265,7 @@ class RegisterAllocator(object):
         if instruction.is_variable_or_label(instruction.operand1):
           instruction.operand1 = self.register_for_operand(
               instruction.operand1)
+          instruction.operand1.set_use(instruction)
 
         # The second operand of the branch instruction should still be a label.
         if instruction.instruction in ['beq', 'bne', 'blt',
@@ -274,11 +275,15 @@ class RegisterAllocator(object):
         if instruction.is_variable_or_label(instruction.operand2):
           instruction.operand2 = self.register_for_operand(
               instruction.operand2)
+          instruction.operand2.set_use(instruction)
+
         new_operands = []
         for operand in instruction.operands:
           if instruction.is_variable_or_label(operand):
-            new_operands.append(self.register_for_operand(operand))
-  
+            new_register = self.register_for_operand(operand)
+            new_register.set_use(instruction)
+            new_operands.append(new_register)
+
         instruction.operands = new_operands
 
         # After Copy propagation the only move instructions that remain
@@ -288,8 +293,8 @@ class RegisterAllocator(object):
           continue
 
         # Assign a register for the result of the instruction
-        register = 'r%d' % self.register_count
-        self.register_count += 1
+        register = Register()
+        register.set_def(instruction)
         self.variable_register_map[instruction.label] = register
         instruction.result = register
 
@@ -648,7 +653,7 @@ class RegisterAllocator(object):
     num_literals_per_reg = self.generate_edge_bit_template()
 
     for node in interference_graph:
-      node_reg = node.register[1:]
+      node_reg = node.register
 
       # In the graph coloring problem
       if node.edges:
@@ -658,7 +663,7 @@ class RegisterAllocator(object):
       clauses.extend(self.generate_node_clauses(node_reg))
 
       for edge in node.edges:
-        edge_reg = edge.register[1:]
+        edge_reg = edge.register
         if ((edge_reg, node_reg) in processed) or (
             (node_reg, edge_reg) in processed):
           continue
@@ -712,13 +717,12 @@ class RegisterAllocator(object):
       self.liveness(dom_tree.other_universe_node)
       ifg = self.build_interference_graph(
           dom_tree.other_universe_node.live_intervals)
-      self.sat_solve(ifg)
+      #self.sat_solve(ifg)
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
     """
-    return True if (operand and isinstance(operand, str) and \
-        operand[0] == 'r' and operand[1:].isdigit()) else False
+    return True if (operand and isinstance(operand, Register)) else False
 
   def str_virtual_register_allocation(self):
     """Gets the text representation of the program after virtual allocation.
