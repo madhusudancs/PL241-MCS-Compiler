@@ -402,6 +402,201 @@ class RegisterAllocator(object):
     interference_graph = InterferenceGraph(nodes)
     self.interference_graphs.append(interference_graph)
 
+  def spill(self, interference_graph):
+    """Spill the registers in the interference graph.
+
+    Args:
+      interference_graph: The interference graph for which the SAT reduction
+          should be performed.
+    """
+    pass
+
+  def generate_node_bit_template(self):
+    """Generates a template containing patterns for each node's clauses.
+
+    This generates a template of position numbers whose literals should be
+    negated. For example if we have 11 as the number of registers then
+    the max bit value is 10 which in binary is 1010. We generate the template
+    of the following format:
+        [[0, 1],
+         [0, 2, 3]
+        ]
+    """
+    self.node_bit_template = []
+    max_reg_binary = bin(self.num_registers - 1)[2:]
+
+    # IMPORTANT: The bit_position is 0 for the Most Significant Bit (MSB)
+    # to k - 1 for the Least Significant Bit (LSB) where k is the number
+    # number of bits in the largest register value.
+    ones_positions = []
+
+    for bit_position, bit in enumerate(max_reg_binary):
+      if bit == '1':
+        ones_positions.append(bit_position)
+      elif bit == '0':
+        self.node_bit_template.append(ones_positions + [bit_position])
+
+  def generate_edge_bit_template(self):
+    """Generates a template containing patterns fo each edge's clauses.
+
+    This template represents a variable or the negation of a variable. However
+    because of the graph coloring problem, each of this variable is a
+    combination of the corresponding literals in the binary representation
+    of the color for two nodes joined by an edge. Example: if two nodes are
+    r1 and r2 and there are 8 colors this can be represented as r10, r11, r12
+    and r20, r21 and r22. Now if the bit template has has an entry "101",
+    this can be encoded as (r12 | r22 | ~r11 | ~r21 | r10 | r20). This method
+    only return the bit patterns, not the actual literals.
+    """
+    last_pattern = bin(self.num_registers - 1)[2:]
+
+    # Number of literals per register.
+    num_literals_per_reg = len(last_pattern)
+
+    self.edge_bit_template = [last_pattern]
+    for i in range(self.num_registers - 2, -1, -1):
+      pattern = ('%s' % bin(i)[2:]).zfill(num_literals_per_reg)
+      self.edge_bit_template.append(pattern)
+
+    return num_literals_per_reg
+
+  def generate_node_clauses(self, node):
+    """Generates the clauses for the given node.
+
+    Generate the clauses to exclude the numbers higher than the maximum
+    number of registers - 1. For example, if we have 10 registers, then
+    the maximum register number is 9 (0 to 9 registers), but since we
+    use the 4 bit representation for this case, we need to ensure that
+    the registers cannot take values from 10 to 15. So exlusion clauses
+    are added to exclude these numbers for each register/node.
+
+    Args:
+      node: The node for which the exclusion clauses should be added.
+    """
+    clauses = []
+    for template in self.node_bit_template:
+      clause = ''
+      for position in template:
+        clause += '-%s%d' % (node, position)
+      clauses.append(clause)
+
+    return clauses
+
+  def generate_edge_clauses(self, node1, node2):
+    """Generates all the clauses for an edge.
+
+    Args:
+      node1, node2: The two ends of the edge for which the clauses should be
+          generated.
+    """
+    clauses = []
+    for template in self.edge_bit_template:
+      clause = ''
+      # IMPORTANT: The bit_position is 0 for the Most Significant Bit (MSB)
+      # to k - 1 for the Least Significant Bit (LSB) where k is the number
+      # number of bits in the largest register value.
+      for bit_position, bit in enumerate(template):
+        if bit == '0':
+          clause += ('-%(node1)s%(bit_position)d '
+              '-%(node2)s%(bit_position)d ') % {
+                  'node1': node1,
+                  'node2': node2,
+                  'bit_position': bit_position,
+              }
+        else:
+          clause += ('%(node1)s%(bit_position)d '
+              '%(node2)s%(bit_position)d ') % {
+                  'node1': node1,
+                  'node2': node2,
+                  'bit_position': bit_position,
+                  }
+      clauses.append(clause)
+
+    return clauses
+
+  def reduce_to_sat(self, interference_graph):
+    """Reduces the graph coloring problem to the boolean satisfiability.
+
+    * We use circuit encoding technique for reducing graph coloring to SAT.
+
+    * The SAT represented is in Conjunctive Normal Form (CNF).
+
+    * The techniques include the traces from the paper by Allen Van Gelder,
+      titled "Another Look at Graph Coloring via Propositional Satisfiability"
+      available at: www.soe.ucsc.edu/~avg/Papers/colorsat07.pdf
+
+    Args:
+      interference_graph: The interference graph for which the SAT reduction
+          should be performed.
+    """
+    # Dictionary holding the
+    processed = {}
+
+    conflicting_registers = {}
+
+    clauses = []
+
+    self.generate_node_bit_template()
+
+    num_literals_per_reg = self.generate_edge_bit_template()
+
+    for node in interference_graph:
+      node_reg = node.register[1:]
+
+      # In the graph coloring problem
+      if node.edges:
+        conflicting_registers[node_reg] = True
+
+      # Generate node specific clauses.
+      clauses.extend(self.generate_node_clauses(node_reg))
+
+      for edge in node.edges:
+        edge_reg = edge.register[1:]
+        if ((edge_reg, node_reg) in processed) or (
+            (node_reg, edge_reg) in processed):
+          continue
+
+        processed[(node_reg, edge_reg)] = True
+
+        conflicting_registers[edge_reg] = True
+
+        # Generate edge specific clauses
+        clauses.extend(self.generate_edge_clauses(node_reg, edge_reg))
+
+    num_literals = len(conflicting_registers) * num_literals_per_reg
+
+    return num_literals, clauses
+
+  def sat_solve(self, interference_graph):
+    """Converts the clauses to DIMACS format and feeds it to the SAT solver.
+
+    This method also processes the ouput of the SAT solver.
+
+    Args:
+      interference_graph: the interference graph for which the SAT should be
+          obtained and solved.
+    """
+    num_literals, clauses = self.reduce_to_sat(interference_graph)
+
+    cnf = 'p cnf %d %d\n%s0' % (
+         num_literals, len(clauses), '0\n'.join(clauses))
+
+    process = subprocess.Popen('glucose_static', stdin=subprocess.PIPE,
+                               stdout=subprocess.PIPE)
+    output = process.communicate(cnf)
+
+    # Read last 2 lines of the STDOUT since if the SAT is SATISFIABLE the
+    # pen-ultimate line will contain the exact string "s SATISFIABLE" and
+    # last line contains the assignment else the last line contains the
+    # exact string "s UNSATISFIABLE"
+    lines = output[0].rsplit('\n', 3)
+
+    if lines[-2] == 's UNSATISFIABLE':
+      new_interference_graph = self.spill(interference_graph)
+      self.sat_solve(new_interference_graph)
+    elif lines[-2] == 's SATISFIABLE':
+      print "Allocation: %s"
+
   def allocate(self):
     """Allocate the registers to the program.
     """
@@ -410,6 +605,7 @@ class RegisterAllocator(object):
       self.liveness(dom_tree.other_universe_node)
       ifg = self.build_interference_graph(
           dom_tree.other_universe_node.live_intervals)
+      self.sat_solve(ifg)
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
