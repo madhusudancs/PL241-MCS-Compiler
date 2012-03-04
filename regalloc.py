@@ -22,6 +22,7 @@ The architecture used is X86_64.
 
 import collections
 import logging
+import subprocess
 import sys
 
 from argparse import ArgumentParser
