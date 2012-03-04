@@ -19,6 +19,7 @@
 """
 
 
+import heapq
 import collections
 
 
@@ -984,3 +985,30 @@ class InterferenceGraph(list):
         'title': title,
         'nodes_edges': '\n    '.join(self.vcg_output)
         }
+
+
+class LiveIntervalsHeap(dict):
+  """Extends the Python's heap implementation to a datastructure.
+
+  This is ridiculous, I don't understand why Python's heapq is not already
+  doing this.
+  """
+
+  def __init__(self, *args, **kwargs):
+    """Constructs the heap datastructure.
+    """
+    super(LiveIntervalsHeap, self).__init__(*args, **kwargs)
+    key=lambda k: live_intervals[k][0], reverse=True
+    heapq.heapify(self)
+
+  def pop(self):
+    """Pop an element out of the heap.
+    """
+    return heapq.heappop(self)
+
+  def push(self, item):
+    """Pushes an item into the heap.
+
+    item: The live interval instructions.
+    """
+    return heapq.heappush(self, item)
