@@ -402,6 +402,8 @@ class RegisterAllocator(object):
     interference_graph = InterferenceGraph(nodes)
     self.interference_graphs.append(interference_graph)
 
+    return interference_graph
+
   def spill(self, interference_graph):
     """Spill the registers in the interference graph.
 
