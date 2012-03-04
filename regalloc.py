@@ -115,7 +115,7 @@ class Register(object):
       raise SSABrokenException(instruction)
     self.def_instruction = instruction
 
-  def defs(self):
+  def definition(self):
     """Returns the instruction object where this register was defined.
 
     Returns None if the register is not defined yet.
