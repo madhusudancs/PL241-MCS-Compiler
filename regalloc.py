@@ -382,21 +382,20 @@ class RegisterAllocator(object):
 
     self.register_nodes[register] = current_node
 
-  def build_interference_graph(self, start):
+  def build_interference_graph(self, live_intervals):
     """Builds the interference graph for the given control flow subgraph.
 
     Args:
-      node: The starting node of the subgraph that holds the liveness
-          information for all the registers in the entire subgraph.
+      live_intervals: Dictionary containing the live intervals for the
+          entire function.
     """
     # Clear the register_nodes dictionary for a new start
     self.register_nodes = {}
 
     self.sort_by_start = sorted(
-        start.live_intervals, key=lambda k: start.live_intervals[k][0],
-        reverse=True)
+        live_intervals, key=lambda k: live_intervals[k][0], reverse=True)
 
-    self.current_live_intervals = start.live_intervals
+    self.current_live_intervals = live_intervals
     self.populate_collisions(len(self.sort_by_start) - 1)
 
     nodes = self.register_nodes.values()
@@ -409,7 +408,8 @@ class RegisterAllocator(object):
     self.allocate_virtual_registers()
     for dom_tree in self.ssa.cfg.dom_trees:
       self.liveness(dom_tree.other_universe_node)
-      self.build_interference_graph(dom_tree.other_universe_node)
+      ifg = self.build_interference_graph(
+          dom_tree.other_universe_node.live_intervals)
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
