@@ -24,7 +24,7 @@ import regalloc
 import subprocess
 
 
-def test_bool_sat():
+def test_sat_solver():
   """Tests if the boolean satisfiability is working as expected.
   """
   r1 = regalloc.Register()
@@ -86,4 +86,4 @@ def test_bool_sat():
 
 
 if __name__ == '__main__':
-  test_output = test_bool_sat()
+  test_output = test_sat_solver()
