@@ -952,7 +952,7 @@ class RegisterAllocator(object):
                                stdout=subprocess.PIPE)
     output = process.communicate(cnf)
 
-    LOGGER.debug(output)
+    LOGGER.debug(output[0])
 
     # Read last 2 lines of the STDOUT since if the SAT is SATISFIABLE the
     # pen-ultimate line will contain the exact string "s SATISFIABLE" and
