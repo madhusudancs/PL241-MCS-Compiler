@@ -709,7 +709,7 @@ class RegisterAllocator(object):
       bit_position: The bit position for which the CNF variable should be
           obtained.
     """
-    register_var = '%d%d' % (register.name, bit_position)
+    register_var = (register, bit_position)
     if register_var in self.register_cnf_map:
       cnf_var = self.register_cnf_map.get(register_var)
     else:
