@@ -759,17 +759,26 @@ class RegisterAllocator(object):
     for template in self.node_bit_template:
       clause = ''
       for position in template:
-        clause += '-%s%d' % (node, position)
+        register_var = '%d%d' % (register.name, position)
+        if register_var in self.register_cnf_map:
+          cnf_var = self.register_cnf_map.get(register_var)
+        else:
+          self.cnf_var_count += 1
+          self.register_cnf_map[register_var] = self.cnf_var_count
+          cnf_var = self.register_cnf_map[register_var]
+
+        clause += '-%s' % (cnf_var)
+
       clauses.append(clause)
 
     return clauses
 
-  def generate_edge_clauses(self, node1, node2):
+  def generate_edge_clauses(self, register1, register2):
     """Generates all the clauses for an edge.
 
     Args:
-      node1, node2: The two ends of the edge for which the clauses should be
-          generated.
+      register1, register2: The two ends of the edge for which the clauses
+          should be generated.
     """
     clauses = []
     for template in self.edge_bit_template:
@@ -778,20 +787,13 @@ class RegisterAllocator(object):
       # to k - 1 for the Least Significant Bit (LSB) where k is the number
       # number of bits in the largest register value.
       for bit_position, bit in enumerate(template):
+        cnf1_var = self.get_cnf_var(register1, bit_position)
+        cnf2_var = self.get_cnf_var(register2, bit_position)
+
         if bit == '0':
-          clause += ('-%(node1)s%(bit_position)d '
-              '-%(node2)s%(bit_position)d ') % {
-                  'node1': node1,
-                  'node2': node2,
-                  'bit_position': bit_position,
-              }
+          clause += '-%s -%s ' % (cnf1_var, cnf2_var)
         else:
-          clause += ('%(node1)s%(bit_position)d '
-              '%(node2)s%(bit_position)d ') % {
-                  'node1': node1,
-                  'node2': node2,
-                  'bit_position': bit_position,
-                  }
+          clause += '%s %s ' % (cnf1_var, cnf2_var)
       clauses.append(clause)
 
     return clauses
@@ -816,6 +818,9 @@ class RegisterAllocator(object):
 
     conflicting_registers = {}
 
+    self.register_cnf_map = {}
+    self.cnf_var_count = 0
+
     clauses = []
 
     self.generate_node_bit_template()
@@ -825,7 +830,6 @@ class RegisterAllocator(object):
     for node in interference_graph:
       node_reg = node.register
 
-      # In the graph coloring problem
       if node.edges:
         conflicting_registers[node_reg] = True
 
