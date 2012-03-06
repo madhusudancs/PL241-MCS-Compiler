@@ -669,19 +669,15 @@ class RegisterAllocator(object):
     self.populate_collisions()
 
     nodes = self.register_nodes.values()
+
     interference_graph = InterferenceGraph(nodes)
     self.interference_graphs.append(interference_graph)
 
     return interference_graph
 
-  def spill(self, interference_graph):
-    """Spill the registers in the interference graph.
 
     Args:
-      interference_graph: The interference graph for which the SAT reduction
-          should be performed.
     """
-    pass
 
   def generate_node_bit_template(self):
     """Generates a template containing patterns for each node's clauses.
