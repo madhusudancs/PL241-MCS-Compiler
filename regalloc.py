@@ -675,9 +675,23 @@ class RegisterAllocator(object):
 
     return interference_graph
 
+  def get_cnf_var(self, register, bit_position):
+    """Returns the CNF variable for a register if it exists or creates one.
 
     Args:
+      register: The register for which the CNF variable should be obtained.
+      bit_position: The bit position for which the CNF variable should be
+          obtained.
     """
+    register_var = '%d%d' % (register.name, bit_position)
+    if register_var in self.register_cnf_map:
+      cnf_var = self.register_cnf_map.get(register_var)
+    else:
+      self.cnf_var_count += 1
+      self.register_cnf_map[register_var] = self.cnf_var_count
+      cnf_var = self.register_cnf_map[register_var]
+
+    return cnf_var
 
   def generate_node_bit_template(self):
     """Generates a template containing patterns for each node's clauses.
