@@ -1007,6 +1007,39 @@ class RegisterAllocator(object):
            instruction.result if instruction.result else '', instruction)
     return virtual_alloc_str
 
+  def deconstruct_basic_block(self, node):
+    """Processes basic blocks by performing a pre-order traversal.
+
+    Args:
+      node: The basic block node to process.
+    """
+    block_deconstruction_map = {}
+    for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
+      if instruction.instruction == 'phi':
+        #do something for phi
+        continue
+
+      print type(instruction.result)
+
+    for child in node.out_edges:
+      if self.visited.get(child, False):
+        self.loop_pair[child] = node
+        continue
+
+      self.visited[child] = True
+
+      self.deconstruct_basic_block(child)
+
+  def deconstruct_ssa(self):
+    """Deconstruct SSA form along with inserting instructions for spills.
+    """
+    self.ssa_deconstructed_instructions = []
+
+    # Reset visited dictionary for another traversal.
+    self.visited = {}
+    for dom_tree in self.ssa.cfg.dom_trees:
+      self.deconstruct_basic_block(dom_tree.other_universe_node)
+
 
 def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
@@ -1051,6 +1084,7 @@ def bootstrap():
 
     regalloc = RegisterAllocator(ssa)
     is_allocated, failed_subgraph = regalloc.allocate()
+    regalloc.deconstruct_ssa()
 
     # If an allocation fails there is no point continuing, bail out.
     if not is_allocated:
