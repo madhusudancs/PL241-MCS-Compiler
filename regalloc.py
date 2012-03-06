@@ -973,8 +973,11 @@ class RegisterAllocator(object):
     self.allocate_virtual_registers()
     for dom_tree in self.ssa.cfg.dom_trees:
       self.liveness(dom_tree.other_universe_node)
+      # FIXME: We do not have to pass the second argument if we compile
+      # each function independently.
       ifg = self.build_interference_graph(
-          dom_tree.other_universe_node.live_intervals)
+          dom_tree.other_universe_node.live_intervals,
+          dom_tree.other_universe_node.last_register_count)
       is_allocated, allocation = self.sat_solve(ifg)
       if is_allocated:
         LOGGER.debug('Allocated for subgraph %s!' % (
