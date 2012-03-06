@@ -194,6 +194,10 @@ class RegisterAllocator(object):
     # List of interference graphs where each graph corresponds to a function.
     self.interference_graphs = []
 
+    # Color assignment after solving the K-coloring problem using SAT solver.
+    # Note even though they are called callers they are just integral values.
+    self.color = None
+
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
 
@@ -852,6 +856,55 @@ class RegisterAllocator(object):
     num_literals = len(conflicting_registers) * num_literals_per_reg
 
     return num_literals, clauses
+
+  def generate_assignments(self, cnf_assignment):
+    """Generates the assignments for the registers from the CNF form.
+
+    Args:
+      cnf_assignment: A string containing the CNF assignments returned from
+          the SAT solver.
+    """
+    # The cnf_assignment string consists of a single line of starting with
+    # the letter v followed by a space assignments which are space separated
+    # and then ending with 0
+    # Example: v -1 -2 -3 4 5 -6 -7 -8 -9 -10 11 -12 -13 -14 15 -16 -17 -18 0
+    # So exclude the first and the last entry.
+    assignments_str = cnf_assignment.split()[1:-1]
+
+    # Dictionary containing the register objects as keys and the values are
+    # another dictionary where the keys are bit positions and the values
+    # are assignments.
+    registers = collections.defaultdict(dict)
+
+    for assignment_str in assignments_str:
+      assignment = assignment_str.strip()
+      if assignment[0] == '-':
+        register, bit_position = self.cnf_register_map.get(int(assignment[1:]))
+        # We want to have strings for binary to integer conversion, however
+        # the bit positions must be integers
+        registers[register][bit_position] = '0'
+      else:
+        register, bit_position = self.cnf_register_map.get(int(assignment))
+        # We want to have strings for binary to integer conversion however
+        # bit position must be integers
+        registers[register][bit_position] = '1'
+
+    LOGGER.debug(registers)
+
+    # Since all the registers are supposed to have same number of bits, since
+    # it is resolved like that during the conversion to CNF, we get the number
+    # of bits from the first value in the dictionary
+    num_bits = len(registers.values()[0])
+    for register in registers:
+      reg_binary = ''
+      for bit_position in range(num_bits):
+        reg_binary += registers[register][bit_position]
+
+      # Do a conversion from binary string to integer using the built-in int
+      # type constructor with base as the argument.
+      register.color = int(reg_binary, 2)
+
+      LOGGER.debug('Register: %s Color: %d' % (register, register.color))
 
   def sat_solve(self, interference_graph):
     """Converts the clauses to DIMACS format and feeds it to the SAT solver.
