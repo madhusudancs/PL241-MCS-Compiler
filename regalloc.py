@@ -964,8 +964,10 @@ class RegisterAllocator(object):
       LOGGER.debug('SAT Unsatisfiable')
       return False, ''
     elif lines[-3] == 's SATISFIABLE':
+      assignment = lines[-2]
+      self.generate_assignments(assignment)
       LOGGER.debug('SAT Satisfiable! Allocation: %s' % (lines[-1]))
-      return True, lines[-2]
+      return True, assignment
 
   def allocate(self):
     """Allocate the registers to the program.
