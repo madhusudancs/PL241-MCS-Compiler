@@ -600,8 +600,14 @@ class RegisterAllocator(object):
     # Cut short the instruction range for the spilled register node.
     spilling_node.instructions[1] = current_instruction.label
 
-    # Create a new register.
-    new_register = Register()
+    # Create a new register. The last register count is the count of the
+    # number of registers assigned, the actual name of the last register
+    # will be -1 of this value. So we directly assign this value to the new
+    # register.
+    # FIXME: We do not have to do this name assignments if we compile each
+    # function independently
+    new_register = Register(name=self.last_register_count)
+    self.last_register_count += 1
 
     new_register.set_def(next_farthest_use['next_use'])
     new_register.set_use(
@@ -667,17 +673,23 @@ class RegisterAllocator(object):
       current_node.append_edges(*collisions)
       self.register_nodes[register] = current_node
 
-  def build_interference_graph(self, live_intervals):
+  def build_interference_graph(self, live_intervals, last_register_count):
     """Builds the interference graph for the given control flow subgraph.
 
     Args:
       live_intervals: Dictionary containing the live intervals for the
           entire function.
+      last_register_count: The count of the last register in this function.
+          The actual name of the last register is -1 of this value.
     """
     # Clear the register_nodes dictionary for a new start
     self.register_nodes = {}
 
     self.live_intervals_heap = LiveIntervalsHeap(live_intervals)
+
+    # FIXME: We do not have to do this if we compile each function
+    # independently.
+    self.last_register_count = last_register_count
 
     self.current_live_intervals = live_intervals
     self.populate_collisions()
