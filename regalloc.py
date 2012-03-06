@@ -254,6 +254,12 @@ class RegisterAllocator(object):
 
           instruction.operands = new_operands
 
+        # We need to keep track of this for spilling registers which spawns
+        # off new registers to give the new registers the names.
+        # FIXME: should be eliminated once each function can be compiled
+        # independently
+        instruction.last_register_count = Register.name_counter
+
         # Reset all the function level datastructures
         Register.reset_name_counter()
         self.variable_register_map = {}
@@ -400,6 +406,13 @@ class RegisterAllocator(object):
 
     # Walk the instructions in the reverse order, note -1 for stepping.
     for instruction in self.ssa.optimized(end, start - 1, reversed=True):
+      # Keep track of the end of the function and append the last register
+      # name value to the start node
+      # FIXME: Get rid of this when functions can be compiled independently.
+      if instruction.instruction.startswith('.end_'):
+        start_node.last_register_count = instruction.last_register_count
+        continue
+
       if instruction.instruction == 'phi':
         continue
 
