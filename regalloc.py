@@ -784,14 +784,8 @@ class RegisterAllocator(object):
     clauses = []
     for template in self.node_bit_template:
       clause = ''
-      for position in template:
-        register_var = '%d%d' % (register.name, position)
-        if register_var in self.register_cnf_map:
-          cnf_var = self.register_cnf_map.get(register_var)
-        else:
-          self.cnf_var_count += 1
-          self.register_cnf_map[register_var] = self.cnf_var_count
-          cnf_var = self.register_cnf_map[register_var]
+      for bit_position in template:
+        cnf_var = self.get_cnf_var(register, bit_position)
 
         clause += '-%s' % (cnf_var)
 
