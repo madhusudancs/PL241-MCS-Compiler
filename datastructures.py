@@ -998,17 +998,79 @@ class LiveIntervalsHeap(dict):
     """Constructs the heap datastructure.
     """
     super(LiveIntervalsHeap, self).__init__(*args, **kwargs)
-    key=lambda k: live_intervals[k][0], reverse=True
-    heapq.heapify(self)
+
+    # This is an inverted map of start of the interval to the register
+    self.heap_map = collections.defaultdict(list)
+
+    # Stores the keys of the inverted intervals index for the entire duration
+    # of the object.
+    self.all_heap_keys = []
+    for key in self.keys():
+      self.heap_map[self[key][0]].append(key)
+
+      # Sorting on the start of the intervals
+      # IMPORTANT: In one of trials we were using self.heap_map.keys()
+      # as heap_keys, but this doesn't work because, multiple instructions
+      # can have the same start point, so the inverted index will have
+      # multiple registers for the same start instruction and for each of
+      # them a separate heap key entry needs to be made.
+      self.all_heap_keys.append(self[key][0])
+
+    # While the previous all_heap_keys remains as is during the entire
+    # duration of the object, this list gets shortened and repopulated
+    # during every traversal of the heap.
+    self.heap_keys = []
+    heapq.heapify(self.heap_keys)
+
+    # List containing the registers that have been popped in the order
+    # they have been popped, the last popped register is at the end of
+    # this list
+    self.popped = []
 
   def pop(self):
     """Pop an element out of the heap.
     """
-    return heapq.heappop(self)
+    heap_key = heapq.heappop(self.heap_keys)
+    popped = self.heap_map[heap_key].pop()
+    self.popped.append(popped)
+    # Reinsert it back to the map, since we want it.
+    self.heap_map[heap_key].insert(0, popped)
+    return popped
 
-  def push(self, item):
+  def push(self, register, interval):
     """Pushes an item into the heap.
 
-    item: The live interval instructions.
+    register: The name of the register that must be pushed to the heap.
+    interval: The interval range that must be pushed to the heap.
     """
-    return heapq.heappush(self, item)
+    self[register] = interval
+    self.heap_map[interval[0]].append(register)
+    return heapq.heappush(self.heap_keys, interval[0])
+
+  def previous(self):
+    """Returns the register that was last popped.
+    """
+    if len(self.popped) > 1:
+      return self.popped[-2]
+
+    return None
+
+  def __iter__(self):
+    """Returns this object which implements the iterator protocol.
+    """
+    # Reload the heap keys for the iteration and heapify them if the heap_keys
+    # list is empty
+    if not self.heap_keys:
+      self.heap_keys = self.all_heap_keys
+      heapq.heapify(self.heap_keys)
+      self.popped = []
+
+    return self
+
+  def next(self):
+    """Gets the next item in the heap, essentially a pop.
+    """
+    if not self.heap_keys:
+      raise StopIteration
+
+    return self.pop()
