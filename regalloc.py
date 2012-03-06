@@ -481,115 +481,177 @@ class RegisterAllocator(object):
     self.visited = {}
     self.analyze_basic_block_liveness(start, start)
 
-  def populate_collisions(self):
-    """Backtracking algorithm to find the register collision.
+  def spill(self, current_node, collisions):
+    """Checks if the spilling is necessary, if so spills the register.
 
-    Next-Farthest-Use for spilling uses the traces of the techniques of
-    Belady's MIN Algorithm which is mentioned in the paper "Register
-    allocation for programs in SSA-form" by Sebastian Hack, Daniel Grund,
-    and Gerhard Goos available at:
+    Makes a spill decision and if required spills the register and makes
+    all the manipulations required to the spilled register and creates a
+    new register to keep the SSA properties intact.
+
+    This runs a spill decision based on Next-Farthest-Use technique which
+    contains the traces of the techniques of Belady's MIN Algorithm which
+    is mentioned in the paper "Register allocation for programs in SSA-form"
+    by Sebastian Hack, Daniel Grund, and Gerhard Goos available at:
     http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.86.1578
+
+    Args:
+      current_node: The current node whose register is starting at this
+          instruction point and may need to replace another register.
+      collisions: List of collisions with the current register node.
+    """
+    # Note we are using < because when considering the numbers we need
+    # to consider the current node also in addition to all the other
+    # registers. For example if we have 8 registers and the current node
+    # has 8 edges for the current node, we will have to spill because
+    # we need one register for storing the result of the current instruction,
+    # i.e. the current virtual registers interferes.
+    if len(collisions) < self.num_registers:
+      # No need to spill anything, we are good still :-)
+      return collisions
+
+    register = current_node.register
+
+    next_farthest_use = None
+
+    for collision in collisions:
+      # current_node.instructions[0] holds the current instruction we are
+      # looking at and its edges give all the registers live at this point.
+      # Obviously the current instruction is definition point for
+      # the instruction.
+      current_instruction = register.definition()
+      if (current_instruction.label != current_node.instructions[0] and
+          current_instruction.instruction != 'phi'):
+        # The latter case is allowed because this is possible for phi
+        # instructions because there is no ordering for phi instructions
+        # and all the phi instruction results are assumed to start the
+        # basic block although they have separate instructions.
+        LOGGER.debug(
+            'Something has horribly gone wrong: defintion point %d and '
+            'the current start of live intervals %d not matching for the '
+            ' current register %s. First fix the bugs you idiot!' % (
+                current_instruction.label, current_node.instructions[0],
+                register))
+
+      # FIXME: Extremely inefficient (upto end of finding the next farthest),
+      # use i.e. the max of the nearest uses for the current instruction.
+      # Need a better datastructure, but my brain is exploding with so
+      # many datastructures around. And Donald Knuth comes to my mind all
+      # of a sudden: "Premature optimization is the root of ALL evil" :-P
+      # Let us fix this if it is a bottleneck after profiling.
+      reversed_uses = sorted(collision.register.uses(),
+                             key=lambda i: i.label,
+                             reverse=True)
+
+      # next_use because we are traversing the list reverse. Also we don't
+      # test if this use is before the current instruction because, if that
+      # is the case the register is already dead and not even interfering.
+      next_use_index, next_use = 0, reversed_uses[0]
+
+      if next_use.label < current_instruction.label and (
+          next_use.instruction != 'phi'):
+        # The latter case is possible for phi instructions because there is
+        # in case of loops the phi operand from the loop footer is used
+        # earlier by the instructions number than it is defined.
+        LOGGER.debug(
+            'Something has horribly gone wrong: Dead register %s is '
+            'being considered for spilling at instruction %s where the '
+            'new register %s is being defined.' % (
+                collision.register, current_instruction.label,
+                current_node.register))
+
+      # A binary search may be better in this case than linear.
+      for use_index, use in enumerate(reversed_uses[1:]):
+        if use.label < current_instruction.label:
+          break
+        next_use_index, next_use = use_index, use
+
+      # Can't spill because it is required by current instruction.
+      if next_use.label == current_instruction.label:
+        continue
+
+      # next_farthest_use is a two-tuple containing the instruction and
+      # the register interference node for the next farthest use.
+      if not (next_farthest_use and
+          (next_farthest_use['next_use'].label > next_use.label)):
+        next_farthest_use = {
+            'next_use_index': next_use_index,
+            'next_use': next_use,
+            'collision': collision
+            }
+
+    # Spill the register with the next farthest use.
+    spilling_node = next_farthest_use['collision']
+    spill_register = spilling_node.register
+
+    # Cut short the instruction range for the spilled register node.
+    spilling_node.instructions[1] = current_instruction.label
+
+    # Create a new register.
+    new_register = Register()
+
+    new_register.set_def(next_farthest_use['next_use'])
+    new_register.set_use(
+        spill_register.uses()[next_farthest_use['next_use_index']:])
+
+    # Push the new register down the heap.
+    self.live_intervals_heap.push(new_register,
+        (next_farthest_use['next_use'].label, spilling_node.instructions[1]))
+
+    # Update the spill information for the spilled register.
+    spill_register.spill = (current_instruction, next_farthest_use['next_use'],
+                            new_register)
+
+    # Remove this from the collisions list of the currently
+    # processing register.
+    collisions.remove(spilling_node)
+
+    return collisions
+
+  def populate_collisions(self):
+    """?Greedy?/?Dynamic Programming? algorithm to find the register collision.
 
     Args:
       index: The index in the list of registers sorted by start first registers
           but in reverse order. The register that starts last is first in the
           self.sort_by_start list
     """
-    try:
+    for register in self.live_intervals_heap:
       # The register object sorted by start of the liveness interval.
-      register = self.live_intervals_heap.pop()
-      self.populate_collisions()
-    except StopIteration:
-      # Base case for the backtracking algorithm, this occurs when there are
-      # no more elements in the heap.
-      return []
 
-    # Tuple containing the start and end of the liveness range for
-    # register obtained in the previous statement.
-    instructions = self.current_live_intervals[register]
+      # instructions is two-tuple containing the start and end of the
+      # liveness range for register obtained in the previous statement.
+      instructions = self.live_intervals_heap[register]
 
-    # Create a new interference node for the current register.
-    current_node = InterferenceNode(register, instructions)
+      # Create a new interference node for the current register.
+      current_node = InterferenceNode(register, instructions)
 
-    previous_node = self.register_nodes.get(
-        self.live_intervals_heap.last_popped(), None)
+      previous_node = self.register_nodes.get(
+          self.live_intervals_heap.previous(), None)
 
-    if previous_node and previous_node.instructions[1] > instructions[0]:
-      current_node.append_edges(previous_node)
-      for previous_collision in previous_node.edges:
-        # Note we are deliberately leaving out the
-        # previous_end == current_start case because in such cases the
-        # previous register can be reused for the current register's
-        # definition.
-        if previous_collision.instructions[1] > instructions[0]:
-          current_node.append_edges(previous_collision)
+      # Holds the list of colliding registers with this node.
+      collisions = []
 
-    self.register_nodes[register] = current_node
+      # FIXME: May lead to bugs? Do we really have to check if the previous
+      # node or any of its previous node is actually spilled? If it is
+      # spilled it doesn't collide with the previous node right?
+      if previous_node:
+        if previous_node.instructions[1] > instructions[0]:
+          collisions.append(previous_node)
 
-    # We cannot do this processing until we find all the interferences at
-    # the definition point of the current register.
-    # Note we are using >= because when considering the numbers we need
-    # to consider the current node also in addition to all the other
-    # registers. For example if we have 8 registers and the current node
-    # has 8 edges for the current node, we will have to spill because
-    # we need one register for storing the result of the current instruction,
-    # i.e. the current virtual registers interferes.
-    if len(current_node.edges) >= self.num_registers:
-      for edge in current_node.edges:
-        # current_node.instructions[0] holds the current instruction we are
-        # looking at and its edges give all the registers live at this point.
-        # Obviously the current instruction is definition point for
-        # the instruction.
-        current_instruction = current_node.register.definition()
-        if current_instruction.label != instructions[0]
-          LOGGER.debug(
-              'Something has horribly gone wrong: defintion point %d and '
-              'the current start of live intervals %d not matching for the '
-              ' current register %s. First fix the bugs you idiot!' % (
-                  current_instruction.label, instructions[0],
-                  current_node.register))
+        for previous_collision in previous_node.edges:
+          # Note we are deliberately leaving out the
+          # previous_end == current_start case because in such cases the
+          # previous register can be reused for the current register's
+          # definition.
+          if previous_collision.instructions[1] > instructions[0]:
+            collisions.append(previous_collision)
 
-        # FIXME: Extremely inefficient (upto end of finding the next farthest),
-        # use i.e. the max of the nearest uses for the current instruction.
-        # Need a better datastructure, but my brain is exploding with so
-        # many datastructures around. And Donald Knuth comes to my mind all
-        # of a sudden: "Premature optimization is the root of ALL evil" :-P
-        # Let us fix this if it is a bottleneck after profiling.
-        reversed_uses = sorted(edge.register.uses(), key=lambda i: i.label,
-                               reverse=True)
+      # We cannot do this processing until we find all the interferences at
+      # the definition point of the current register.
+      collisions = self.spill(current_node, collisions)
 
-        # next_use because we are traversing the list reverse. Also we don't
-        # test if this use is before the current instruction because, if that
-        # is the case the register is already dead and not even interfering.
-        next_use = reversed_uses[0]
-
-        if next_use.label < current_instruction.label:
-          LOGGER.debug(
-              'Something has horribly gone wrong: Dead register %s is '
-              'being considered for spilling at instruction %s where the '
-              'new register %s is being defined.' % (
-                  edge.register, current_instruction.label,
-                  current_node.register))
-
-        # A binary search may be better in this case than linear.
-        for use in reversed_uses[1:]:
-          if use.label < current_instruction.label:
-            break
-          next_use = use
-
-        # Can't spill because it is required by current instruction.
-        if next_use.label == current_instruction.label:
-          continue
-
-        # next_farthest_use is a two-tuple containing the instruction and
-        # the register for the next farthest use.
-        next_farthest_use = next_farthest_use if \
-            (next_farthest_use[0].label > next_use.label) else \
-                (next_use, edge.register)
-
-    # Spill the register with the next farthest use.
-    spill_register = next_farthest_use[1]
-    spill_register.spill = (current_instruction, next_farthest_use[0])
+      current_node.append_edges(*collisions)
+      self.register_nodes[register] = current_node
 
   def build_interference_graph(self, live_intervals):
     """Builds the interference graph for the given control flow subgraph.
