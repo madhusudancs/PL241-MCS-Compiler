@@ -867,9 +867,13 @@ class RegisterAllocator(object):
     cnf = 'p cnf %d %d\n%s0' % (
          num_literals, len(clauses), '0\n'.join(clauses))
 
+    LOGGER.debug(cnf)
+
     process = subprocess.Popen('glucose_static', stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE)
     output = process.communicate(cnf)
+
+    LOGGER.debug(output)
 
     # Read last 2 lines of the STDOUT since if the SAT is SATISFIABLE the
     # pen-ultimate line will contain the exact string "s SATISFIABLE" and
@@ -878,10 +882,11 @@ class RegisterAllocator(object):
     lines = output[0].rsplit('\n', 3)
 
     if lines[-2] == 's UNSATISFIABLE':
-      new_interference_graph = self.spill(interference_graph)
-      self.sat_solve(new_interference_graph)
-    elif lines[-2] == 's SATISFIABLE':
-      print "Allocation: %s"
+      LOGGER.debug('SAT Unsatisfiable')
+      return False, ''
+    elif lines[-3] == 's SATISFIABLE':
+      LOGGER.debug('SAT Satisfiable! Allocation: %s' % (lines[-1]))
+      return True, lines[-2]
 
   def allocate(self):
     """Allocate the registers to the program.
@@ -891,7 +896,18 @@ class RegisterAllocator(object):
       self.liveness(dom_tree.other_universe_node)
       ifg = self.build_interference_graph(
           dom_tree.other_universe_node.live_intervals)
-      #self.sat_solve(ifg)
+      is_allocated, allocation = self.sat_solve(ifg)
+      if is_allocated:
+        LOGGER.debug('Allocated for subgraph %s!' % (
+            dom_tree.other_universe_node))
+      else:
+        LOGGER.debug('Allocation Failed for subgraph %s :-(' % (
+            dom_tree.other_universe_node))
+        # No point in proceeding if register allocation fails. Some major
+        # bug in the code. So bail out.
+        retrun False, dom_tree.other_universe_node
+
+    return True, None
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
@@ -949,7 +965,11 @@ def bootstrap():
     optimize.optimize()
 
     regalloc = RegisterAllocator(ssa)
-    regalloc.allocate()
+    is_allocated, failed_subgraph = regalloc.allocate()
+
+    # If an allocation fails there is no point continuing, bail out.
+    if not is_allocated:
+      exit(1)
 
     if args.vcg:
       external_file = isinstance(args.vcg, str)
