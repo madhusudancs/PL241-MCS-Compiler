@@ -989,7 +989,7 @@ class RegisterAllocator(object):
             dom_tree.other_universe_node))
         # No point in proceeding if register allocation fails. Some major
         # bug in the code. So bail out.
-        retrun False, dom_tree.other_universe_node
+        return False, dom_tree.other_universe_node
 
     return True, None
 
