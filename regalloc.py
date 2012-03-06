@@ -715,6 +715,7 @@ class RegisterAllocator(object):
     else:
       self.cnf_var_count += 1
       self.register_cnf_map[register_var] = self.cnf_var_count
+      self.cnf_register_map[self.cnf_var_count] = register_var
       cnf_var = self.register_cnf_map[register_var]
 
     return cnf_var
@@ -838,7 +839,16 @@ class RegisterAllocator(object):
 
     conflicting_registers = {}
 
+    # The maps storing the registers to CNF variable mappings. One small
+    # difference between the two maps is that the first map stores the
+    # mapping from the register bit variable to CNF variable, however the
+    # latter stores the mapping from CNF variable to two tuple, containing
+    # the register bit and the register object itself. If we don't store the
+    # reference to the register object, there is no way for us to retrieve
+    # it back later.
     self.register_cnf_map = {}
+    self.cnf_register_map = {}
+
     self.cnf_var_count = 0
 
     clauses = []
