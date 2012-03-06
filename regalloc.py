@@ -398,9 +398,6 @@ class RegisterAllocator(object):
     # other universe of regular IR's CFG.
     start, end = node.value
 
-    # Adjust start ignoring phi instructions, since they are dealt separately
-    start -= len(node.phi_functions)
-
     # Walk the instructions in the reverse order, note -1 for stepping.
     for instruction in self.ssa.optimized(end, start - 1, reversed=True):
       if instruction.instruction == 'phi':
