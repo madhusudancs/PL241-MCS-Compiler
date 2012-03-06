@@ -123,7 +123,7 @@ class Register(object):
     """
     return self.def_instruction
 
-  def set_use(self, instruction):
+  def set_use(self, *instructions):
     """Sets the instruction where this register is used.
 
     Essentially sets up a def-use chain for the register. A register can be
@@ -132,7 +132,7 @@ class Register(object):
     Args:
       instruction: The Instruction object where the variable is defined.
     """
-    self.use_instructions.append(instruction)
+    self.use_instructions.extend(instructions)
 
   def uses(self):
     """Returns the set of instruction objects where this register is used.
