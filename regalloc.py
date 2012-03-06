@@ -233,26 +233,26 @@ class RegisterAllocator(object):
         # other instructions label remaining. This cannot be determined or
         # fixed before the result of the instruction whose result is the
         # operand for the phi function is computed
-        for instruction, phi_function in phi_instructions:
-          operand2 = instruction.operand2
-          if instruction.is_variable_or_label(operand2):
+        for phi_instruction, phi_function in phi_instructions:
+          operand2 = phi_instruction.operand2
+          if phi_instruction.is_variable_or_label(operand2):
             new_register = self.register_for_operand(operand2)
-            new_register.set_use(instruction)
+            new_register.set_use(phi_instruction)
 
-            instruction.operand2 = new_register
+            phi_instruction.operand2 = new_register
 
             phi_function['RHS'][0] = new_register
 
           new_operands = []
-          for i, operand in enumerate(instruction.operands):
-            if instruction.is_variable_or_label(operand):
+          for i, operand in enumerate(phi_instruction.operands):
+            if phi_instruction.is_variable_or_label(operand):
               new_register = self.register_for_operand(operand)
-              new_register.set_use(instruction)
+              new_register.set_use(phi_instruction)
               new_operands.append(new_register)
 
               phi_function['RHS'][i + 1] = new_register
 
-          instruction.operands = new_operands
+          phi_instruction.operands = new_operands
 
         # We need to keep track of this for spilling registers which spawns
         # off new registers to give the new registers the names.
