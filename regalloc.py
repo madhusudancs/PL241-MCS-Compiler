@@ -1,4 +1,4 @@
-# Copyright 2012 Madhusudan C.S. 
+# Copyright 2012 Madhusudan C.S.
 #
 # This file regalloc.py is part of PL241-MCS compiler.
 #
@@ -922,6 +922,7 @@ class RegisterAllocator(object):
        virtual_alloc_str += '%10s  <- %s\n' % (
            instruction.result if instruction.result else '', instruction)
     return virtual_alloc_str
+
 
 def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
