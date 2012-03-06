@@ -94,10 +94,11 @@ class Register(object):
     # def-use chain for the register.
     self.use_instructions = []
 
-    # If the register is spilled it contains the two-tuple containing the
+    # If the register is spilled it contains the three-tuple containing the
     # pointer to the instruction where it was spilled, pointer to the
-    # instruction where this register needs to reloaded or None if not
-    # spilled.
+    # instruction where this register needs to reloaded and the new
+    # register where this register will be reloaded. It is None if the
+    # register is not spilled.
     self.spill = None
 
   def set_def(self, instruction):
