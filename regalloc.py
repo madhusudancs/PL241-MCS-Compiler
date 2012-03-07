@@ -447,9 +447,15 @@ class RegisterAllocator(object):
           intervals[operand] = [node.value[0], instruction.label]
           live[operand] = True
 
+    phi_functions = {}
     for phi_function in node.phi_functions.values():
       intervals[phi_function['LHS']][0] = node.value[0]
       live.pop(phi_function['LHS'])
+      phi_functions[phi_function['LHS']] = {
+          'operands': phi_function['LHS'],
+          'instruction': phi_function['instruction']
+          }
+
 
     for phi_function in node.phi_functions.values():
       for i, operand in enumerate(phi_function['RHS']):
@@ -463,6 +469,8 @@ class RegisterAllocator(object):
 
     node.live_in = live
     node.live_include = include
+
+    start_node.all_phi_functions.update(phi_functions)
 
     for operand in intervals:
       if operand in start_node.live_intervals:
