@@ -1068,6 +1068,7 @@ class RegisterAllocator(object):
       # each function independently.
       ifg = self.build_interference_graph(
           dom_tree.other_universe_node.live_intervals,
+          dom_tree.other_universe_node.all_phi_functions,
           dom_tree.other_universe_node.last_register_count)
       is_allocated, allocation = self.sat_solve(ifg)
       if is_allocated:
