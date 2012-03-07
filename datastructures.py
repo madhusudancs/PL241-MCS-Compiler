@@ -280,9 +280,9 @@ class CFGNode(Node):
     # variables that must be included only on that path
     self.live_include = {}
 
-    # The start node contains all the phi-functions for the entire program
+    # The start node contains all the phi-nodes for the entire program
     # function.
-    self.all_phi_functions = {}
+    self.phi_nodes = []
 
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.

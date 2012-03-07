@@ -495,14 +495,9 @@ class RegisterAllocator(object):
           intervals[operand] = [node.value[0], instruction.label]
           live[operand] = True
 
-    phi_functions = {}
     for phi_function in node.phi_functions.values():
       intervals[phi_function['LHS']][0] = node.value[0]
       live.pop(phi_function['LHS'])
-      phi_functions[phi_function['LHS']] = {
-          'operands': phi_function['LHS'],
-          'instruction': phi_function['instruction']
-          }
 
 
     for phi_function in node.phi_functions.values():
@@ -518,7 +513,8 @@ class RegisterAllocator(object):
     node.live_in = live
     node.live_include = include
 
-    start_node.all_phi_functions.update(phi_functions)
+    if node.phi_functions:
+      start_node.phi_nodes.append(node)
 
     for operand in intervals:
       if operand in start_node.live_intervals:
@@ -1069,7 +1065,7 @@ class RegisterAllocator(object):
       # each function independently.
       ifg = self.build_interference_graph(
           dom_tree.other_universe_node.live_intervals,
-          dom_tree.other_universe_node.all_phi_functions,
+          dom_tree.other_universe_node.phi_nodes,
           dom_tree.other_universe_node.last_register_count)
       is_allocated, allocation = self.sat_solve(ifg)
       if is_allocated:
