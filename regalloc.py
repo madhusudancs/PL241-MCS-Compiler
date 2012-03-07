@@ -146,6 +146,46 @@ class Register(object):
     """
     return self.use_instructions
 
+  def assignment(self, instruction):
+    """Returns the color assignment for the register at the given instruction.
+
+    This method is extremely intelligent :-P If the node is spilled at the
+    given instruction it returns the color assigned to the new register. And
+    this chains as long as the spill cycle exists :-)
+
+    Args:
+      instruction: The instruction object at which the register assignment
+          should be obtained.
+    """
+    if not self.spill:
+      return self.color
+
+    # Either when the register is not spilled at all as above or spilled but
+    # at any instruction before spill the same register is used.
+    if instruction.label < self.spill['spilled_at'].label:
+      return self.color
+
+    # If the register is spilled and the current instruction is later than
+    # or at the instruction where this register needs to be reloaded we
+    # delegate to the reloaded register to do return its assignment.
+    # NOTE: This gets recursive, if the reloaded register is spilled again.
+    # This is very nice because we need not do this in a loop individually
+    # for all the chained spills.
+    if instruction.label >= self.spill['spilled_to'].label:
+      print "--Spilled at: %d" % (self.spill['spilled_at'].label),
+      print '(%s)' % self,
+      print "--",
+      return self.spill['register'].assignment(instruction)
+
+    if (self.spill['spilled_at'].label <=
+        instruction.label < self.spill['spilled_to'].label):
+      LOGGER.debug('Things have gone terribly wrong since we have an '
+          'instruction %s where the definition/use of register %s occurs '
+          'when it was spilled before this instruction i.e. at the '
+          'instruction %s and reloaded after this instruction i.e. at '
+          'instruction %s' % (instruction, self, self.spill['spilled_at'],
+                              self.spill['spilled_to']))
+
   def __eq__(self, register):
     """Checks if the two registers are same.
     """
