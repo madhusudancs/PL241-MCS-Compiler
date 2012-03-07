@@ -94,12 +94,17 @@ class Register(object):
     # def-use chain for the register.
     self.use_instructions = []
 
-    # If the register is spilled it contains the three-tuple containing the
-    # pointer to the instruction where it was spilled, pointer to the
-    # instruction where this register needs to reloaded and the new
-    # register where this register will be reloaded. It is None if the
-    # register is not spilled.
+    # If the register is spilled it contains a dictionary with three keys,
+    #   "spilled_at": pointer to the instruction object where it was spilled
+    #   "spilled_to": pointer to the instruction where this register needs
+    #        to reloaded
+    #   "register": register object where this register will be reloaded.
+    # This attribute is None if the register is not spilled.
     self.spill = None
+
+    # Color assignment after solving the K-coloring problem using SAT solver.
+    # Note even though they are called colors they are just integral values.
+    self.color = None
 
   def set_def(self, instruction):
     """Sets the instruction where this register is defined.
@@ -193,10 +198,6 @@ class RegisterAllocator(object):
 
     # List of interference graphs where each graph corresponds to a function.
     self.interference_graphs = []
-
-    # Color assignment after solving the K-coloring problem using SAT solver.
-    # Note even though they are called callers they are just integral values.
-    self.color = None
 
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
