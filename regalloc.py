@@ -427,8 +427,9 @@ class RegisterAllocator(object):
         # it runs until the end of the block. See datastructures.CFGNode
         # __init__() method for matching how things work with live
         # dictionaries.
-        live[variable] = True
-        intervals[variable] = list(node.value)
+        if self.is_register(variable):
+          live[variable] = True
+          intervals[variable] = list(node.value)
 
       for phi_function in successor.phi_functions.values():
         # Get the in-edges of the successor to determine which entry in the
