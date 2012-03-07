@@ -1107,9 +1107,47 @@ class RegisterAllocator(object):
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
       if instruction.instruction == 'phi':
         #do something for phi
-        continue
+        #continue
+        pass
 
-      print type(instruction.result)
+      if self.is_register(instruction.result):
+        assignment = instruction.result.assignment(instruction)
+        assignment = '%10d' % assignment if assignment != None else '      None'
+        print assignment,
+        print '%10s' % ('(%s)' % instruction.result,),
+      else:
+        print '                     ',
+
+      print '%10s' % instruction.label,
+      print '    ',
+      print '%10s' % instruction.instruction,
+
+      if self.is_register(instruction.operand1):
+        assignment = instruction.operand1.assignment(instruction)
+        assignment = '%10d' % assignment if assignment != None else '      None'
+        print assignment,
+        print '%10s' % ('(%s)' % instruction.operand1,),
+      else:
+        print '%20s' % instruction.operand1,
+
+      if self.is_register(instruction.operand2):
+        assignment = instruction.operand2.assignment(instruction)
+        assignment = '%10d' % assignment if assignment != None else '      None'
+        print assignment,
+        print '%10s' % ('(%s)' % instruction.operand2,),
+      else:
+        print '%20s' % instruction.operand2,
+
+      for op in instruction.operands:
+        if self.is_register(op):
+          assignment = op.assignment(instruction)
+          assignment = '%10d' % assignment if assignment != None else '      None'
+          print assignment,
+          print '%10s' % ('(%s)' % op,),
+        else:
+          print '%20s' % op,
+
+      print
 
     for child in node.out_edges:
       if self.visited.get(child, False):
@@ -1128,6 +1166,9 @@ class RegisterAllocator(object):
     # Reset visited dictionary for another traversal.
     self.visited = {}
     for dom_tree in self.ssa.cfg.dom_trees:
+      print
+      print
+      print
       self.deconstruct_basic_block(dom_tree.other_universe_node)
 
 
