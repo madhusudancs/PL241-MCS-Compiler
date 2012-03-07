@@ -741,12 +741,15 @@ class RegisterAllocator(object):
       current_node.append_edges(*collisions)
       self.register_nodes[register] = current_node
 
-  def build_interference_graph(self, live_intervals, last_register_count):
+  def build_interference_graph(self, live_intervals, phi_functions,
+                               last_register_count):
     """Builds the interference graph for the given control flow subgraph.
 
     Args:
       live_intervals: Dictionary containing the live intervals for the
           entire function.
+      phi_functions: Contains all the phi functions in the given program
+          function.
       last_register_count: The count of the last register in this function.
           The actual name of the last register is -1 of this value.
     """
@@ -754,6 +757,8 @@ class RegisterAllocator(object):
     self.register_nodes = {}
 
     self.live_intervals_heap = LiveIntervalsHeap(live_intervals)
+
+    self.phi_functions = phi_functions
 
     # FIXME: We do not have to do this if we compile each function
     # independently.
