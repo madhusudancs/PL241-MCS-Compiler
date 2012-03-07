@@ -599,91 +599,73 @@ class RegisterAllocator(object):
                 register))
 
       collision_register_uses = collision.register.uses()
-      if (collision_register_uses[-1].instruction == 'phi' and
-          not collision_register_uses[-1].label >= current_instruction.label
-          and current_instruction.label <
-          collision.register.definition().label):
-        next_farthest_use = None
-        break
-      else:
-        # next_use because we are traversing the list reverse. Also we don't
-        # test if this use is before the current instruction because, if that
-        # is the case the register is already dead and not even interfering.
-        next_use_index, next_use = -1, collision_register_uses[-1]
+      # next_use because we are traversing the list reverse. Also we don't
+      # test if this use is before the current instruction because, if that
+      # is the case the register is already dead and not even interfering.
+      next_use_index, next_use = -1, collision_register_uses[-1]
 
-        if next_use.label < current_instruction.label and (
-            next_use.instruction != 'phi'):
-          # The latter case is possible for phi instructions because there is
-          # in case of loops the phi operand from the loop footer is used
-          # earlier by the instructions number than it is defined.
-          LOGGER.debug(
-              'Something has horribly gone wrong: Dead register %s is '
-              'being considered for spilling at instruction %s where the '
-              'new register %s is being defined.' % (
-                  collision.register, current_instruction.label,
-                  current_node.register))
+      if next_use.label < current_instruction.label and (
+          next_use.instruction != 'phi'):
+        # The latter case is possible for phi instructions because there is
+        # in case of loops the phi operand from the loop footer is used
+        # earlier by the instructions number than it is defined.
+        LOGGER.debug(
+            'Something has horribly gone wrong: Dead register %s is '
+            'being considered for spilling at instruction %s where the '
+            'new register %s is being defined.' % (
+                collision.register, current_instruction.label,
+                current_node.register))
 
-        # A binary search may be better in this case than linear.
-        for use_index, use in enumerate(collision_register_uses[-2::-1]):
-          if use.label < current_instruction.label:
-            break
-          next_use_index, next_use = use_index, use
+      # A binary search may be better in this case than linear.
+      for use_index, use in enumerate(collision_register_uses[-2::-1]):
+        if use.label < current_instruction.label:
+          break
+        next_use_index, next_use = use_index, use
 
-        # Can't spill because it is required by current instruction.
-        if next_use.label == current_instruction.label:
-          continue
+      # Can't spill because it is required by current instruction.
+      if next_use.label == current_instruction.label:
+        continue
 
-        # next_farthest_use is a two-tuple containing the instruction and
-        # the register interference node for the next farthest use.
-        if not (next_farthest_use and
-            (next_farthest_use['next_use'].label > next_use.label)):
-          next_farthest_use = {
-              'next_use_index': next_use_index,
-              'next_use': next_use,
-              'collision': collision
-              }
+      # next_farthest_use is a two-tuple containing the instruction and
+      # the register interference node for the next farthest use.
+      if not (next_farthest_use and
+          (next_farthest_use['next_use'].label > next_use.label)):
+        next_farthest_use = {
+            'next_use_index': next_use_index,
+            'next_use': next_use,
+            'collision': collision
+            }
 
-    if next_farthest_use:
-      # Spill the register with the next farthest use.
-      spilling_node = next_farthest_use['collision']
-      spill_register = spilling_node.register
+    # Spill the register with the next farthest use.
+    spilling_node = next_farthest_use['collision']
+    spill_register = spilling_node.register
 
-      # Cut short the instruction range for the spilled register node.
-      spilling_node.instructions[1] = current_instruction.label
+    # Cut short the instruction range for the spilled register node.
+    spilling_node.instructions[1] = current_instruction.label
 
-      # Create a new register. The last register count is the count of the
-      # number of registers assigned, the actual name of the last register
-      # will be -1 of this value. So we directly assign this value to the new
-      # register.
-      # FIXME: We do not have to do this name assignments if we compile each
-      # function independently
-      new_register = Register(name=self.last_register_count)
-      self.last_register_count += 1
+    # Create a new register. The last register count is the count of the
+    # number of registers assigned, the actual name of the last register
+    # will be -1 of this value. So we directly assign this value to the new
+    # register.
+    # FIXME: We do not have to do this name assignments if we compile each
+    # function independently
+    new_register = Register(name=self.last_register_count)
+    self.last_register_count += 1
 
-      new_register.set_def(next_farthest_use['next_use'])
-      new_register.set_use(
-          spill_register.uses()[next_farthest_use['next_use_index']:])
+    new_register.set_def(next_farthest_use['next_use'])
+    new_register.set_use(
+        spill_register.uses()[next_farthest_use['next_use_index']:])
 
-      # Push the new register down the heap.
-      self.live_intervals_heap.push(new_register,
-          (next_farthest_use['next_use'].label, spilling_node.instructions[1]))
+    # Push the new register down the heap.
+    self.live_intervals_heap.push(new_register,
+        (next_farthest_use['next_use'].label, spilling_node.instructions[1]))
 
-      # Update the spill information for the spilled register.
-      spill_register.spill = {
-          'spilled_at': current_instruction,
-          'spilled_to': next_farthest_use['next_use'],
-          'register': new_register
-          }
-    else:
-      spilling_node = collision
-      spill_register = spilling_node.register
-      new_register = Register(name=self.last_register_count)
-      new_register.set_def(spill_register.definition())
-      new_register.set_use(spill_register.uses()[:-1])
-
-      self.last_register_count += 1
-      self.live_intervals_heap.push(new_register,
-          (new_register.definition().label, spilling_node.instructions[1]))
+    # Update the spill information for the spilled register.
+    spill_register.spill = {
+        'spilled_at': current_instruction,
+        'spilled_to': next_farthest_use['next_use'],
+        'register': new_register
+        }
 
     # Remove this from the collisions list of the currently
     # processing register.
@@ -737,28 +719,33 @@ class RegisterAllocator(object):
       current_node.append_edges(*collisions)
       self.register_nodes[register] = current_node
 
-  def build_interference_graph(self, live_intervals, phi_functions,
+  def build_interference_graph(self, live_intervals, phi_nodes,
                                last_register_count):
     """Builds the interference graph for the given control flow subgraph.
 
     Args:
       live_intervals: Dictionary containing the live intervals for the
           entire function.
-      phi_functions: Contains all the phi functions in the given program
-          function.
+      phi_nodes: Contains all the phi nodes for the given function in the
+          program.
       last_register_count: The count of the last register in this function.
           The actual name of the last register is -1 of this value.
     """
     # Clear the register_nodes dictionary for a new start
     self.register_nodes = {}
 
-    self.live_intervals_heap = LiveIntervalsHeap(live_intervals)
-
-    self.phi_functions = phi_functions
-
     # FIXME: We do not have to do this if we compile each function
     # independently.
     self.last_register_count = last_register_count
+
+    for phi_node in phi_nodes:
+      for phi_function in phi_node.phi_functions.values():
+        for operand in phi_function['RHS']:
+          if operand in live_intervals:
+            if (operand.definition().label > operand.uses()[-1].label):
+              live_intervals[operand][0] = operand.definition().label
+
+    self.live_intervals_heap = LiveIntervalsHeap(live_intervals)
 
     self.current_live_intervals = live_intervals
     self.populate_collisions()
