@@ -186,6 +186,12 @@ class Register(object):
           'instruction %s' % (instruction, self, self.spill['spilled_at'],
                               self.spill['spilled_to']))
 
+  def def_use_chains(self):
+    """Returns the def-use chain pair for the register.
+    """
+    for use_instruction in self.use_instructions:
+      yield self.def_instruction, use_instruction
+
   def __eq__(self, register):
     """Checks if the two registers are same.
     """
