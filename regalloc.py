@@ -871,10 +871,27 @@ class RegisterAllocator(object):
     """Generates all the clauses for an edge.
 
     Args:
-      register1, register2: The two ends of the edge for which the clauses
+      register1: One of the two ends of the edge for which the clauses
           should be generated.
+      register2: One of the two ends of the edge for which the clauses
+          should be generated. This can be None if a register has absolutely
+          no collisions.
     """
     clauses = []
+
+    # Handle the case when the register has absolutely no conflicts.
+    # We have to just generate clauses containing one CNF variable for each
+    # bit position.
+    if not register2:
+      # Since this template is expected to have the same bit-width for all
+      # the patterns just pick the first one for the number of bits count.
+      num_bits = len(self.edge_bit_template[0])
+      for bit_position in range(num_bits):
+        cnf1_var = self.get_cnf_var(register1, bit_position)
+        clauses.append('%s ' % (cnf1_var))
+
+      return clauses
+
     for template in self.edge_bit_template:
       clause = ''
       # IMPORTANT: The bit_position is 0 for the Most Significant Bit (MSB)
@@ -939,22 +956,21 @@ class RegisterAllocator(object):
       # Generate node specific clauses.
       clauses.extend(self.generate_node_clauses(node_reg))
 
-      for edge in node.edges:
-        edge_reg = edge.register
-        if ((edge_reg, node_reg) in processed) or (
-            (node_reg, edge_reg) in processed):
-          continue
+      if node.edges:
+        for edge in node.edges:
+          edge_reg = edge.register
+          if ((edge_reg, node_reg) in processed) or (
+              (node_reg, edge_reg) in processed):
+            continue
+          processed[(node_reg, edge_reg)] = True
 
-        processed[(node_reg, edge_reg)] = True
+          # Generate edge specific clauses
+          clauses.extend(self.generate_edge_clauses(node_reg, edge_reg))
+      elif node.register.uses():
+        node_clauses = self.generate_edge_clauses(node_reg, None)
+        clauses.extend(node_clauses)
 
-        conflicting_registers[edge_reg] = True
-
-        # Generate edge specific clauses
-        clauses.extend(self.generate_edge_clauses(node_reg, edge_reg))
-
-    num_literals = len(conflicting_registers) * num_literals_per_reg
-
-    return num_literals, clauses
+    return self.cnf_var_count, clauses
 
   def generate_assignments(self, cnf_assignment):
     """Generates the assignments for the registers from the CNF form.
