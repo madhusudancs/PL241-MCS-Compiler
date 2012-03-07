@@ -842,7 +842,7 @@ class RegisterAllocator(object):
 
     return num_literals_per_reg
 
-  def generate_node_clauses(self, node):
+  def generate_node_clauses(self, register):
     """Generates the clauses for the given node.
 
     Generate the clauses to exclude the numbers higher than the maximum
@@ -853,7 +853,7 @@ class RegisterAllocator(object):
     are added to exclude these numbers for each register/node.
 
     Args:
-      node: The node for which the exclusion clauses should be added.
+      register: The node for which the exclusion clauses should be added.
     """
     clauses = []
     for template in self.node_bit_template:
