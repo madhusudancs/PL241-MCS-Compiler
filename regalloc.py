@@ -905,6 +905,7 @@ class RegisterAllocator(object):
           clause += '-%s -%s ' % (cnf1_var, cnf2_var)
         else:
           clause += '%s %s ' % (cnf1_var, cnf2_var)
+
       clauses.append(clause)
 
     return clauses
