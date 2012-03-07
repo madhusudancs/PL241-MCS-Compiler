@@ -208,6 +208,8 @@ class SSA(object):
       if instruction.instruction == 'move' and hasattr(
           instruction, 'old_operand2'):
         stacks[instruction.old_operand2].pop()
+      for phi_variable in root.phi_functions:
+        stacks[phi_variable].pop()
 
   def rename(self):
     """Rename all the variables for SSA representation.
