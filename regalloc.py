@@ -183,7 +183,11 @@ class Register(object):
         return new_register, self.spill
 
     elif instruction.label >= self.spill['spilled_to'].label:
-      return self.spill['register'].assignment(instruction), None
+      new_register, new_spill = self.spill['register'].assignment(instruction)
+      if new_spill:
+        return new_register, new_spill
+      else:
+        return new_register, None
 
     if (self.spill['spilled_at'].label <=
         instruction.label < self.spill['spilled_to'].label):
