@@ -225,7 +225,8 @@ class Register(object):
     # IMPORTANT: Don't check if they are the same objects using "is", because
     # later some one may decide to simulate the register but with a new object
     # is created. The given two checks should be sufficient.
-    return True if (self.name == register.name and
+    return True if (isinstance(register, self.__class__) and
+        self.name == register.name and
         self.def_instruction == register.def_instruction) else False
 
   def __str__(self):
