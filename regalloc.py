@@ -437,6 +437,7 @@ class RegisterAllocator(object):
     # and second representing the end of the range.
     live = {}
     intervals = {}
+    phi_operands = {}
 
     # Dictionary containing the in_edge and the operands that
     # should be included only for those predecessors
@@ -527,17 +528,31 @@ class RegisterAllocator(object):
     for phi_function in node.phi_functions.values():
       intervals[phi_function['LHS']][0] = node.value[0]
       live.pop(phi_function['LHS'])
+      phi_operands[phi_function['LHS']] = True
 
 
     for phi_function in node.phi_functions.values():
       for i, operand in enumerate(phi_function['RHS']):
         include[node.in_edges[i]].append(operand)
+        phi_operands[operand] = True
+
         if operand in intervals:
           intervals[operand][1] = phi_function['instruction'].label
         elif self.is_register(operand):
           live[operand] = True
           intervals[operand] = [node.value[0],
                                 phi_function['instruction'].label]
+
+    # Every operand that is live at the loop header and is not a phi-operand
+    # or a phi-result should live from the beginning of the block to the end.
+    # This is a guard to not spill these registers before other registers
+    # whose next use is farther outside the loop.
+    if node in self.loop_pair:
+      for operand in live:
+        if operand not in phi_operands:
+          loop_footer = self.loop_pair[node]
+          # Lives till the end of the loop footer block.
+          intervals[operand][1] = loop_footer.value[1]
 
     node.live_in = live
     node.live_include = include
