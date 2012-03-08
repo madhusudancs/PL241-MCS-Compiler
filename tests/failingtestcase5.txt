@@ -1,0 +1,47 @@
+                              23      .begin_sum                 None                 None
+         2       (r0)         24             add                  !FP                   #0
+         0       (r1)         25            load          2       (r0)                 None
+                              26            move          0       (r1)          [framesize]
+         2       (r2)         27             add          2       (r0)                   #4
+         0       (r3)         28            load          2       (r2)                 None
+                              29            move          0       (r3)                [ret]
+         3       (r4)         30             add          2       (r2)                   #4
+                              31            move          3       (r4)                [sum]
+         2       (r5)         32             add          3       (r4)                   #4
+         0       (r6)         33            load          2       (r5)                 None
+         3       (r7)         35             add          2       (r5)                   #4
+         2       (r8)         36            load          3       (r7)                 None
+
+
+LOOOOOOOOOOOOOOPPPPPPPPPPPPPPPPP HEEEEEEEEEEEEEEEEEEEEEEEAAAAAAAAAAAAAAAAAAAAADEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRR
+         0       (r9)         40             phi                  #0            0      (r19)
+         3      (r10)         41             phi                  #0            1      (r16)
+         1      (r11)         42             cmp                   #0           2       (r8)
+                              43             bge          1      (r11)                   61
+
+
+LOOOOOOOOOOOOOOPPPPPPPPPPPPPPPPP HEEEEEEEEEEEEEEEEEEEEEEEAAAAAAAAAAAAAAAAAAAAADEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRR
+
+
+         1      (r12)         44             mul          0       (r9)                   #4
+         2      (r13)         45             add                  !FP               #sum/a
+         1      (r14)         46            adda          1      (r12)          2      (r13)
+         2      (r15)         47            load          1      (r14)                 None
+         1      (r16)         48             add          3      (r10)          2      (r15)
+         2      (r17)         50             add          0       (r9)                   #1
+         0      (r18)         52             cmp          1      (r16)          --Spilled at: 45 (r8) --          0       (r8)
+                              53             bge          0      (r18)                   57
+
+         0      (r20)         54             add          0      (r19)                   #1
+                              56             bra                   60                 None
+
+         2      (r21)         57             sub          2      (r17)                   #1
+         0      (r19)         59             phi          0      (r20)          2      (r21)
+                              60             bra                   42                 None
+
+LOOOOOOOOOOOOOOPPPPPPPPPPPPPPPPP HEEEEEEEEEEEEEEEEEEEEEEEAAAAAAAAAAAAAAAAAAAAADEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRR
+
+
+                              61           store          3      (r10)                [sum]
+                              62             bra                [ret]                 None
+                              63        .end_sum                 None                 None
