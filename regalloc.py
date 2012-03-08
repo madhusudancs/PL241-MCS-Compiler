@@ -1376,6 +1376,13 @@ class RegisterAllocator(object):
         instruction = self.ssa.ssa[predecessor.value[1] - 1]
         self.ssa_deconstructed_instructions[instruction] = instructions + \
             self.ssa_deconstructed_instructions[instruction]
+      else:
+        instruction = self.ssa.ssa[predecessor.value[1]]
+        self.ssa_deconstructed_instructions[instruction].extend(instructions)
+
+      first, last = (self.ssa_deconstructed_instructions[instruction][0],
+          self.ssa_deconstructed_instructions[instruction][-1])
+      first.label, last.label = last.label, first.label
 
   def registers_assigned_instructions(self):
     """Return the printable string for the registers assigned instructions
