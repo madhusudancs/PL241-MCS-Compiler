@@ -1378,6 +1378,10 @@ def bootstrap():
                       nargs='?', const=True,
                       help='Generate the Visualization Compiler Graph '
                            'of the interference graph.')
+  parser.add_argument('--assigned', metavar="Assigned", type=str,
+                      nargs='?', const=True,
+                      help='Generate the instructions with registers '
+                      'and phi functions resolved.')
   parser.add_argument('--virtualreggraph', metavar="Virtual Registers Graph",
                       type=str, nargs='?', const=True,
                       help='Generate the Visualization Compiler Graph '
@@ -1425,6 +1429,14 @@ def bootstrap():
 
       if external_file:
         vcg_file.close()
+
+    if args.assigned:
+      external_file = isinstance(args.assigned, str)
+      assigned_file = open(args.assigned, 'w') if external_file else sys.stdout
+      assigned_file.write('%s\n' % regalloc.almost_machine_instructions())
+
+      if external_file:
+        assigned_file.close()
 
     if args.virtualreggraph:
       external_file = isinstance(args.virtualreggraph, str)
