@@ -1150,7 +1150,7 @@ class RegisterAllocator(object):
       if instruction.instruction == 'phi':
         # We should not add phi instruction to the resulting instructions.
 
-        phi_result = instruction.result
+        phi_result = instruction.operand1
         for i, predecessor in enumerate(node.in_edges):
           if i == 0:
             operand = instruction.operand2
