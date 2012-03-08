@@ -85,11 +85,12 @@ this runs on RISC architectures like ARM.
 What additional libraries are required to run this compiler?
 ------------------------------------------------------------
 
-Since an off the register allocator is implemeted using an off-the-shelf
-SAT solver (which is hard coded to be **glucose** at the moment, you will
-have to download the source code from **glucose**'s website:
+Since the register allocator is implemeted using an off-the-shelf SAT solver
+(which is hard coded to be **glucose** at the moment, you will have to
+download the source code from **glucose**'s website:
 http://www.lri.fr/~simon/?page=glucose and compile the source. The binary
-should be available on your system path and with the exact name *glucose_static*.
+should be available on your system path and with the exact name
+*glucose_static*.
 
 Other than this and the standard Python 2.7 installation, you will not want
 any additional libraries. Deliberate care has been taken not to use any
