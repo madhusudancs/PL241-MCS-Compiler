@@ -1133,12 +1133,80 @@ class RegisterAllocator(object):
     Args:
       node: The basic block node to process.
     """
-    block_deconstruction_map = {}
+    # This needs to be per function, so reset to zero for every function.
+    self.memory_offset = 0
+
+    self.phi_map = collections.defaultdict(list)
+
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
       if instruction.instruction == 'phi':
-        #do something for phi
-        #continue
-        pass
+        # We should not add phi instruction to the resulting instructions.
+
+        phi_result = instruction.result
+        for i, predecessor in enumerate(node.in_edges):
+          if i == 0:
+            operand = instruction.operand2
+          else:
+            operand = instruction.operands[i - 1]
+          if self.is_register(operand):
+            assignment, spilled = operand.assignment(instruction)
+            if spilled:
+              self.insert_spill(spilled['register'], spilled['spilled_at'])
+              reload_instruction = Instruction('load', self.memory_offset)
+              Instruction.assigned_result = phi_result
+              self.phi_map[predecessor].append(reload_instruction)
+              self.memory_offset += 1
+            elif assignment != phi_result:
+              move_instruction = Instruction('move', assignment, phi_result)
+              self.phi_map[predecessor].append(move_instruction)
+            # We don't do anything for the case where assignment and
+            # phi_result are the same. They just remain the way they are :-)
+      else:
+        self.ssa_deconstructed_instructions[instruction] = [instruction]
+
+        result = instruction.result
+        if self.is_register(result):
+          # Since we are using SSA there won't be any reloads for the result
+          # So we don't call the corresponding insertion method.
+          instruction.assigned_result, spill = result.assignment(instruction)
+
+        operand1 = instruction.operand1
+        if self.is_register(operand1):
+          instruction.assigned_operand1, spill = operand1.assignment(
+              instruction)
+          self.insert_spill_reload(operand1, spill)
+
+        operand2 = instruction.operand2
+        if self.is_register(operand2):
+          instruction.assigned_operand2, spill = operand2.assignment(
+              instruction)
+          self.insert_spill_reload(operand2, spill)
+
+        operands_assigned = []
+        for operand in instruction.operands:
+          if self.is_register(operand):
+            operand_assigned, spill = operand.assignment(instruction)
+            self.insert_spill_reload(operand, spill)
+            operands_assigned.append(operand_assigned)
+
+        instruction.assigned_operands = operands_assigned
+
+    for child in node.out_edges:
+      if self.visited.get(child, False):
+        continue
+
+      self.visited[child] = True
+
+      self.deconstruct_basic_block(child)
+
+  def deconstruct_ssa(self):
+    """Deconstruct SSA form along with inserting instructions for spills.
+    """
+    # Reset visited dictionary for another traversal.
+    self.visited = {}
+    for dom_tree in self.ssa.cfg.dom_trees:
+      self.deconstruct_basic_block(dom_tree.other_universe_node)
+
 
       if self.is_register(instruction.result):
         assignment = instruction.result.assignment(instruction)
