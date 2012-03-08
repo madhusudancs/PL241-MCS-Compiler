@@ -157,6 +157,12 @@ class SSA(object):
       stacks: contains a stack for every variable.
       count: contains a count of the number of assignments to a variable.
     """
+    for variable in root.phi_functions:
+      i = count[variable]
+      root.phi_functions[variable]['LHS'] = '%s_%d' % (variable, i)
+      stacks[variable].push(i)
+      count[variable] = i + 1
+
     for label in range(root.value[0], root.value[1] + 1):
       instruction = self.ssa[label]
       if instruction.instruction == 'move':
@@ -186,12 +192,6 @@ class SSA(object):
         if instruction.is_variable(variable2):
           i = stacks[variable2].top()
           instruction.operand2 = '%s_%d' % (variable2, i)
-
-    for variable in root.phi_functions:
-      i = count[variable]
-      root.phi_functions[variable]['LHS'] = '%s_%d' % (variable, i)
-      stacks[variable].push(i)
-      count[variable] = i + 1
 
     for successor in root.out_edges:
       # My implementation of WhichPred(Y, X)
