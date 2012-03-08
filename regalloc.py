@@ -1246,14 +1246,18 @@ class RegisterAllocator(object):
                             cmp=cmp_func, key=key_func)
 
       if predecessor.value[1] in self.ssa.optimized_removal:
-        instruction = self.ssa.ssa[predecessor.value[1]]
-        self.ssa_deconstructed_instructions[instruction].append(instructions)
-      elif self.ssa[predecessor.value[1]].instruction == 'bra':
+        last_existing_label = predecessor.value[1] - 1
+        while last_existing_label in self.ssa.optimized_removal:
+          last_existing_label -= 1
+
+        instruction = self.ssa.ssa[last_existing_label]
+        self.ssa_deconstructed_instructions[instruction].extend(instructions)
+      elif self.ssa.ssa[predecessor.value[1]].instruction == 'bra':
         instruction = self.ssa.ssa[predecessor.value[1]]
         self.ssa_deconstructed_instructions[instruction] = instructions + \
             self.ssa_deconstructed_instructions[instruction]
-      elif (self.ssa[predecessor.value[1] - 1].instruction == 'cmp' and
-          self.ssa[predecessor.value[1]].instruction in [
+      elif (self.ssa.ssa[predecessor.value[1] - 1].instruction == 'cmp' and
+          self.ssa.ssa[predecessor.value[1]].instruction in [
           'beq', 'bne', 'blt', 'ble', 'bgt', 'bge']):
         instruction = self.ssa.ssa[predecessor.value[1] - 1]
         self.ssa_deconstructed_instructions[instruction] = instructions + \
