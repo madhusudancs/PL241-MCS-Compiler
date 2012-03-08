@@ -1222,11 +1222,16 @@ class RegisterAllocator(object):
     # This needs to be per function, so reset to zero for every function.
     self.memory_offset = 0
 
+    phi_operands = {}
+
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
       if instruction.instruction == 'phi':
         # We should not add phi instruction to the resulting instructions.
 
         phi_result = instruction.operand1
+
+        phi_operands[phi_result] = True
+
         for i, predecessor in enumerate(node.in_edges):
           if i == 0:
             operand = instruction.operand2
@@ -1281,6 +1286,45 @@ class RegisterAllocator(object):
       self.visited[child] = True
 
       self.deconstruct_basic_block(child)
+
+    if node in self.loop_pair:
+      loop_footer = self.loop_pair[node]
+      loop_last_instruction = self.ssa.ssa[loop_footer.value[1]]
+      while loop_last_instruction in self.ssa.optimized_removal:
+        loop_last_instruction -= 1
+
+      for operand in node.live_in:
+        if operand not in phi_operands:
+          # Even if it is spilled we don't insert a reload here, we just
+          # make sure that the loop footer moves to the required assignment.
+          assignment, spilled = operand.assignment(
+              self.ssa.ssa[node.value[0]])
+          new_assignment, new_spilled = operand.assignment(
+              loop_last_instruction)
+          # Lives till the end of the loop footer block.
+          if new_spilled and new_spilled['spilled_to'] == None:
+            new_spilled['spilled_to'] = loop_last_instruction
+
+          if not spilled:
+            self.resolve_noncontiguous_blocks(loop_footer,
+                                              assignment, new_assignment,
+                                              new_spilled)
+          # In extremely rare cases when both are spilled a memory to memory
+          # move is required which we just represent by a mmove instruction
+          # for now.
+          elif spilled and new_spilled:
+            result_memory_offset = \
+                self.ssa_deconstructed_instructions[
+                    spilled_to][0].assigned_operand1
+            self.insert_spill(new_assignment, spilled['spilled_at'])
+            mmove_instruction = Instruction('mmove',
+                                            '[%d]' % self.memory_offset,
+                                            result_memory_offset)
+            mmove_instruction.result = None
+            mmove_instruction.assigned_result = None
+            mmove_instruction.assigned_operand1 = self.memory_offset
+            mmove_instruction.assigned_operand2 = self.memory_offset
+            self.phi_map[node].append(mmove_instruction)
 
   def deconstruct_ssa(self):
     """Deconstruct SSA form along with inserting instructions for spills.
