@@ -695,7 +695,8 @@ class RegisterAllocator(object):
 
     new_register.set_def(next_farthest_use['next_use'])
     new_register.set_use(
-        spill_register.uses()[next_farthest_use['next_use_index']:])
+        *spill_register.uses()[next_farthest_use['next_use_index']:])
+
 
     # Push the new register down the heap.
     self.live_intervals_heap.push(new_register,
