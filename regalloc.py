@@ -1158,12 +1158,19 @@ class RegisterAllocator(object):
             assignment, spilled = operand.assignment(instruction)
             if spilled:
               self.insert_spill(spilled['register'], spilled['spilled_at'])
-              reload_instruction = Instruction('load', self.memory_offset)
-              Instruction.assigned_result = phi_result
+              reload_instruction = Instruction('load',
+                                               '[%d]' % self.memory_offset)
+
+              reload_instruction.result = None
+              reload_instruction.assigned_result = phi_result
               self.phi_map[predecessor].append(reload_instruction)
               self.memory_offset += 1
             elif assignment != phi_result:
               move_instruction = Instruction('move', assignment, phi_result)
+              move_instruction.result = None
+              move_instruction.assigned_result = None
+              move_instruction.assigned_operand1 = assignment
+              move_instruction.assigned_operand2 = phi_result
               self.phi_map[predecessor].append(move_instruction)
             # We don't do anything for the case where assignment and
             # phi_result are the same. They just remain the way they are :-)
