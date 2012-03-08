@@ -1245,66 +1245,110 @@ class RegisterAllocator(object):
         self.ssa_deconstructed_instructions[instruction] = instructions + \
             self.ssa_deconstructed_instructions[instruction]
 
+  def registers_assigned_instructions(self):
+    """Return the printable string for the registers assigned instructions
+    """
+    instructions = []
+    for instruction in self.ssa.optimized():
+      instruction_str = ''
       if self.is_register(instruction.result):
         assignment = instruction.result.assignment(instruction)
-        assignment = '%10d' % assignment if assignment != None else '      None'
-        print assignment,
-        print '%10s' % ('(%s)' % instruction.result,),
+        instruction_str += '%10d ' % assignment if assignment != None else \
+            '      None'
+        instruction_str += ' %10s ' % ('(%s)' % instruction.result,)
       else:
-        print '                     ',
+        instruction_str += '                      '
 
-      print '%10s' % instruction.label,
-      print '    ',
-      print '%10s' % instruction.instruction,
+      instruction_str += '%10s ' % instruction.label
+      instruction_str += '     '
+      instruction_str += '%10s ' % instruction.instruction
 
       if self.is_register(instruction.operand1):
         assignment = instruction.operand1.assignment(instruction)
-        assignment = '%10d' % assignment if assignment != None else '      None'
-        print assignment,
-        print '%10s' % ('(%s)' % instruction.operand1,),
+        instruction_str += '%10d ' % assignment if assignment != None else \
+            '      None '
+        instruction_str += assignment
+        instruction_str += ' %10s ' % ('(%s)' % instruction.operand1,)
       else:
-        print '%20s' % instruction.operand1,
+        instruction_str += '%20s ' % instruction.operand1
 
       if self.is_register(instruction.operand2):
         assignment = instruction.operand2.assignment(instruction)
-        assignment = '%10d' % assignment if assignment != None else '      None'
-        print assignment,
-        print '%10s' % ('(%s)' % instruction.operand2,),
+        instruction_str += '%10d ' % assignment if assignment != None else \
+            '      None '
+        instruction_str += assignment
+        instruction_str += ' %10s ' % ('(%s)' % instruction.operand2,)
       else:
-        print '%20s' % instruction.operand2,
+        instruction_str += '%20s ' % instruction.operand2
 
       for op in instruction.operands:
         if self.is_register(op):
           assignment = op.assignment(instruction)
-          assignment = '%10d' % assignment if assignment != None else '      None'
-          print assignment,
-          print '%10s' % ('(%s)' % op,),
+          instruction_str += '%10d ' % assignment if assignment != None else \
+              '      None '
+          instruction_str += assignment
+          instruction_str += ' %10s ' % ('(%s)' % op,)
         else:
-          print '%20s' % op,
+          instruction_str += '%20s ' % op
 
-      print
+      instructions.append(instruction_str)
 
-    for child in node.out_edges:
-      if self.visited.get(child, False):
-        self.loop_pair[child] = node
+    return '\n'.join(instructions)
+
+  def almost_machine_instructions(self):
+    """Return the printable string for the SSA deconstructed instructions.
+    """
+    instructions = []
+    for ssa_instruction in self.ssa.optimized():
+      if ssa_instruction.instruction == 'phi':
         continue
 
-      self.visited[child] = True
+      for instruction in self.ssa_deconstructed_instructions[ssa_instruction]:
+        instruction_str = ''
+        if self.is_register(instruction.result):
+          assignment = instruction.assigned_result
+          instruction_str += '%10d ' % assignment.color if \
+              assignment != None else '      None'
+          instruction_str += ' %10s ' % ('(%s)' % instruction.result,)
+        else:
+          instruction_str += '                      '
 
-      self.deconstruct_basic_block(child)
+        instruction_str += '%10s ' % instruction.label
+        instruction_str += '     '
+        instruction_str += '%10s ' % instruction.instruction
 
-  def deconstruct_ssa(self):
-    """Deconstruct SSA form along with inserting instructions for spills.
-    """
-    self.ssa_deconstructed_instructions = []
+        if self.is_register(instruction.operand1):
+          assignment = instruction.assigned_operand1
+          instruction_str += '%10d ' % assignment.color if assignment != None else \
+              '      None '
+          instruction_str += '%s   ' % (assignment,)
+          instruction_str += ' %10s ' % ('(%s)' % instruction.operand1,)
+        else:
+          instruction_str += '%20s ' % instruction.operand1
 
-    # Reset visited dictionary for another traversal.
-    self.visited = {}
-    for dom_tree in self.ssa.cfg.dom_trees:
-      print
-      print
-      print
-      self.deconstruct_basic_block(dom_tree.other_universe_node)
+        if self.is_register(instruction.operand2):
+          assignment = instruction.assigned_operand2
+          instruction_str += '%10d ' % assignment.color if assignment != None else \
+              '      None '
+          instruction_str += '%s   ' % (assignment,)
+          instruction_str += ' %10s ' % ('(%s)' % instruction.operand2,)
+        else:
+          instruction_str += '%20s ' % instruction.operand2
+
+        for op in instruction.assigned_operands:
+          if self.is_register(op):
+            assignment = op
+            instruction_str += '%10d ' % assignment.color if assignment != None else \
+                '      None '
+            instruction_str += '%s   ' % (assignment,)
+            instruction_str += ' %10s ' % ('(%s)' % op,)
+          else:
+            instruction_str += '%20s ' % op
+
+        instructions.append(instruction_str)
+
+    return '\n'.join(instructions)
+
 
 
 def bootstrap():
