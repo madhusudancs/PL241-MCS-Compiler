@@ -684,9 +684,6 @@ class RegisterAllocator(object):
     spilling_node = next_farthest_use['collision']
     spill_register = spilling_node.register
 
-    # Cut short the instruction range for the spilled register node.
-    spilling_node.instructions[1] = current_instruction.label
-
     # Create a new register. The last register count is the count of the
     # number of registers assigned, the actual name of the last register
     # will be -1 of this value. So we directly assign this value to the new
@@ -703,6 +700,8 @@ class RegisterAllocator(object):
     # Push the new register down the heap.
     self.live_intervals_heap.push(new_register,
         (next_farthest_use['next_use'].label, spilling_node.instructions[1]))
+    # Cut short the instruction range for the spilled register node.
+    spilling_node.instructions[1] = current_instruction.label
 
     # Update the spill information for the spilled register.
     spill_register.spill = {
