@@ -52,12 +52,14 @@ pull requests!
 What is the status? Is this compiler complete?
 ----------------------------------------------
 
-I would say this is about 50% complete at this point. The source program is
+I would say this is about 70% complete at this point. The source program is
 being parsed and translated to an Intermediate Representation (IR) and then
 transformed again to Static Single Assignment (SSA) form. A couple of very
-simple yet powerful optimizations, Common Sub-expression Elimination and
-Copy Propagation are implemented. I will be implementing a register allocation
-algorithm and then doing the final code generation in the coming weeks.
+simple yet powerful optimizations: Common Sub-expression Elimination and
+Copy Propagation are implemented. A register allocator is implemented using
+a SAT solver. I will be fixing the deconstruction from registers assigned
+SSA form out of it and then doing the final code generation in the coming
+weeks.
 
 
 Which programming languages is this compiler written for?
@@ -83,10 +85,16 @@ this runs on RISC architectures like ARM.
 What additional libraries are required to run this compiler?
 ------------------------------------------------------------
 
-Other than the standard Python 2.7 installation, you will not want any
-additional libraries. Deliberate care has been taken not to use any
-third-party libraries. However, since argparse is used for command line
-parsing, Python 2.6 or earlier don't work. But argparse component can be
+Since an off the register allocator is implemeted using an off-the-shelf
+SAT solver (which is hard coded to be **glucose** at the moment, you will
+have to download the source code from **glucose**'s website:
+http://www.lri.fr/~simon/?page=glucose and compile the source. The binary
+should be available on your system path and with the exact name *glucose_static*.
+
+Other than this and the standard Python 2.7 installation, you will not want
+any additional libraries. Deliberate care has been taken not to use any
+other third-party libraries. However, since argparse is used for command line
+parsing, Python 2.6 or earlier doesn't work. But argparse component can be
 very easily replaced with the older optparse library code which is at the
 end of each file in the bootstrap() function.
 
@@ -96,15 +104,18 @@ This code has not been tested on Python 3.x.
 How to compile the code?
 ------------------------
 
-Since the compiler is only implemented upto generating SSA till now, we can
-run the compiler by running the following command::
+Since the compiler is only implemented upto allocating registers to program
+variable (without resolving SSA completely yet) till now, we can run the
+compiler by running the following command::
 
-$ python ssa.py <source-file-name> [options]
+$ python regalloc.py [options] <source-file-name>
 
 The options available at the moment are::
 
-  usage: ssa.py [-h] [-d] [-g [VCG]] [-r [IR]] [-s [SSA]] [-t [DominatorTree]]
-                File Names [File Names ...]
+  usage: regalloc.py [-h] [-d] [-g [VCG]] [--assigned [Assigned]]
+                     [--virtualreggraph [Virtual Registers Graph]]
+                     [--virtual [Allocate Virtual Register]]
+                     File Names [File Names ...]
 
   Compiler arguments.
 
@@ -115,12 +126,18 @@ The options available at the moment are::
     -h, --help            show this help message and exit
     -d, --debug           Enable debug logging to the console.
     -g [VCG], --vcg [VCG]
-                          Generate the Visualization Compiler Graph output.
-    -r [IR], --ir [IR]    Generate the Intermediate Representation.
-    -s [SSA], --ssa [SSA]
-                          Generate the Static Single Assignment.
-    -t [DominatorTree], --dom [DominatorTree]
-                          Generate the Dominator Tree VCG output.
+                          Generate the Visualization Compiler Graph of the
+                          interference graph.
+    --assigned [Assigned]
+                          Generate the instructions with registers and phi
+                          functions resolved.
+    --virtualreggraph [Virtual Registers Graph]
+                          Generate the Visualization Compiler Graph for the
+                          virtual registers allocated and liveness computed for
+                          the subgraphs.
+    --virtual [Allocate Virtual Register ]
+                          Allocate registers in the virtual space of infinite
+                          registers.
 
 
 For convenience, 3 test programs are supplied along with the source of which
