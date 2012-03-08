@@ -149,6 +149,9 @@ class Register(object):
   def assignment(self, instruction):
     """Returns the color assignment for the register at the given instruction.
 
+    Actually returns the register with the correct color assigned and
+    returns the spill dictionary if spill is requried.
+
     This method is extremely intelligent :-P If the node is spilled at the
     given instruction it returns the color assigned to the new register. And
     this chains as long as the spill cycle exists :-)
@@ -158,12 +161,12 @@ class Register(object):
           should be obtained.
     """
     if not self.spill:
-      return self.color
+      return self, None
 
     # Either when the register is not spilled at all as above or spilled but
     # at any instruction before spill the same register is used.
     if instruction.label < self.spill['spilled_at'].label:
-      return self.color
+      return self, None
 
     # If the register is spilled and the current instruction is later than
     # or at the instruction where this register needs to be reloaded we
@@ -171,11 +174,11 @@ class Register(object):
     # NOTE: This gets recursive, if the reloaded register is spilled again.
     # This is very nice because we need not do this in a loop individually
     # for all the chained spills.
-    if instruction.label >= self.spill['spilled_to'].label:
-      print "--Spilled at: %d" % (self.spill['spilled_at'].label),
-      print '(%s)' % self,
-      print "--",
-      return self.spill['register'].assignment(instruction)
+    if instruction.label == self.spill['spilled_to'].label:
+      return self.spill['register'].assignment(instruction), self.spill
+
+    elif instruction.label >= self.spill['spilled_to'].label:
+      return self.spill['register'].assignment(instruction), None
 
     if (self.spill['spilled_at'].label <=
         instruction.label < self.spill['spilled_to'].label):
