@@ -571,6 +571,7 @@ class RegisterAllocator(object):
         # Add a new interval
         start_node.live_intervals[operand] = intervals[operand]
 
+
   def liveness(self, start):
     """Computes the liveness range for each variable.
 
@@ -1352,6 +1353,10 @@ class RegisterAllocator(object):
       elif pair2[0].assignments_equal(pair1[1]):
         return -1
       else:
+        # FIXME: MOST IMPORTANT! If the two registers have the overlapping
+        # operand and result assignments they need to be swapped. x86_64
+        # gives a XCHG instruction, use that or use 3 XOR instructions to
+        # resolve this case!
         return 0
 
     # Insert the respective instructions for phi-functions in the predecissor.
