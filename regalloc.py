@@ -30,6 +30,7 @@ from argparse import ArgumentParser
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
 from datastructures import LiveIntervalsHeap
+from ir import Instruction
 from ir import IntermediateRepresentation
 from optimizations import Optimize
 from parser import LanguageSyntaxError
@@ -247,6 +248,11 @@ class RegisterAllocator(object):
 
     # List of interference graphs where each graph corresponds to a function.
     self.interference_graphs = []
+
+    # Dictionary of color assigned SSA deconstructed instructions.
+    # Key is the original label of the instruction and value is the list of
+    # instructions including the spill/reload in the order.
+    self.ssa_deconstructed_instructions = collections.defaultdict(list)
 
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
@@ -1083,6 +1089,43 @@ class RegisterAllocator(object):
        virtual_alloc_str += '%10s  <- %s\n' % (
            instruction.result if instruction.result else '', instruction)
     return virtual_alloc_str
+
+  def insert_spill(self, register, spilled_at):
+    """Insert a spill instruction.
+
+    Args:
+      register: The original register that was spilled.
+      spilled_at: The instruction before which the spill must be inserted.
+    """
+    store_instruction = Instruction('store', register, self.memory_offset)
+    self.ssa_deconstructed_instructions[spilled_at].insert(
+        0, store_instruction)
+
+  def insert_reload(self, spilled_to, new_register):
+    """Insert a reload instruction.
+
+    Args:
+      spilled_to: The instruction before which reload must be inserted.
+      new_register: The new register to which this must be reloaded.
+    """
+    reload_instruction = Instruction('load', self.memory_offset)
+    Instruction.assigned_result = new_register
+    self.ssa_deconstructed_instructions[spilled_to].insert(
+        0, reload_instruction)
+
+  def insert_spill_reload(self, register, spill):
+    """Inserts the spill and reload instructions.
+
+    Args:
+      register: The new register that must be reloaded to.
+      spill: Dictionary containing the spill information.
+    """
+    if not spill:
+      return
+
+    self.insert_spill(spill['register'], spill['spilled_at'])
+    self.insert_reload(spill['spilled_to'], register)
+    self.memory_offset += 1
 
   def deconstruct_basic_block(self, node):
     """Processes basic blocks by performing a pre-order traversal.
