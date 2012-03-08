@@ -1129,6 +1129,22 @@ class RegisterAllocator(object):
            instruction.result if instruction.result else '', instruction)
     return virtual_alloc_str
 
+  def insert_instruction(self, instruction, following_instruction):
+    """Inserts the given instruction before the following instruction.
+
+    Args:
+      instruction: The instruction that must be inserted.
+      following_instruction: The instruction before which this instruction
+          must be inserted
+    """
+    self.ssa_deconstructed_instructions[following_instruction].insert(
+        0, instruction)
+    first, last = (self.ssa_deconstructed_instructions[
+                       following_instruction][0],
+                   self.ssa_deconstructed_instructions[
+                       following_instruction][-1])
+    first.label, last.label = last.label, first.label
+
   def insert_spill(self, register, spilled_at):
     """Insert a spill instruction.
 
@@ -1139,8 +1155,7 @@ class RegisterAllocator(object):
     store_instruction = Instruction('store', register,
                                     '[%d]' % self.memory_offset)
     store_instruction.assigned_operand1 = register
-    self.ssa_deconstructed_instructions[spilled_at].insert(
-        0, store_instruction)
+    self.insert_instruction(store_instruction, spilled_at)
 
   def insert_reload(self, original_register, spilled_to, new_register):
     """Insert a reload instruction.
@@ -1153,8 +1168,7 @@ class RegisterAllocator(object):
     reload_instruction = Instruction('load', '[%d]' % self.memory_offset)
     reload_instruction.result = original_register
     reload_instruction.assigned_result = new_register
-    self.ssa_deconstructed_instructions[spilled_to].insert(
-        0, reload_instruction)
+    self.insert_instruction(reload_instruction, spilled_to)
 
   def insert_spill_reload(self, register, spill):
     """Inserts the spill and reload instructions.
