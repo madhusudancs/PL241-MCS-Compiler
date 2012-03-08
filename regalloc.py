@@ -209,6 +209,12 @@ class Register(object):
     for use_instruction in self.use_instructions:
       yield self.def_instruction, use_instruction
 
+  def assignments_equal(self, register):
+    """Checks if the two registers have the same color assignment.
+    """
+    return True if (isinstance(register, self.__class__) and
+        self.color == register.color) else False
+
   def __eq__(self, register):
     """Checks if the two registers are same.
     """
