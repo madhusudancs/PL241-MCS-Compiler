@@ -1208,6 +1208,43 @@ class RegisterAllocator(object):
       self.deconstruct_basic_block(dom_tree.other_universe_node)
 
 
+    def key_func(instruction):
+      """Returns the sort key for the phi's resolved instructions.
+      """
+      if instruction.instruction == 'move':
+        return instruction.operand2, instruction.operand1
+      elif instruction.instruction == 'load':
+        return instruction.result, instruction.operand1
+
+    def cmp_func(pair1, pair2):
+      """Defines how the result, operand pair should be compared.
+      """
+      if pair1[0] == pair2[1]:
+        return 1
+      elif pair2[0] == pair1[1]:
+        return -1
+      else:
+        return 0
+
+    # Insert the respective instructions for phi-functions in the predecissor.
+    for predecessor in self.phi_map:
+      instructions = sorted(self.phi_map[predecessor],
+                            cmp=cmp_func, key=key_func)
+
+      if predecessor.value[1] in self.ssa.optimized_removal:
+        instruction = self.ssa.ssa[predecessor.value[1]]
+        self.ssa_deconstructed_instructions[instruction].append(instructions)
+      elif self.ssa[predecessor.value[1]].instruction == 'bra':
+        instruction = self.ssa.ssa[predecessor.value[1]]
+        self.ssa_deconstructed_instructions[instruction] = instructions + \
+            self.ssa_deconstructed_instructions[instruction]
+      elif (self.ssa[predecessor.value[1] - 1].instruction == 'cmp' and
+          self.ssa[predecessor.value[1]].instruction in [
+          'beq', 'bne', 'blt', 'ble', 'bgt', 'bge']):
+        instruction = self.ssa.ssa[predecessor.value[1] - 1]
+        self.ssa_deconstructed_instructions[instruction] = instructions + \
+            self.ssa_deconstructed_instructions[instruction]
+
       if self.is_register(instruction.result):
         assignment = instruction.result.assignment(instruction)
         assignment = '%10d' % assignment if assignment != None else '      None'
