@@ -1347,9 +1347,9 @@ class RegisterAllocator(object):
     def cmp_func(pair1, pair2):
       """Defines how the result, operand pair should be compared.
       """
-      if pair1[0] == pair2[1]:
+      if pair1[0].assignments_equal(pair2[1]):
         return 1
-      elif pair2[0] == pair1[1]:
+      elif pair2[0].assignments_equal(pair1[1]):
         return -1
       else:
         return 0
