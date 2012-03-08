@@ -1101,19 +1101,23 @@ class RegisterAllocator(object):
       register: The original register that was spilled.
       spilled_at: The instruction before which the spill must be inserted.
     """
-    store_instruction = Instruction('store', register, self.memory_offset)
+    store_instruction = Instruction('store', register,
+                                    '[%d]' % self.memory_offset)
+    store_instruction.assigned_operand1 = register
     self.ssa_deconstructed_instructions[spilled_at].insert(
         0, store_instruction)
 
-  def insert_reload(self, spilled_to, new_register):
+  def insert_reload(self, original_register, spilled_to, new_register):
     """Insert a reload instruction.
 
     Args:
+      original_register: The original register where this was.
       spilled_to: The instruction before which reload must be inserted.
       new_register: The new register to which this must be reloaded.
     """
-    reload_instruction = Instruction('load', self.memory_offset)
-    Instruction.assigned_result = new_register
+    reload_instruction = Instruction('load', '[%d]' % self.memory_offset)
+    reload_instruction.result = original_register
+    reload_instruction.assigned_result = new_register
     self.ssa_deconstructed_instructions[spilled_to].insert(
         0, reload_instruction)
 
@@ -1127,8 +1131,8 @@ class RegisterAllocator(object):
     if not spill:
       return
 
-    self.insert_spill(spill['register'], spill['spilled_at'])
-    self.insert_reload(spill['spilled_to'], register)
+    self.insert_spill(register, spill['spilled_at'])
+    self.insert_reload(register, spill['spilled_to'], spill['register'])
     self.memory_offset += 1
 
   def deconstruct_basic_block(self, node):
