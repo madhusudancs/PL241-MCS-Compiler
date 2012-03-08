@@ -1144,8 +1144,6 @@ class RegisterAllocator(object):
     # This needs to be per function, so reset to zero for every function.
     self.memory_offset = 0
 
-    self.phi_map = collections.defaultdict(list)
-
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
       if instruction.instruction == 'phi':
         # We should not add phi instruction to the resulting instructions.
@@ -1212,9 +1210,10 @@ class RegisterAllocator(object):
     """
     # Reset visited dictionary for another traversal.
     self.visited = {}
+
+    self.phi_map = collections.defaultdict(list)
     for dom_tree in self.ssa.cfg.dom_trees:
       self.deconstruct_basic_block(dom_tree.other_universe_node)
-
 
     def key_func(instruction):
       """Returns the sort key for the phi's resolved instructions.
