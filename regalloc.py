@@ -1184,6 +1184,35 @@ class RegisterAllocator(object):
     self.insert_reload(register, spill['spilled_to'], spill['register'])
     self.memory_offset += 1
 
+  def resolve_noncontiguous_blocks(self, node, result, assignment, spilled):
+    """Insert reload/move instructions for phi operands and other registers.
+
+    Args:
+      node: The node at the end of which these instructions must be inserted.
+      result: The result instruction/destination of the movement.
+      assignment: The source of the movement.
+      spill: Dictionary containing spill information.
+    """
+    if spilled:
+      self.insert_spill(spilled['register'], spilled['spilled_at'])
+      reload_instruction = Instruction('load',
+                                       '[%d]' % self.memory_offset)
+
+      reload_instruction.result = None
+      reload_instruction.assigned_result = result
+      self.phi_map[node].append(reload_instruction)
+      self.memory_offset += 1
+    # We don't do anything for the case where assignment and
+    # phi_result are the same. They just remain the way they are :-)
+    elif not (self.is_register(assignment) and
+        assignment.assignments_equal(result)):
+      move_instruction = Instruction('move', assignment, result)
+      move_instruction.result = None
+      move_instruction.assigned_result = None
+      move_instruction.assigned_operand1 = assignment
+      move_instruction.assigned_operand2 = result
+      self.phi_map[node].append(move_instruction)
+
   def deconstruct_basic_block(self, node):
     """Processes basic blocks by performing a pre-order traversal.
 
@@ -1205,24 +1234,16 @@ class RegisterAllocator(object):
             operand = instruction.operands[i - 1]
           if self.is_register(operand):
             assignment, spilled = operand.assignment(instruction)
-            if spilled:
-              self.insert_spill(spilled['register'], spilled['spilled_at'])
-              reload_instruction = Instruction('load',
-                                               '[%d]' % self.memory_offset)
+          else:
+            assignment, spilled = operand, None
 
-              reload_instruction.result = None
-              reload_instruction.assigned_result = phi_result
-              self.phi_map[predecessor].append(reload_instruction)
-              self.memory_offset += 1
-            elif assignment != phi_result:
-              move_instruction = Instruction('move', assignment, phi_result)
-              move_instruction.result = None
-              move_instruction.assigned_result = None
-              move_instruction.assigned_operand1 = assignment
-              move_instruction.assigned_operand2 = phi_result
-              self.phi_map[predecessor].append(move_instruction)
-            # We don't do anything for the case where assignment and
-            # phi_result are the same. They just remain the way they are :-)
+          # Note we want original registers not the assigned registers. This
+          # is because the live intervals store the original registers not
+          # the assignments.
+          phi_operands[operand] = True
+
+          self.resolve_noncontiguous_blocks(predecessor, phi_result,
+                                            assignment, spilled)
       else:
         self.ssa_deconstructed_instructions[instruction] = [instruction]
 
