@@ -176,7 +176,11 @@ class Register(object):
     # This is very nice because we need not do this in a loop individually
     # for all the chained spills.
     if instruction.label == self.spill['spilled_to'].label:
-      return self.spill['register'].assignment(instruction), self.spill
+      new_register, new_spill = self.spill['register'].assignment(instruction)
+      if new_spill:
+        return new_register, new_spill
+      else:
+        return new_register, self.spill
 
     elif instruction.label >= self.spill['spilled_to'].label:
       return self.spill['register'].assignment(instruction), None
