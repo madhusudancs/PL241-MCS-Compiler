@@ -228,7 +228,7 @@ class RegisterAllocator(object):
   """Allocates the registers for the given SSA form of the source code.
   """
 
-  def __init__(self, ssa, num_registers=8):
+  def __init__(self, ssa, num_registers=4):
     """Initializes the allocator with SSA.
 
     Args:
