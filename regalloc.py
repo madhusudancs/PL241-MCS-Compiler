@@ -697,10 +697,14 @@ class RegisterAllocator(object):
     new_register.set_use(
         *spill_register.uses()[next_farthest_use['next_use_index']:])
 
+    # Push the new register down the heap. If there is no next use, then
+    # it should probably be part of the loop. So set things at the end of
+    # loop.
+    if next_farthest_use['next_use']:
+      self.live_intervals_heap.push(new_register,
+          (next_farthest_use['next_use'].label,
+         spilling_node.instructions[1]))
 
-    # Push the new register down the heap.
-    self.live_intervals_heap.push(new_register,
-        (next_farthest_use['next_use'].label, spilling_node.instructions[1]))
     # Cut short the instruction range for the spilled register node.
     spilling_node.instructions[1] = current_instruction.label
 
