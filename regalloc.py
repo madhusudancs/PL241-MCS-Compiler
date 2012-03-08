@@ -189,6 +189,11 @@ class Register(object):
       else:
         return new_register, None
 
+    # This occurs only in case of variables of the loop which doesn't
+    # change during the entire loop. Loop invariants.
+    elif not self.spill['spilled_to']:
+      return self, spill
+
     if (self.spill['spilled_at'].label <=
         instruction.label < self.spill['spilled_to'].label):
       LOGGER.debug('Things have gone terribly wrong since we have an '
