@@ -1322,46 +1322,45 @@ class RegisterAllocator(object):
         continue
 
       for instruction in self.ssa_deconstructed_instructions[ssa_instruction]:
-        instruction_str = ''
+        instruction_str = ' ' * 5
         if self.is_register(instruction.result):
           assignment = instruction.assigned_result
-          instruction_str += '%10d ' % assignment.color if \
+          instruction_str += '%-4d' % assignment.color if \
               assignment != None else '      None'
-          instruction_str += ' %10s ' % ('(%s)' % instruction.result,)
+          instruction_str += '%-10s' % ('(%s)' % instruction.result,)
         else:
-          instruction_str += '                      '
+          instruction_str += ' ' * 14
 
-        instruction_str += '%10s ' % instruction.label
-        instruction_str += '     '
-        instruction_str += '%10s ' % instruction.instruction
+        instruction_str += '%-10s' % ('%s:' % (instruction.label,))
+        instruction_str += '%-30s' % instruction.instruction
 
         if self.is_register(instruction.operand1):
           assignment = instruction.assigned_operand1
-          instruction_str += '%10d ' % assignment.color if assignment != None else \
-              '      None '
-          instruction_str += '%s   ' % (assignment,)
-          instruction_str += ' %10s ' % ('(%s)' % instruction.operand1,)
+          instruction_str += '%-10d' % assignment.color if \
+              assignment != None else ('' * 6 + 'None')
+          instruction_str += '%-10s' % (assignment,)
+          instruction_str += '%-30s' % ('(%s)' % instruction.operand1,)
         else:
-          instruction_str += '%20s ' % instruction.operand1
+          instruction_str += '%-50s' % instruction.operand1
 
         if self.is_register(instruction.operand2):
           assignment = instruction.assigned_operand2
-          instruction_str += '%10d ' % assignment.color if assignment != None else \
-              '      None '
+          instruction_str += '%-10d' % assignment.color if \
+              assignment != None else '      None '
           instruction_str += '%s   ' % (assignment,)
-          instruction_str += ' %10s ' % ('(%s)' % instruction.operand2,)
+          instruction_str += '%-10s' % ('(%s)' % instruction.operand2,)
         else:
-          instruction_str += '%20s ' % instruction.operand2
+          instruction_str += '%-20s' % instruction.operand2
 
-        for op in instruction.assigned_operands:
+        for op in getattr(instruction, 'assigned_operands', []):
           if self.is_register(op):
             assignment = op
-            instruction_str += '%10d ' % assignment.color if assignment != None else \
-                '      None '
+            instruction_str += '%-10d' % assignment.color if \
+                assignment != None else '      None '
             instruction_str += '%s   ' % (assignment,)
-            instruction_str += ' %10s ' % ('(%s)' % op,)
+            instruction_str += '%-10s' % ('(%s)' % op,)
           else:
-            instruction_str += '%20s ' % op
+            instruction_str += '%-20s' % op
 
         instructions.append(instruction_str)
 
