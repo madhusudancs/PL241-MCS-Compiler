@@ -16,7 +16,11 @@
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
 
 """Algorithms to allocate registers for the program.
-The architecture used is X86_64.
+
+This code is architecture independent. The register assignments are mapped to
+real machine registers just before binaries generation. So this file can still
+be used for any architecture. The number of registers that must be used for
+coloring is a constructor parameter to the RegisterAllocator class.
 """
 
 
