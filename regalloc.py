@@ -63,6 +63,22 @@ class SSABrokenException(Exception):
     return '%s: %s' % (self.__class__.__name__, self._msg)
 
 
+class RegisterAllocationFailedException(Exception):
+  """Represents the exception when register allocation cannot complete.
+  """
+  def __init__(self, msg, *args, **kwargs):
+    """Constructs the exception with the message.
+
+    Args:
+      instruction: The Instruction object at which the SSA structure is broken.
+    """
+    super(RegisterAllocationFailedException, self).__init__(*args, **kwargs)
+    self.msg = msg if msg else ''
+
+  def __str__(self):
+    return '%s: %s' % (self.__class__.__name__, self._msg)
+
+
 class Register(object):
   """Represents a register.
   """
@@ -1318,6 +1334,10 @@ class RegisterAllocator(object):
           # move is required which we just represent by a mmove instruction
           # for now.
           elif spilled and new_spilled:
+            raise RegisterAllocationFailedException('A memory to memory move '
+                'is required for Register Allocation to complete while '
+                'resolving spills across loops and there is no memory to '
+                'memory move instruction available. Try to recompile.')
             result_memory_offset = \
                 self.ssa_deconstructed_instructions[
                     spilled_to][0].assigned_operand1
@@ -1361,7 +1381,12 @@ class RegisterAllocator(object):
         # operand and result assignments they need to be swapped. x86_64
         # gives a XCHG instruction, use that or use 3 XOR instructions to
         # resolve this case!
-        return 0
+        raise RegisterAllocationFailedException('Register Allocation cannot '
+            'proceed since two move instructions are such that the result '
+            'of one is the operand for the other and hence they cannot be '
+            'ordered. Try recompiling again. Hint or developer: Implement '
+            'the use of x86 XCHG instruction or if not available 3 XORs to '
+            'accomplish this.')
 
     # Insert the respective instructions for phi-functions in the predecissor.
     for predecessor in self.phi_map:
