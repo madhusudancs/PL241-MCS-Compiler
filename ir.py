@@ -111,6 +111,25 @@ class Memory(object):
     return ('[%s]' % self.name) if self.name else ('[%d]' % self.counter)
 
 
+class Immediate(object):
+  """Represents a immediate data in a generic way.
+  """
+
+  def __init__(self, value):
+    """Constructs an object to represent immediate data.
+
+    Args:
+      value: The value of the immediate data.
+    """
+    self.value = value
+
+  def __str__(self):
+    """Returns the string representation for this memory enclosed in [].
+    """
+    return '#%d' % self.value if isinstance(self.value, int) \
+        else ('#%s' % self.value)
+
+
 class Instruction(object):
   """Abstraction for all the instruction in the Intermediate Representation.
   """
