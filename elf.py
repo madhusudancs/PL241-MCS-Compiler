@@ -47,71 +47,72 @@ from argparse import ArgumentParser
 LOGGER = logging.getLogger(__name__)
 
 
-class ELFCLASS(object):
-  """Enumeration elf classes.
+class ELFMetaclass(type):
+  """The metaclass abstracting all the datastructures required across ELF.
   """
-  ELFCLASSNONE = 0x00     # Invalid class
-  ELFCLASS32   = 0x01     # 32-bit object file
-  ELFCLASS64   = 0x02     # 64-bit object file
 
+  def __new__(cls, name, bases, scope_dict):
+    """Constructor for the new ELF class instances.
 
-class ELFDATA(object):
-  """Enumeration of elf data byte ordering.
-  """
-  ELFDATANONE = 0x00      # Invalid data encoding
-  ELFDATA2LSB = 0x01      # Little-endian encoding
-  ELFDATA2MSB = 0x02      # Big-endian encoding
+    Args:
+      Defined by Python protocol for metaclass and __new__ method definitions.
+    """
+    return super(ELFMetaclass, cls).__new__(cls, name, bases, scope_dict)
 
+  def elf64_addr(cls, data):
+    """Returns the packed binary whose size is addr as specified by ELF64.
 
-class ELFTYPE(object):
-  """Enumeration of elf file types.
-  """
-  ET_NONE   = 0x0        # No file type
-  ET_REL    = 0x1        # Relocatable file
-  ET_EXEC   = 0x2        # Executable file
-  ET_DYN    = 0x3        # Shared object file
-  ET_CORE   = 0x4        # Core file
-  ET_LOPROC = 0xFF00     # Processor-specific
-  ET_HIPROC = 0xFFFF     # Processor-specific
+    Args:
+      data: The data that should be formatted.
+    """
+    format_str = '%sQ' % cls.byte_ordering_fmt
+    return struct.pack(format_str, data)
 
+  def elf64_byte(cls, data):
+    """Returns the packed binary whose size is byte as specified by ELF64.
 
-class ELFMACHINE(object):
-  """Enumeration of machine types.
+    Args:
+      data: The data that should be formatted.
+    """
+    format_str = '%sc' % cls.byte_ordering_fmt
+    return struct.pack(format_str, chr(data))
 
-  Contains only the types that are needed. Should be expanded when new machine
-  types are needed.
-  """
-  EM_386    = 0x3         # Intel 80386
-  EM_X86_64 = 0x3E        # AMD64
+  def elf64_half(cls, data):
+    """Returns the packed binary whose size is half as specified by ELF64.
 
+    Args:
+      data: The data that should be formatted.
+    """
+    format_str = '%sH' % cls.byte_ordering_fmt
+    return struct.pack(format_str, data)
 
-class ELFVERSION(object):
-  """Enumeration of object file version.
-  """
-  EV_NONE    = 0x0        # Invalid version 
-  EV_CURRENT = 0x1        # Current version
+  def elf64_off(cls, data):
+    """Returns the packed binary whose size is off as specified by ELF64.
 
+    Args:
+      data: The data that should be formatted.
+    """
+    format_str = '%sQ' % cls.byte_ordering_fmt
+    return struct.pack(format_str, data)
 
-ELF_IDENT_MAG0     = 0x7F
-ELF_IDENT_MAG1     = 0x45
-ELF_IDENT_MAG2     = 0x4C
-ELF_IDENT_MAG3     = 0x46
-ELF_IDENT_CLASS    = ELFCLASS.ELFCLASS64
-ELF_IDENT_DATA     = ELFDATA.ELFDATA2LSB
-ELF_IDENT_VERSION  = ELFVERSION.EV_CURRENT
-ELF_IDENT_PAD      = 0x9                    # Note this is the number of
-                                            # padding bytes, not the value
-ELF_IDENTSIZE      = 0xF
+  def elf64_word(cls, data):
+    """Returns the packed binary whose size is word as specified by ELF64.
 
+    Args:
+      data: The data that should be formatted.
+    """
+    format_str = '%sI' % cls.byte_ordering_fmt
+    return struct.pack(format_str, data)
 
-ELF_ENTRY          = 0x0       # Offset to the program entry point. Should be
-                               # calculated dynamically.
-                             
-ELF_PHOFF          = 0x0       # Offset to the program header table in bytes.
-                               # Should be calculated dynamically.
+  def elf64_xword(cls, data):
+    """Returns the packed binary whose size is word as specified by ELF64.
 
-ELF_SHOFF          = 0x0       # Offset to the section header table in bytes.
-                               # Should be calculated dynamically.
+    Args:
+      data: The data that should be formatted.
+    """
+    format_str = '%sQ' % cls.byte_ordering_fmt
+    return struct.pack(format_str, data)
+
 
 # x86_64 architecture doesn't define any machine-specific flags, so it is
 # set to 0 for now. Later this can be changed to enumerations based on
