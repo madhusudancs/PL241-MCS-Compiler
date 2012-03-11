@@ -256,11 +256,6 @@ class Register(object):
     """
     return 'r%d' % self.name
 
-  def __repr__(self):
-    """Returns the object representation string for this register.
-    """
-    return self.__str__()
-
 
 class RegisterAllocator(object):
   """Allocates the registers for the given SSA form of the source code.
