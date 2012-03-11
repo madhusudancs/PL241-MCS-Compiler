@@ -31,6 +31,22 @@ from argparse import ArgumentParser
 LOGGER = logging.getLogger(__name__)
 
 
+class CodeGenerator(object):
+  """Generates the code for the given SSA object.
+  """
+
+  def __init__(self, ssa):
+    """Constructs the datastructures required for code generation.
+
+    Args:
+      ssa: The SSA object which contains the registers allocated instructions.
+    """
+    self.ssa = ssa
+
+  def generate(self):
+    """Bootstraps the code generation for the SSA object.
+    """
+
 def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')
   parser.add_argument('file_names', metavar='File Names', type=str, nargs='+',
