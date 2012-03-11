@@ -600,14 +600,14 @@ class IntermediateRepresentation(object):
 
     start = self.instruction('+', '!FP', '#0')
     fp_label = self.instruction('load', start)
-    self.instruction('move', fp_label, '[framesize]')
+    self.instruction('move', fp_label, Memory('framesize'))
 
     ret = self.instruction('+', start, '#4')
     return_label = self.instruction('load', ret)
-    self.instruction('move', return_label, '[ret]')
+    self.instruction('move', return_label, Memory('ret'))
 
     return_value = self.instruction('+', ret, '#4')
-    self.instruction('move', return_value, '[%s]' % (scope))
+    self.instruction('move', return_value, Memory(scope))
 
     self.formalParam(formal_param)
 
@@ -663,7 +663,7 @@ class IntermediateRepresentation(object):
     arguments = root.children[1:]
 
     # Advance the frame pointer by the framesize of the calling function
-    advance = self.instruction('+', '!FP', '[framesize]')
+    advance = self.instruction('+', '!FP', Memory('framesize'))
     # Store it as the current framepointer
     self.instruction('move', advance, '!FP')
 
@@ -726,8 +726,8 @@ class IntermediateRepresentation(object):
     # Store the result of the return in the memory address corresponding
     # to the return value of this function which is denoted by the function
     # name.
-    self.instruction('store', result, '[%s]' % (self.current_scope()))
-    result = self.instruction('bra', '[ret]')
+    self.instruction('store', result, Memory(self.current_scope()))
+    result = self.instruction('bra', Memory('ret'))
 
     return result
 
