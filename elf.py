@@ -15,13 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
 # 
-# IMPORTANT! The structure of this module is inspired by the elf package in
-# the tool called pydevtools available for download from:
-# http://code.google.com/p/pydevtools/ However this code was written completely
-# independently by the authors of PL241-MCS compiler project and hence the
-# copyright notice of pydevtools is not included here since this work is
-# produced in entirety by the authors of PL241-MCS compiler. However the
-# authors would like to thank the authors of pydevtools for the ideas.
 
 """This file contains all the definitions that ELF specifies.
 
