@@ -428,17 +428,130 @@ class ELFHeader(object):
     """
     return self.header
 
-  def elf64_half(self, data):
-    """Returns the packed binary whose size is half as specified by ELF64.
+
+class ProgramHeader(object):
+  """Abstracts the Program header.
+  """
+
+  __metaclass__ = ELFMetaclass
+
+  class TYPE(object):
+    PT_NULL    = 0x0
+    PT_LOAD    = 0x1
+    PT_DYNAMIC = 0x2
+    PT_INTERP  = 0x3
+    PT_NOTE    = 0x4
+    PT_SHLIB   = 0x5
+    PT_PHDR    = 0x6
+    PT_LOPROC  = 0x70000000
+    PT_HIPROC  = 0x7fffffff
+
+  class FLAGS(object):
+    PF_N = 0x0   # Invalid flag.
+    PF_X = 0x1
+    PF_W = 0x2
+    PF_R = 0x4
+
+  def __init__(self, endianness='little', ph_type=None, offset=None,
+               vaddr=None, paddr=None, filesz=None, memsz=None, flags=None,
+               align=None):
+    """Constructs the ProgramHeader object required to generate them.
 
     Args:
-      data: The data that should be formatted.
+      Look at elf manpage.
     """
-    format_str = '%sH' % self.byte_ordering_fmt
-    return struct.pack(format_str, data)
+    self.type = ph_type
+    self.offset = offset
+    self.vaddr = vaddr
+    self.paddr = paddr
+    self.filesz = filesz
+    self.memsz = memsz
+    self.flags = flags
+    self.align = align
 
-  def elf64_off(self, data):
-    """Returns the packed binary whose size is off as specified by ELF64.
+    if endianness == 'little':
+      self.__class__.byte_ordering_fmt = '<'
+    elif endianness == 'big':
+      self.__class__.byte_ordering_fmt = '>'
+    else:
+      raise TypeError('Invalid byte-order type "%s".' % endianness)
+
+    # The actual byte encoded program header to be built for this object.
+    self.header = None
+
+  @property
+  def p_type(self):
+    if not self.type:
+      ph_type = self.TYPE.PT_NULL
+    elif self.type == 'LOAD':
+      ph_type = self.TYPE.PT_LOAD
+
+    return self.__class__.elf64_word(ph_type)
+
+  @property
+  def p_offset(self):
+    return self.__class__.elf64_off(self.offset if self.offset else 0)
+
+  @property
+  def p_vaddr(self):
+    return self.__class__.elf64_addr(self.vaddr if self.vaddr else 0)
+
+  @property
+  def p_paddr(self):
+    return self.__class__.elf64_addr(self.paddr if self.paddr else 0)
+
+  @property
+  def p_filesz(self):
+    return self.__class__.elf64_xword(self.filesz if self.filesz else 0)
+
+  @property
+  def p_memsz(self):
+    return self.__class__.elf64_xword(self.memsz if self.memsz else 0)
+
+  @property
+  def p_flags(self):
+    flags = self.FLAGS.PF_N
+    if 'X' in self.flags:
+      flags += self.FLAGS.PF_X
+    if 'W' in self.flags:
+      flags += self.FLAGS.PF_W
+    if 'R' in self.flags:
+      flags += self.FLAGS.PF_R
+
+    return self.__class__.elf64_word(flags)
+
+  @property
+  def p_align(self):
+    return self.__class__.elf64_xword(self.align if self.align else 0)
+
+  def build(self):
+    """Returns the program header as bytes.
+    """
+    self.header = ''.join([
+        self.p_type,
+        self.p_flags,
+        self.p_offset,
+        self.p_vaddr,
+        self.p_paddr,
+        self.p_filesz,
+        self.p_memsz,
+        self.p_align
+        ])
+
+    # So that they can be chained.
+    return self
+
+  def __len__(self):
+    """Returns the size of the byte-encoded string of this object.
+    """
+    return len(self.header)
+
+  def __str__(self):
+    """Returns the byte-encoded string of this program header object.
+    """
+    return self.header
+
+
 
     Args:
       data: The data that should be formatted.
