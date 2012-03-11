@@ -418,7 +418,7 @@ class IntermediateRepresentation(object):
       instruction = self.ir[i]
       if instruction.instruction == 'bra':
         target = instruction.operand1
-        if target == '[ret]':
+        if isinstance(target, Memory) and target.name == 'ret':
           return_targets[i] = current_func
         else:
           if self.ir[target].instruction.startswith('.begin_'):
