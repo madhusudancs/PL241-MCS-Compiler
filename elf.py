@@ -114,138 +114,319 @@ class ELFMetaclass(type):
     return struct.pack(format_str, data)
 
 
-# x86_64 architecture doesn't define any machine-specific flags, so it is
-# set to 0 for now. Later this can be changed to enumerations based on
-# the machine architecture.
-ELF_FLAGS          = 0x0
-
-
-ELF_EHSIZE         = 0xFF      # Holds the ELF's header size in bytes.
-                               # Hard-coded to 64 bytes for now.
-
-ELF_PHENTSIZE      = 0x0       # Holds the size in bytes of one entry in the
-                               # file's program header table. All entries must
-                               # be of the same size. Should be calculated
-                               # dynamically.
-
-ELF_PHNUM          = 0x0       # Holds the number of entries in the program
-                               # header table. If the file has no program
-                               # header table, this holds the value zero.
-                               # Should be calculated dymamically.
-
-ELF_SHENTSIZE      = 0x0       # This member holds a section header's size in
-                               # bytes. A section header is one entry in the
-                               # the section header table. All entries are the
-                               # same size. Should be calculated dymamically.
-
-ELF_SHNUM          = 0x0       # Holds the number of entries in the section
-                               # header table. If the file has no section
-                               # header table, this holds the value zero.
-                               # Should be calculated dymamically.
-
-ELF_SHSTRNDX       = 0x0       # This member holds the section header table
-                               # index of the entry associated with the section
-                               # name string table. If the file has no section
-                               # name string table, this member holds the value
-                               # SHN_UNDEF. For now it is hard coded to 0.
-                               # But can be calculated dynamically if needed.
-
-
-class ELF(object):
-  """Builds the ELF binary file for the given inputs.
+class ELFHeader(object):
+  """Abstracts the ELF header.
   """
 
+  __metaclass__ = ELFMetaclass
 
-  def __init__(self, filename, elf_class=64, endianness='little',
-               architecture='x86_64'):
-    """Constructs the ELF object required to generate ELF binaries.
+  class ELFCLASS(object):
+    """Enumeration elf classes.
     """
-    self.filename = filename
-    self.filepointer = open(filename, 'wb')
+    ELFCLASSNONE = 0x00     # Invalid class
+    ELFCLASS32   = 0x01     # 32-bit object file
+    ELFCLASS64   = 0x02     # 64-bit object file
+
+
+  class ELFDATA(object):
+    """Enumeration of elf data byte ordering.
+    """
+    ELFDATANONE = 0x00      # Invalid data encoding
+    ELFDATA2LSB = 0x01      # Little-endian encoding
+    ELFDATA2MSB = 0x02      # Big-endian encoding
+
+
+  class ELFTYPE(object):
+    """Enumeration of elf file types.
+    """
+    ET_NONE   = 0x0        # No file type
+    ET_REL    = 0x1        # Relocatable file
+    ET_EXEC   = 0x2        # Executable file
+    ET_DYN    = 0x3        # Shared object file
+    ET_CORE   = 0x4        # Core file
+    ET_LOPROC = 0xFF00     # Processor-specific
+    ET_HIPROC = 0xFFFF     # Processor-specific
+
+
+  class ELFMACHINE(object):
+    """Enumeration of machine types.
+
+    Contains only the types that are needed. Should be expanded when new
+    machine types are needed.
+    """
+    EM_386    = 0x3         # Intel 80386
+    EM_X86_64 = 0x3E        # AMD64
+
+
+  class ELFVERSION(object):
+    """Enumeration of object file version.
+    """
+    EV_NONE    = 0x0        # Invalid version
+    EV_CURRENT = 0x1        # Current version
+
+  ELF_IDENT_PAD_SIZE = 0x9                    # Note this is the number of
+                                              # padding bytes, not the value
+
+  ELF_STD_SIZE = 0x40
+
+  def __init__(self, elf_class=64, endianness='little', architecture='x86_64',
+               entry=None, phoff=None, shoff=None, flags=None, ehsize=None,
+               phentsize=None, phnum=None, shentsize=None, shnum=None,
+               shstrndx=None):
+    """Constructs the ELFHeader object required to generate ELF binaries.
+
+    Args:
+      elf_class: The elf file class. Must be one of 32 or 64 for ELF32 and
+          ELF64 respectively.
+      endianness: The endianness can be either little or big.
+      architecture: The CPU architecture we are building this ELF binary for.
+      Others: Look at the docstrings for the indvidual properties.
+    """
 
     if elf_class == 64:
-      self.elf_class = ELFCLASS.ELFCLASS64
+      self.elf_class = self.ELFCLASS.ELFCLASS64
     elif elf_class == 32:
-      self.elf_class = ELFCLASS.ELFCLASS32
+      self.elf_class = self.ELFCLASS.ELFCLASS32
     else:
       raise TypeError('Invalid elf type "%s".' % elf_class)
 
     if endianness == 'little':
       self.byte_ordering_fmt = '<'
-      self.elf_data = ELFDATA.ELFDATA2LSB
+      self.elf_data = self.ELFDATA.ELFDATA2LSB
     elif endianness == 'big':
       self.byte_ordering_fmt = '>'
-      self.elf_data = ELFDATA.ELFDATA2MSB
+      self.elf_data = self.ELFDATA.ELFDATA2MSB
     else:
       raise TypeError('Invalid byte-order type "%s".' % endianness)
 
+    # Make this available at class level too.
+    self.__class__.byte_ordering_fmt = self.byte_ordering_fmt
+
     if architecture == 'x86':
-      self.elf_machine = ELFMACHINE.EM_386
+      self.elf_machine = self.ELFMACHINE.EM_386
     elif architecture == 'x86_64':
-      self.elf_machine = ELFMACHINE.EM_X86_64
+      self.elf_machine = self.ELFMACHINE.EM_X86_64
     else:
       raise TypeError('Architecture %s not supported.' % architecture)
 
-  def __del__(self):
-    """Ensure that the write file is closed.
+    self.entry = entry
+    self.phoff = phoff
+    self.shoff = shoff
+    self.flags = flags
+    self.ehsize = ehsize
+    self.phentsize = phentsize
+    self.phnum = phnum
+    self.shentsize = shentsize
+    self.shnum = shnum
+    self.shstrndx = shstrndx
+
+    # The actual byte encoded program header to be built for this object.
+    self.header = None
+
+  @property
+  def ELF_IDENT_MAG0(self):
+    """Returns the ELF_IDENT_MAG0 byte.
     """
-    if not self.filepointer.closed:
-      self.filepointer.close()
+    return self.__class__.elf64_byte(0x7F)
+
+  @property
+  def ELF_IDENT_MAG1(self):
+    """Returns the ELF_IDENT_MAG1 byte.
+    """
+    return self.__class__.elf64_byte(0x45)
+
+  @property
+  def ELF_IDENT_MAG2(self):
+    """Returns the ELF_IDENT_MAG2 byte.
+    """
+    return self.__class__.elf64_byte(0x4C)
+
+  @property
+  def ELF_IDENT_MAG3(self):
+    """Returns the ELF_IDENT_MAG3 byte.
+    """
+    return self.__class__.elf64_byte(0x46)
+
+  @property
+  def ELF_IDENT_CLASS(self):
+    """Returns the ELF_IDENT_CLASS byte.
+    """
+    return self.__class__.elf64_byte(self.ELFCLASS.ELFCLASS64)
+
+  @property
+  def ELF_IDENT_DATA(self):
+    """Returns the ELF_IDENT_DATA byte.
+    """
+    return self.__class__.elf64_byte(self.ELFDATA.ELFDATA2LSB)
+
+  @property
+  def ELF_IDENT_VERSION(self):
+    """Returns the ELF_IDENT_VERSION byte.
+    """
+    return self.__class__.elf64_byte(self.ELFVERSION.EV_CURRENT)
+
+  @property
+  def ELF_IDENT_PAD(self):
+    """Returns the ELF_IDENT's padding byte.
+    """
+    return self.__class__.elf64_byte(0x00) * self.ELF_IDENT_PAD_SIZE
+
+  @property
+  def ELF_VERSION(self):
+    """Returns the ELF version byte.
+    """
+    return self.__class__.elf64_word(self.ELFVERSION.EV_CURRENT)
+
+  @property
+  def ELF_TYPE(self):
+    """Returns the ELF type byte.
+    """
+    return self.__class__.elf64_half(self.ELFTYPE.ET_EXEC)
+
+  @property
+  def ELF_MACHINE(self):
+    """Returns the ELF machine type byte.
+    """
+    return self.__class__.elf64_half(self.elf_machine)
+
+  @property
+  def ELF_ENTRY(self):
+    """Returns the offset to the program entry point.
+
+    Should be calculated dynamically.
+    """
+    return self.__class__.elf64_addr(self.entry if self.entry else 0)
+
+  @property
+  def ELF_PHOFF(self):
+    """Returns the offset to the program header table in bytes.
+
+    Should be calculated dynamically.
+    """
+    return self.__class__.elf64_off(self.phoff if self.phoff else 0)
+
+  @property
+  def ELF_SHOFF(self):
+    """Returns the offset to the section header table in bytes.
+
+    Should be calculated dynamically.
+    """
+    return self.__class__.elf64_off(self.shoff if self.shoff else 0)
+
+  ELF_SHSTRNDX       = 0x0       # This member holds the
+  @property
+  def ELF_FLAGS(self):
+    """Returns the ELF_IDENT_MAG3 byte.
+
+    x86_64 architecture doesn't define any machine-specific flags, so it is
+    set to 0 for now. Later this can be changed to enumerations based on
+    the machine architecture.
+    """
+    if not self.flags:
+      self.flags = 0
+    return self.__class__.elf64_word(self.flags)
+
+  @property
+  def ELF_EHSIZE(self):
+    """Returns the the ELF's header size in bytes.
+
+    Hard-coded to 64 bytes for now.
+    """
+    if not self.ehsize:
+      self.ehsize = self.ELF_STD_SIZE
+
+    return self.__class__.elf64_half(self.ehsize)
+
+  @property
+  def ELF_PHENTSIZE(self):
+    """Returns the holds the size in bytes of one entry in the file's program
+    header table.
+
+    All entries must be of the same size. Should be calculated dynamically.
+    """
+    return self.__class__.elf64_half(self.phentsize if self.phentsize else 0)
+
+  @property
+  def ELF_PHNUM(self):
+    """Returns the number of entries in the program header table.
+
+    If the file has no program header table, this holds the value zero. Should
+    be calculated dynamically.
+    """
+    return self.__class__.elf64_half(self.phnum if self.phnum else 0)
+
+  @property
+  def ELF_SHENTSIZE(self):
+    """Returns the section header's size in bytes.
+
+    A section header is one entry in the section header table. All entries are
+    the same size. Should be calculated dymamically.
+    """
+    return self.__class__.elf64_half(self.shentsize if self.shentsize else 0)
+
+  @property
+  def ELF_SHNUM(self):
+    """Returns the number of entries in the section header table.
+
+    If the file has no section header table, this holds the value zero.
+    Should be calculated dymamically.
+    """
+    return self.__class__.elf64_half(self.shnum if self.shnum else 0)
+
+  @property
+  def ELF_SHSTRNDX(self):
+    """Returns the section header table index of the entry associated with the
+    section name string table.
+
+    If the file has no section name string table, this member holds the value
+    SHN_UNDEF. For now it is hard coded to 0. But can be calculated
+    dynamically if needed.
+    """
+    return self.__class__.elf64_half(self.shstrndx if self.shstrndx else 0)
 
   def build(self):
-    """Builds the binary file for the given input.
-    """
-    elf_header = self.build_elf_header()
-    self.filepointer.write(elf_header)
-
-  def build_elf_header(self):
-    """Builds the ELF header.
+    """Returns the ELF header as bytes.
     """
     magic = ''.join([
-        self.elf64_byte(ELF_IDENT_MAG0),
-        self.elf64_byte(ELF_IDENT_MAG1),
-        self.elf64_byte(ELF_IDENT_MAG2),
-        self.elf64_byte(ELF_IDENT_MAG3),
-        self.elf64_byte(ELF_IDENT_CLASS),
-        self.elf64_byte(ELF_IDENT_DATA),
-        self.elf64_byte(ELF_IDENT_VERSION),
-        self.elf64_byte(0x00) * ELF_IDENT_PAD
+        self.ELF_IDENT_MAG0,
+        self.ELF_IDENT_MAG1,
+        self.ELF_IDENT_MAG2,
+        self.ELF_IDENT_MAG3,
+        self.ELF_IDENT_CLASS,
+        self.ELF_IDENT_DATA,
+        self.ELF_IDENT_VERSION,
+        self.ELF_IDENT_PAD
         ])
 
     rest_of_elf_header = ''.join([
-        self.elf64_half(ELFTYPE.ET_EXEC),
-        self.elf64_half(self.elf_machine),
-        self.elf64_word(ELFVERSION.EV_CURRENT),
-        self.elf64_addr(ELF_ENTRY),
-        self.elf64_off(ELF_PHOFF),
-        self.elf64_off(ELF_SHOFF),
-        self.elf64_word(ELF_FLAGS),
-        self.elf64_half(ELF_EHSIZE),
-        self.elf64_half(ELF_PHENTSIZE),
-        self.elf64_half(ELF_PHNUM),
-        self.elf64_half(ELF_SHENTSIZE),
-        self.elf64_half(ELF_SHNUM),
-        self.elf64_half(ELF_SHSTRNDX),
+        self.ELF_TYPE,
+        self.ELF_MACHINE,
+        self.ELF_VERSION,
+        self.ELF_ENTRY,
+        self.ELF_PHOFF,
+        self.ELF_SHOFF,
+        self.ELF_FLAGS,
+        self.ELF_EHSIZE,
+        self.ELF_PHENTSIZE,
+        self.ELF_PHNUM,
+        self.ELF_SHENTSIZE,
+        self.ELF_SHNUM,
+        self.ELF_SHSTRNDX,
         ])
-    return ''.join([magic, rest_of_elf_header])
+    self.header = ''.join([magic, rest_of_elf_header])
 
-  def elf64_addr(self, data):
-    """Returns the packed binary whose size is addr as specified by ELF64.
+    # So that they can be chained.
+    return self
 
-    Args:
-      data: The data that should be formatted.
+  def __len__(self):
+    """Returns the size of the byte-encoded string of this object.
     """
-    format_str = '%sQ' % self.byte_ordering_fmt
-    return struct.pack(format_str, data)
+    return len(self.header)
 
-  def elf64_byte(self, data):
-    """Returns the packed binary whose size is byte as specified by ELF64.
-
-    Args:
-      data: The data that should be formatted.
+  def __str__(self):
+    """Returns the byte-encoded string of this program header object.
     """
-    format_str = '%sc' % self.byte_ordering_fmt
-    return struct.pack(format_str, chr(data))
+    return self.header
 
   def elf64_half(self, data):
     """Returns the packed binary whose size is half as specified by ELF64.
