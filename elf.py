@@ -30,6 +30,7 @@ convention of all letters in uppercase so that they are easily distinguishable.
 """
 
 
+import collections
 import logging
 import struct
 
