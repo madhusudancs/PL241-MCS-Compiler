@@ -474,6 +474,13 @@ class ProgramHeader(object):
     self.index = self.__class__.counter
     self.__class__.counter += 1
 
+    if endianness == 'little':
+      self.__class__.byte_ordering_fmt = '<'
+    elif endianness == 'big':
+      self.__class__.byte_ordering_fmt = '>'
+    else:
+      raise TypeError('Invalid byte-order type "%s".' % endianness)
+
     self.type = ph_type
     self.offset = offset
     self.vaddr = vaddr
@@ -482,13 +489,6 @@ class ProgramHeader(object):
     self.memsz = memsz
     self.flags = flags
     self.align = align
-
-    if endianness == 'little':
-      self.__class__.byte_ordering_fmt = '<'
-    elif endianness == 'big':
-      self.__class__.byte_ordering_fmt = '>'
-    else:
-      raise TypeError('Invalid byte-order type "%s".' % endianness)
 
     # The actual byte encoded program header to be built for this object.
     self.header = None
