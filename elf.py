@@ -435,6 +435,8 @@ class ProgramHeader(object):
   __metaclass__ = ELFMetaclass
 
   class TYPE(object):
+    """Enumeration of program header type.
+    """
     PT_NULL    = 0x0
     PT_LOAD    = 0x1
     PT_DYNAMIC = 0x2
