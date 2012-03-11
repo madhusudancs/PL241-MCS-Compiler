@@ -844,6 +844,77 @@ class SYMTAB(object):
     return self.entry
 
 
+class STRTAB(object):
+  """Abstracts the string table.
+
+  There really isn't much in this class. String Table is just a set of null
+  terminated strings. The String Table always starts with a null terminated
+  string and ends with a null terminated string.
+
+  NOTE: This class doesn't include the ELFMetaclass since it is not required.
+  This is a table not a header, so there is no real need for the functionality
+  that the ELFMetaclass provides since the length's of the entities and their
+  byte ordering here is dicated by the table and not by the ELF rules.
+  """
+
+  def __init__(self):
+    """Construct the String Table.
+    """
+    # A dictionary containing the string as the key and its position in the
+    # string table as the value for fast look-ups.
+    self.strings = {
+        '\x00': 0
+        }
+
+    # A dictionary containing the position of the string as the key and the
+    # string itself as the value for look up by position.
+    self.positions = collections.OrderedDict({
+        0: '\x00'
+        })
+
+    # The index of the next position in the string table. 0 is already
+    # taken up.
+    self.next_position = 1
+
+  def append(self, string):
+    """Appends the string to the string table.
+
+    Args:
+      string: The string that should be appended to the string table.
+    """
+    string = string + '\x00'
+    self.strings[string] = self.next_position
+    self.positions[self.next_position] = string
+    self.next_position += len(string)
+
+  def __getitem__(self, key):
+    """Returns the index of the given string in the string table.
+
+    Args:
+      key: The string whose position should be retrieved.
+    """
+    key += '\x00'
+    return self.strings[key]
+
+  def __len__(self):
+    """Returns the size of the byte-encoded string of this object.
+    """
+    length = 0
+    for i in self.positions:
+      length += len(self.positions[i])
+
+    return length
+
+  def __str__(self):
+    """Returns the byte-encoded string of this program header object.
+    """
+    string = ''
+    for i in self.positions:
+      string += self.positions[i]
+
+    return string
+
+
 class ELF(object):
   """Builds the ELF binary file for the given inputs.
   """
