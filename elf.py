@@ -398,7 +398,7 @@ class ELFHeader(object):
     """Returns the ELF header as bytes.
     """
     self.header = ''.join([
-        self.magic,
+        self.e_magic,
         self.e_type,
         self.e_machine,
         self.e_version,
