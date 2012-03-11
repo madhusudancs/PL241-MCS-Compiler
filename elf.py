@@ -335,6 +335,7 @@ class ELFHeader(object):
     """
     if not self.flags:
       self.flags = 0
+
     return self.__class__.elf64_word(self.flags)
 
   @property
