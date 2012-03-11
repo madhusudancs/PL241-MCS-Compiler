@@ -953,6 +953,14 @@ class ELF(object):
     # Open the file for binary writing.
     self.filepointer = open(filename, 'wb')
 
+  def padding(self, num_bytes):
+    """Returns the padding string.
+
+    Args:
+      num_bytes: Number of bytes that must be padded.
+    """
+    return self.__class__.elf64_byte(0x00) * num_bytes
+
   def build(self):
     """Builds the binary file for the given input.
     """
