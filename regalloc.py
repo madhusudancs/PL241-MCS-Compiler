@@ -50,6 +50,7 @@ LOGGER = logging.getLogger(__name__)
 class SSABrokenException(Exception):
   """Represents the exception when SSA structure is broken.
   """
+
   def __init__(self, instruction, *args, **kwargs):
     """Constructs the exception with the message.
 
