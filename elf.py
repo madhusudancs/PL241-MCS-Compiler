@@ -559,12 +559,169 @@ class ProgramHeader(object):
     return self.header
 
 
+class SectionHeader(object):
+  """Abstracts the Section header.
+  """
+
+  __metaclass__ = ELFMetaclass
+
+  class SPECIAL_INDEXES(object):
+    """Enumeration of Section Header's special indexes.
+    """
+    SHN_UNDEF     = 0x0
+    SHN_LORESERVE = 0xFF00
+    SHN_LOPROC    = 0xFF00
+    SHN_HIPROC    = 0xFF1F
+    SHN_ABS       = 0xFFF1
+    SHN_COMMON    = 0xFFF2
+    SHN_HIRESERVE = 0xFFFF
+
+  class TYPE(object):
+    """Enumeration of Section Header types.
+    """
+    SHT_NULL     = 0x0
+    SHT_PROGBITS = 0x1
+    SHT_SYMTAB   = 0x2
+    SHT_STRTAB   = 0x3
+    SHT_RELA     = 0x4
+    SHT_HASH     = 0x5
+    SHT_DYNAMIC  = 0x6
+    SHT_NOTE     = 0x7
+    SHT_NOBITS   = 0x8
+    SHT_REL      = 0x9
+    SHT_SHLIB    = 0xA
+    SHT_DYNSYM   = 0xB
+    SHT_LOPROC   = 0x70000000
+    SHT_HIPROC   = 0x7FFFFFFF
+    SHT_LOUSER   = 0x80000000
+    SHT_HIUSER   = 0xFFFFFFFF
+
+  class FLAGS(object):
+    """Enumeration of Section Header flags.
+    """
+    SHF_UNDEF     = 0x0
+    SHF_WRITE     = 0x1
+    SHF_ALLOC     = 0x2
+    SHF_EXECINSTR = 0x4
+    SHF_MASKPROC  = 0xF0000000
+
+  SHN_UNDEF = 0x0
+
+  counter = 0
+
+  @classmethod
+  def reset_counter(cls):
+    """Resets the counter for new Program Header table entry.
+    """
+    cls.counter = 0
+
+  def __init__(self, endianness='little', name=None, sh_type=None, flags=None,
+               addr=None, offset=None, size=None, link=None, info=None,
+               addralign=None, entsize=None):
+    """Constructs the ProgramHeader object required to generate them.
 
     Args:
-      data: The data that should be formatted.
+      Look at elf manpage.
     """
-    format_str = '%sQ' % self.byte_ordering_fmt
-    return struct.pack(format_str, data)
+    self.index = self.__class__.counter
+    self.__class__.counter += 1
+
+    if endianness == 'little':
+      self.__class__.byte_ordering_fmt = '<'
+    elif endianness == 'big':
+      self.__class__.byte_ordering_fmt = '>'
+    else:
+      raise TypeError('Invalid byte-order type "%s".' % endianness)
+
+    self.name = name
+    self.type = sh_type
+    self.flags = flags
+    self.addr = addr
+    self.offset = offset
+    self.size = size
+    self.link = link
+    self.info = info
+    self.addralign = addralign
+    self.entsize = entsize
+
+    # The actual byte encoded program header to be built for this object.
+    self.header = None
+
+  @property
+  def sh_name(self):
+    return self.__class__.elf64_word(self.name if self.name else 0)
+
+  @property
+  def sh_type(self):
+    if not self.type:
+      self.type = self.TYPE.SHT_NULL
+
+    return self.__class__.elf64_word(self.type)
+
+  @property
+  def sh_flags(self):
+    if not self.flags:
+      self.flags = self.FLAGS.SHF_UNDEF
+
+    return self.__class__.elf64_xword(self.flags)
+
+  @property
+  def sh_addr(self):
+    return self.__class__.elf64_addr(self.addr if self.addr else 0)
+
+  @property
+  def sh_offset(self):
+    return self.__class__.elf64_off(self.offset if self.offset else 0)
+
+  @property
+  def sh_size(self):
+    return self.__class__.elf64_xword(self.size if self.size else 0)
+
+  @property
+  def sh_link(self):
+    return self.__class__.elf64_word(
+        self.link if self.link else self.SHN_UNDEF)
+
+  @property
+  def sh_info(self):
+    return self.__class__.elf64_word(self.info if self.info else 0)
+
+  @property
+  def sh_addralign(self):
+    return self.__class__.elf64_xword(self.addralign if self.addralign else 0)
+
+  @property
+  def sh_entsize(self):
+    return self.__class__.elf64_xword(self.entsize if self.entsize else 0)
+
+  def build(self):
+    """Returns the Section Header as bytes.
+    """
+    self.header = ''.join([
+        self.sh_name,
+        self.sh_type,
+        self.sh_flags,
+        self.sh_addr,
+        self.sh_offset,
+        self.sh_size,
+        self.sh_link,
+        self.sh_info,
+        self.sh_addralign,
+        self.sh_entsize
+        ])
+
+    # So that they can be chained.
+    return self
+
+  def __len__(self):
+    """Returns the size of the byte-encoded string of this object.
+    """
+    return len(self.header)
+
+  def __str__(self):
+    """Returns the byte-encoded string of this program header object.
+    """
+    return self.header
 
 
 
