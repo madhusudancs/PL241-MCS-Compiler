@@ -559,15 +559,78 @@ class ProgramHeader(object):
     format_str = '%sQ' % self.byte_ordering_fmt
     return struct.pack(format_str, data)
 
-  def elf64_word(self, data):
-    """Returns the packed binary whose size is word as specified by ELF64.
+
+
+class ELF(object):
+  """Builds the ELF binary file for the given inputs.
+  """
+
+  __metaclass__ = ELFMetaclass
+
+  def __init__(self, filename, elf_class=64, endianness='little',
+               architecture='x86_64', instructions=''):
+    """Constructs the ELF object required to generate ELF binaries.
 
     Args:
-      data: The data that should be formatted.
-    """
-    format_str = '%sQ' % self.byte_ordering_fmt
-    return struct.pack(format_str, data)
+      filename: The name of the binary file the ELF should be written to.
+      elf_class: The class of the ELF file, can be 32 or 64.
+      endianness: The byte ordering. Can be little or big
+      architecture: The architecture for which this binary should be generated.
+      instructions: The byte-encoded instructions for which the binary is
+          being generated.
 
+    VERY IMPORTANT: The instructions are already assumed to be byte-encoded in
+        the required byte order. It is just dumped into the ELF file as it is
+        supplied to this constructor!!!
+    """
+    self.filename = filename
+    self.elf_class = elf_class
+    self.endianness = endianness
+    self.architecture = architecture
+    self.instructions = instructions
+
+    # Open the file for binary writing.
+    self.filepointer = open(filename, 'wb')
+
+  def build(self):
+    """Builds the binary file for the given input.
+    """
+    elf_header = ELFHeader()
+
+    phnum = 1
+    ph_load_header = ProgramHeader(ph_type='LOAD', offset=0x0, vaddr=0x400000,
+                                   paddr=0x400000, filesz=0x0, memsz=0x0,
+                                   flags='RX', align=0x200000)
+    ph_load_header.build()
+
+    phentsize = len(ph_load_header)
+
+    phsize = (phnum * phentsize)
+
+    # A phheader padding is added to align to 64 bytes.
+    phpaddingsize = 0x40 - (phsize % 0x40)
+    phpadding = '0x0' * phpaddingsize
+
+    elf_header.phentsize = phentsize
+    elf_header.phnum = phnum
+
+    # program header offset hard-coded to end of the elf header.
+    elf_header.phoff = elf_header.ELF_STD_SIZE
+
+    # The program starts at virtual address followed by the program headers
+    elf_header.entry = elf_header.phoff + ph_load_header.vaddr + \
+        phsize + phpaddingsize
+
+    headers = ''.join([
+        str(elf_header.build()), str(ph_load_header), phpadding])
+
+    self.filepointer.write(headers)
+
+  def __del__(self):
+    """Ensure that the write file is closed.
+    """
+    if not self.filepointer.closed:
+      self.filepointer.close()
 
 
 def bootstrap():
