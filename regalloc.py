@@ -67,11 +67,12 @@ class SSABrokenException(Exception):
 class RegisterAllocationFailedException(Exception):
   """Represents the exception when register allocation cannot complete.
   """
+
   def __init__(self, msg, *args, **kwargs):
     """Constructs the exception with the message.
 
     Args:
-      instruction: The Instruction object at which the SSA structure is broken.
+      msg: The exception message (this is optional).
     """
     super(RegisterAllocationFailedException, self).__init__(*args, **kwargs)
     self.msg = msg if msg else ''
