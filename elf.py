@@ -496,11 +496,9 @@ class ProgramHeader(object):
   @property
   def p_type(self):
     if not self.type:
-      ph_type = self.TYPE.PT_NULL
-    elif self.type == 'LOAD':
-      ph_type = self.TYPE.PT_LOAD
+      self.type = self.TYPE.PT_NULL
 
-    return self.__class__.elf64_word(ph_type)
+    return self.__class__.elf64_word(self.type)
 
   @property
   def p_offset(self):
@@ -524,15 +522,10 @@ class ProgramHeader(object):
 
   @property
   def p_flags(self):
-    flags = self.FLAGS.PF_N
-    if 'X' in self.flags:
-      flags += self.FLAGS.PF_X
-    if 'W' in self.flags:
-      flags += self.FLAGS.PF_W
-    if 'R' in self.flags:
-      flags += self.FLAGS.PF_R
+    if not self.flags:
+      self.flags = self.FLAGS.PF_N
 
-    return self.__class__.elf64_word(flags)
+    return self.__class__.elf64_word(self.flags)
 
   @property
   def p_align(self):
