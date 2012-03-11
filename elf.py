@@ -943,6 +943,13 @@ class ELF(object):
     self.architecture = architecture
     self.instructions = instructions
 
+    if endianness == 'little':
+      self.__class__.byte_ordering_fmt = '<'
+    elif endianness == 'big':
+      self.__class__.byte_ordering_fmt = '>'
+    else:
+      raise TypeError('Invalid byte-order type "%s".' % endianness)
+
     # Open the file for binary writing.
     self.filepointer = open(filename, 'wb')
 
