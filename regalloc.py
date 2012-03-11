@@ -1371,7 +1371,15 @@ class RegisterAllocator(object):
     def cmp_func(pair1, pair2):
       """Defines how the result, operand pair should be compared.
       """
-      if pair1[0].assignments_equal(pair2[1]):
+      if (pair1[0].assignments_equal(pair2[1]) and
+          pair2[0].assignments_equal(pair1[1])):
+        raise RegisterAllocationFailedException('Register Allocation cannot '
+            'proceed since two move instructions are such that the result '
+            'of one is the operand for the other and hence they cannot be '
+            'ordered. Try recompiling again. Hint or developer: Implement '
+            'the use of x86 XCHG instruction or if not available 3 XORs to '
+            'accomplish this.')
+      elif pair1[0].assignments_equal(pair2[1]):
         return 1
       elif pair2[0].assignments_equal(pair1[1]):
         return -1
@@ -1380,12 +1388,7 @@ class RegisterAllocator(object):
         # operand and result assignments they need to be swapped. x86_64
         # gives a XCHG instruction, use that or use 3 XOR instructions to
         # resolve this case!
-        raise RegisterAllocationFailedException('Register Allocation cannot '
-            'proceed since two move instructions are such that the result '
-            'of one is the operand for the other and hence they cannot be '
-            'ordered. Try recompiling again. Hint or developer: Implement '
-            'the use of x86 XCHG instruction or if not available 3 XORs to '
-            'accomplish this.')
+        return 0
 
     # Insert the respective instructions for phi-functions in the predecissor.
     for predecessor in self.phi_map:
