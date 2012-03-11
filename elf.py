@@ -68,7 +68,7 @@ class ELFMetaclass(type):
     Args:
       data: The data that should be formatted.
     """
-    format_str = '%sc' % cls.byte_ordering_fmt
+    format_str = '%sB' % cls.byte_ordering_fmt
     return struct.pack(format_str, chr(data))
 
   def elf64_half(cls, data):
