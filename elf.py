@@ -173,7 +173,8 @@ class ELFHeader(object):
           ELF64 respectively.
       endianness: The endianness can be either little or big.
       architecture: The CPU architecture we are building this ELF binary for.
-      Others: Look at the docstrings for the indvidual properties.
+      Others: Look at the docstrings for the indvidual properties and ELF
+      man page.
     """
 
     if elf_class == 64:
