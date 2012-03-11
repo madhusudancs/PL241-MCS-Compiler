@@ -724,6 +724,125 @@ class SectionHeader(object):
     return self.header
 
 
+class SYMTAB(object):
+  """Abstracts the Symbol Table for the ELF binaries.
+  """
+
+  __metaclass__ = ELFMetaclass
+
+  class BIND(object):
+    """Enumeration of Symbol Table's bind values.
+    """
+    STB_LOCAL  = 0x0
+    STB_GLOBAL = 0x1
+    STB_WEAK   = 0x2
+    STB_LOPROC = 0xD
+    STB_HIPROC = 0xF
+
+  class TYPE(object):
+    """Enumeration of Symbol Table's type values.
+    """
+    STT_NOTYPE  = 0x0
+    STT_OBJECT  = 0x1
+    STT_FUNC    = 0x2
+    STT_SECTION = 0x3
+    STT_FILE    = 0x4
+    STT_LOPROC  = 0xD
+    STT_HIPROC  = 0xF
+
+
+  STN_UNDEF = 0x0
+
+  counter = 0
+
+  @classmethod
+  def reset_counter(cls):
+    """Resets the counter for new Program Header table entry.
+    """
+    cls.counter = 0
+
+  def __init__(self, endianness='little', name=None, bind=None, info_type=None,
+               other=None, shndx=None, value=None, size=None):
+    """Constructs the ProgramHeader object required to generate them.
+
+    Args:
+      Look at elf manpage.
+    """
+    self.index = self.__class__.counter
+    self.__class__.counter += 1
+
+    if endianness == 'little':
+      self.__class__.byte_ordering_fmt = '<'
+    elif endianness == 'big':
+      self.__class__.byte_ordering_fmt = '>'
+    else:
+      raise TypeError('Invalid byte-order type "%s".' % endianness)
+
+    self.name = name
+    self.bind = bind
+    self.type = info_type
+    self.other = other
+    self.shndx = shndx
+    self.value = value
+    self.size = size
+
+    # The actual byte encoded program header to be built for this object.
+    self.entry = None
+
+  @property
+  def st_name(self):
+    return self.__class__.elf64_word(self.name if self.name else 0)
+
+  @property
+  def st_info(self):
+    if not self.bind:
+      self.bind = 0x0
+    if not self.type:
+      self.type = 0x0
+    info = (self.bind << 4 + (self.type & 0xF))
+    return self.__class__.elf64_byte(info)
+
+  @property
+  def st_other(self):
+    return self.__class__.elf64_byte(self.other if self.other else 0)
+
+  @property
+  def st_shndx(self):
+    return self.__class__.elf64_half(self.shndx if self.shndx else 0)
+
+  @property
+  def st_value(self):
+    return self.__class__.elf64_addr(self.value if self.value else 0)
+
+  @property
+  def st_size(self):
+    return self.__class__.elf64_xword(self.size if self.size else 0)
+
+  def build(self):
+    """Returns the Symbol Table entry as bytes.
+    """
+    self.entry = ''.join([
+        self.st_name,
+        self.st_info,
+        self.st_other,
+        self.st_shndx,
+        self.st_value,
+        self.st_size,
+        ])
+
+    # So that they can be chained.
+    return self
+
+  def __len__(self):
+    """Returns the size of the byte-encoded string of this object.
+    """
+    return len(self.entry)
+
+  def __str__(self):
+    """Returns the byte-encoded string of this program header object.
+    """
+    return self.entry
+
 
 class ELF(object):
   """Builds the ELF binary file for the given inputs.
