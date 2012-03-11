@@ -577,7 +577,7 @@ class IntermediateRepresentation(object):
     start = self.ir[-2].label
 
     for parameter in root.children:
-      start = self.instruction('+', start, '#4')
+      start = self.instruction('+', start, Immediate(4))
       instruction_label = self.instruction('load', start)
       ident_label = self.ident(parameter)
       instruction_label = self.instruction('move', instruction_label,
@@ -598,15 +598,15 @@ class IntermediateRepresentation(object):
     func_label = self.instruction('.begin_%s' % (scope))
     self.function_pointer['.begin_%s' % (scope)] = func_label
 
-    start = self.instruction('+', '!FP', '#0')
+    start = self.instruction('+', '!FP', Immediate(0))
     fp_label = self.instruction('load', start)
     self.instruction('move', fp_label, Memory('framesize'))
 
-    ret = self.instruction('+', start, '#4')
+    ret = self.instruction('+', start, Immediate(4))
     return_label = self.instruction('load', ret)
     self.instruction('move', return_label, Memory('ret'))
 
-    return_value = self.instruction('+', ret, '#4')
+    return_value = self.instruction('+', ret, Immediate(4))
     self.instruction('move', return_value, Memory(scope))
 
     self.formalParam(formal_param)
@@ -671,20 +671,20 @@ class IntermediateRepresentation(object):
     # The length of the new function's frame will be number of arguments
     # + the framelength storage + return label storage + return value
     # storage multiplied by size of each storage which is 4
-    self.instruction('store', '#%d' % ((len(arguments) + 3) * 4), '!FP')
+    self.instruction('store', Immediate((len(arguments) + 3) * 4), '!FP')
 
     # Store the return label, we don't know the exact label, we will
     # backpatch it.
-    ret = self.instruction('+', advance, '#4')
+    ret = self.instruction('+', advance, Immediate(4))
     return_label = self.instruction('store', None, ret)
 
     # FIXME: For procedures
     # Store the return label in the next storage area.
-    storage = self.instruction('+', ret, '#4')
+    storage = self.instruction('+', ret, Immediate(4))
 
     argument_results = []
     for arg in arguments:
-      storage = self.instruction('+', storage, '#4')
+      storage = self.instruction('+', storage, Immediate(4))
       expression_result = self.expression(arg)
       argument_results.append(self.instruction('store', expression_result,
                                                storage))
@@ -758,13 +758,13 @@ class IntermediateRepresentation(object):
     expression_result = self.expression(root.children[1])
     for i, offset in enumerate(root.children[2:]):
       temp_result = self.instruction('*', expression_result,
-                                     '#%s' % dimensions[i + 1])
+                                     Immediate(dimensions[i + 1]))
       offset_result = self.expression(offset)
       expression_result = self.instruction('+', offset_result,
                                            temp_result)
 
-    offset_result = self.instruction('*', expression_result, '#4')
-    base_result = self.instruction('+', '!FP', '#%s' % result)
+    offset_result = self.instruction('*', expression_result, Immediate(4))
+    base_result = self.instruction('+', '!FP', '#%s' % (result))
     result = self.instruction('adda', offset_result, base_result)
     if lvalue:
       return result, True
