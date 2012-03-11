@@ -963,37 +963,206 @@ class ELF(object):
 
   def build(self):
     """Builds the binary file for the given input.
+
+    NOTE: This function is way too long than any normal human beings can
+    handle. But at the same time ELF is way too complicated and stupidly
+    stupid than any normal human beings can handle. I don't understand why
+    there should be so much interlinking there. Because of all these interlinks
+    required between different headers and tables, this function remains as
+    long as it is now because exchanging that interlinking information among
+    different functions/methods become a bigger pain and hampers readability
+    more. That approach was tried and given up.
     """
+    instructions_size = len(self.instructions)
+
     elf_header = ELFHeader()
 
-    phnum = 1
-    ph_load_header = ProgramHeader(ph_type='LOAD', offset=0x0, vaddr=0x400000,
-                                   paddr=0x400000, filesz=0x0, memsz=0x0,
-                                   flags='RX', align=0x200000)
+
+
+
+
+    # Start of Section String Table building.
+
+    # Hard coded to the end of ELF header for now.
+    shstrtaboff = elf_header.ELF_STD_SIZE
+
+    shstrtab = STRTAB()
+    shstrtab.append('.shstrtab')
+    shstrtab.append('.strtab')
+    shstrtab.append('.symtab')
+    shstrtab.append('.text')
+
+    shstrtabsize = len(shstrtab)
+
+
+
+
+
+    # Start of Instructions String Table building.
+    strtaboff = shstrtaboff + shstrtabsize
+
+    strtab = STRTAB()
+    # FIXME: Should be populated from instructions.
+
+    strtabsize = len(strtab)
+
+
+
+
+
+    # Start of Instructions String Table building.
+    symtaboff = strtaboff + strtabsize
+
+    null_sym_entry = SYMTAB()
+    # FIXME: Should be populated from instructions.
+    null_sym_entry.build()
+
+
+    symtab_locals = 1
+    symtabnum = SYMTAB.counter
+    symtabsize = len(null_sym_entry) * symtabnum
+
+
+
+
+
+    # Start of program header building.
+    phoff = symtaboff + symtabsize
+
+    # Virtual address, physical address and alignments are hard-coded for now.
+    # FIXME: Virtual address, physical address and alignment should be made
+    # dynamic if necessary.
+    ph_load_header = ProgramHeader(
+        ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0, vaddr=0x400000,
+        paddr=0x400000, filesz=instructions_size, memsz=instructions_size,
+        flags=ProgramHeader.FLAGS.PF_X + ProgramHeader.FLAGS.PF_R,
+        align=0x200000)
+
     ph_load_header.build()
 
+    phnum = ProgramHeader.counter
     phentsize = len(ph_load_header)
 
     phsize = (phnum * phentsize)
 
-    # A phheader padding is added to align to 64 bytes.
-    phpaddingsize = 0x40 - (phsize % 0x40)
-    phpadding = '0x0' * phpaddingsize
+    # A phheader padding is added to align to 16 bytes.
+    phpaddingsize = 0x10 - (phsize % 0x10) if (phsize % 0x10) else 0x0
 
+
+
+
+
+    # Start of instructions
+    # The program starts at virtual address followed by the program headers
+    instructionsoff = phoff + phsize + phpaddingsize
+
+    instructionsvoff = instructionsoff + ph_load_header.vaddr
+
+    # A phheader padding is added to align to 16 bytes.
+    instructionspaddingsize = 0x10 - (instructions_size % 0x10) if (
+        instructions_size % 0x10) else 0x0
+
+
+
+
+
+    # Start of section headers building
+    sh_null_header = SectionHeader()
+    sh_null_header.build()
+
+
+    # Address alignment is hard-coded for now since ELF64 wants 16 bytes
+    # alignment.
+    # FIXME: Make the address alignment dynamic.
+    sh_text_header = SectionHeader(
+        name=shstrtab['.text'], sh_type=SectionHeader.TYPE.SHT_PROGBITS,
+        addr=instructionsvoff, offset=instructionsoff, size=instructions_size,
+        flags=(SectionHeader.FLAGS.SHF_ALLOC + \
+            SectionHeader.FLAGS.SHF_EXECINSTR),
+        link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x10, entsize=0x0)
+
+    sh_text_header.build()
+
+    # Since this is byte aligned, since it is a string, the address alignment
+    # of 1 is fixed always.
+    sh_shstrtab_header = SectionHeader(
+        name=shstrtab['.shstrtab'], sh_type=SectionHeader.TYPE.SHT_STRTAB,
+        addr=0x0, offset=shstrtaboff, size=shstrtabsize,
+        link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x1, entsize=0x0)
+
+    sh_shstrtab_header.build()
+
+    # Since this is byte aligned, since it is a string, the address alignment
+    # of 1 is fixed always.
+    sh_strtab_header = SectionHeader(
+        name=shstrtab['.strtab'], sh_type=SectionHeader.TYPE.SHT_STRTAB,
+        addr=0x0, offset=strtaboff, size=strtabsize,
+        link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x1, entsize=0x0)
+
+    sh_strtab_header.build()
+
+    # Since this is byte aligned, since it is a string, the address alignment
+    # of 1 is fixed always.
+    sh_symtab_header = SectionHeader(
+        name=shstrtab['.symtab'], sh_type=SectionHeader.TYPE.SHT_SYMTAB,
+        addr=0x0, offset=symtaboff, size=symtabsize,
+        link=0x3, info=symtab_locals + 1, addralign=0x8,
+        entsize=len(null_sym_entry))
+
+    sh_symtab_header.build()
+
+    shnum = SectionHeader.counter
+    shentsize = len(sh_null_header)
+
+    shsize = (shnum * shentsize)
+
+    # A shheader padding is added to align to 64 bytes.
+    shpaddingsize = 0x10 - (shsize % 0x10) if (shsize % 0x10) else 0x0
+
+
+
+
+
+    # Complete populate the ELF header.
     elf_header.phentsize = phentsize
     elf_header.phnum = phnum
 
-    # program header offset hard-coded to end of the elf header.
-    elf_header.phoff = elf_header.ELF_STD_SIZE
+    # Program Header offset hard-coded to end of the elf header.
+    elf_header.phoff = phoff
 
-    # The program starts at virtual address followed by the program headers
-    elf_header.entry = elf_header.phoff + ph_load_header.vaddr + \
-        phsize + phpaddingsize
+    # Entry point to the program.
+    elf_header.entry = instructionsvoff
 
-    headers = ''.join([
-        str(elf_header.build()), str(ph_load_header), phpadding])
+    # Section Header offset.
+    elf_header.shoff = instructionsoff + instructions_size + \
+        instructionspaddingsize
 
-    self.filepointer.write(headers)
+    elf_header.shentsize = shentsize
+    elf_header.shnum = shnum
+
+    # This is hard-coded for now since we will only have limited sections for
+    # now.
+    # FIXME: Should be made dynamic when we start adding sections dynamically.
+    elf_header.shstrndx = 0x2
+
+
+
+
+
+    # Final binary dumping.
+    binary = ''.join([
+        str(elf_header.build()),
+        str(shstrtab),
+        str(strtab),
+        str(null_sym_entry),
+        str(ph_load_header), self.padding(phpaddingsize),
+        str(self.instructions), self.padding(instructionspaddingsize),
+        str(sh_null_header), str(sh_text_header), str(sh_shstrtab_header),
+        str(sh_strtab_header), str(sh_symtab_header),
+        self.padding(shpaddingsize),
+        ])
+
+    self.filepointer.write(binary)
 
   def __del__(self):
     """Ensure that the write file is closed.
