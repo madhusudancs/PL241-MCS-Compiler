@@ -71,6 +71,46 @@ from parser import Parser
 LOGGER = logging.getLogger(__name__)
 
 
+class Memory(object):
+  """Represents a memory operand in a generic way.
+
+  IMPORTANT: We don't talk about the memory size here, this is just an
+  abstraction to represent memory. The size and other details are decided
+  during the code generation phase.
+  """
+
+  counter = 0
+
+  @classmethod
+  def reset_counter(cls):
+    """Resets the counter for the new memory allocation.
+    """
+    cls.counter = 0
+
+  def __init__(self, name=None, new_allocation=False):
+    """Constructs a placeholder for memory required for the program.
+
+    Args:
+      name: Name for the particular memory location. Special memory locations
+          like base stack pointer memory, return value memory can use these
+          special names.
+      new_allocation: True if the current counter run should be reset for new
+          allocation False otherwise.
+    """
+    if new_allocation:
+      self.__class__.reset_counter()
+    else:
+      self.index = self.__class__.counter
+      self.__class__.counter += 1
+
+    self.name = name
+
+  def __str__(self):
+    """Returns the string representation for this memory enclosed in [].
+    """
+    return ('[%s]' % self.name) if self.name else ('[%d]' % self.counter)
+
+
 class Instruction(object):
   """Abstraction for all the instruction in the Intermediate Representation.
   """

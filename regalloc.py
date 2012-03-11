@@ -36,6 +36,7 @@ from datastructures import InterferenceNode
 from datastructures import LiveIntervalsHeap
 from ir import Instruction
 from ir import IntermediateRepresentation
+from ir import Memory
 from optimizations import Optimize
 from parser import LanguageSyntaxError
 from parser import Parser
@@ -1166,27 +1167,28 @@ class RegisterAllocator(object):
                        following_instruction][-1])
     first.label, last.label = last.label, first.label
 
-  def insert_spill(self, register, spilled_at):
+  def insert_spill(self, register, spilled_at, memory):
     """Insert a spill instruction.
 
     Args:
       register: The original register that was spilled.
       spilled_at: The instruction before which the spill must be inserted.
+      memory: The memory to spill to.
     """
-    store_instruction = Instruction('store', register,
-                                    '[%d]' % self.memory_offset)
+    store_instruction = Instruction('store', register, memory)
     store_instruction.assigned_operand1 = register
     self.insert_instruction(store_instruction, spilled_at)
 
-  def insert_reload(self, original_register, spilled_to, new_register):
+  def insert_reload(self, memory, original_register, spilled_to, new_register):
     """Insert a reload instruction.
 
     Args:
+      memory: The memory to reload from.
       original_register: The original register where this was.
       spilled_to: The instruction before which reload must be inserted.
       new_register: The new register to which this must be reloaded.
     """
-    reload_instruction = Instruction('load', '[%d]' % self.memory_offset)
+    reload_instruction = Instruction('load', memory)
     reload_instruction.result = original_register
     reload_instruction.assigned_result = new_register
     self.insert_instruction(reload_instruction, spilled_to)
@@ -1201,9 +1203,10 @@ class RegisterAllocator(object):
     if not spill:
       return
 
-    self.insert_spill(register, spill['spilled_at'])
-    self.insert_reload(register, spill['spilled_to'], spill['register'])
-    self.memory_offset += 1
+    new_memory = Memory()
+    self.insert_spill(register, spill['spilled_at'], new_memory)
+    self.insert_reload(new_memory, register, spill['spilled_to'],
+                       spill['register'])
 
   def resolve_noncontiguous_blocks(self, node, result, assignment, spilled):
     """Insert reload/move instructions for phi operands and other registers.
@@ -1215,14 +1218,13 @@ class RegisterAllocator(object):
       spill: Dictionary containing spill information.
     """
     if spilled:
+      memory = Memory()
       self.insert_spill(spilled['register'], spilled['spilled_at'])
-      reload_instruction = Instruction('load',
-                                       '[%d]' % self.memory_offset)
+      reload_instruction = Instruction('load', memory)
 
       reload_instruction.result = None
       reload_instruction.assigned_result = result
       self.phi_map[node].append(reload_instruction)
-      self.memory_offset += 1
     # We don't do anything for the case where assignment and
     # phi_result are the same. They just remain the way they are :-)
     elif not (self.is_register(assignment) and
@@ -1241,7 +1243,7 @@ class RegisterAllocator(object):
       node: The basic block node to process.
     """
     # This needs to be per function, so reset to zero for every function.
-    self.memory_offset = 0
+    Memory.reset_counter()
 
     phi_operands = {}
 
@@ -1338,17 +1340,18 @@ class RegisterAllocator(object):
                 'is required for Register Allocation to complete while '
                 'resolving spills across loops and there is no memory to '
                 'memory move instruction available. Try to recompile.')
-            result_memory_offset = \
+            loop_enter_memory = \
                 self.ssa_deconstructed_instructions[
-                    spilled_to][0].assigned_operand1
-            self.insert_spill(new_assignment, spilled['spilled_at'])
-            mmove_instruction = Instruction('mmove',
-                                            '[%d]' % self.memory_offset,
-                                            result_memory_offset)
+                    spilled['spilled_to']][0].assigned_operand1
+            new_memory = Memory()
+            self.insert_spill(new_assignment, spilled['spilled_at'],
+                              new_memory)
+            mmove_instruction = Instruction('mmove', new_memory,
+                                            loop_enter_memory)
             mmove_instruction.result = None
             mmove_instruction.assigned_result = None
-            mmove_instruction.assigned_operand1 = self.memory_offset
-            mmove_instruction.assigned_operand2 = self.memory_offset
+            mmove_instruction.assigned_operand1 = new_memory
+            mmove_instruction.assigned_operand2 = loop_enter_memory
             self.phi_map[node].append(mmove_instruction)
 
   def deconstruct_ssa(self):
