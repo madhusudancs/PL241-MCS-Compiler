@@ -448,10 +448,20 @@ class ProgramHeader(object):
     PT_HIPROC  = 0x7fffffff
 
   class FLAGS(object):
+    """Enumeration of program header flags.
+    """
     PF_N = 0x0   # Invalid flag.
     PF_X = 0x1
     PF_W = 0x2
     PF_R = 0x4
+
+  counter = 0
+
+  @classmethod
+  def reset_counter(cls):
+    """Resets the counter for new Program Header table entry.
+    """
+    cls.counter = 0
 
   def __init__(self, endianness='little', ph_type=None, offset=None,
                vaddr=None, paddr=None, filesz=None, memsz=None, flags=None,
@@ -461,6 +471,9 @@ class ProgramHeader(object):
     Args:
       Look at elf manpage.
     """
+    self.index = self.__class__.counter
+    self.__class__.counter += 1
+
     self.type = ph_type
     self.offset = offset
     self.vaddr = vaddr
