@@ -272,25 +272,42 @@ class ELFHeader(object):
     return self.__class__.elf64_byte(0x00) * self.ELF_IDENT_PAD_SIZE
 
   @property
-  def ELF_VERSION(self):
-    """Returns the ELF version byte.
+  def e_magic(self):
+    """Returns the ELF Magic constructed from the individual bytes!
+
+    Yes this is really magic! Don't try to understand why!
     """
-    return self.__class__.elf64_word(self.ELFVERSION.EV_CURRENT)
+    return ''.join([
+        self.ELF_IDENT_MAG0,
+        self.ELF_IDENT_MAG1,
+        self.ELF_IDENT_MAG2,
+        self.ELF_IDENT_MAG3,
+        self.ELF_IDENT_CLASS,
+        self.ELF_IDENT_DATA,
+        self.ELF_IDENT_VERSION,
+        self.ELF_IDENT_PAD
+        ])
 
   @property
-  def ELF_TYPE(self):
+  def e_type(self):
     """Returns the ELF type byte.
     """
     return self.__class__.elf64_half(self.ELFTYPE.ET_EXEC)
 
   @property
-  def ELF_MACHINE(self):
+  def e_machine(self):
     """Returns the ELF machine type byte.
     """
     return self.__class__.elf64_half(self.elf_machine)
 
   @property
-  def ELF_ENTRY(self):
+  def e_version(self):
+    """Returns the ELF version byte.
+    """
+    return self.__class__.elf64_word(self.ELFVERSION.EV_CURRENT)
+
+  @property
+  def e_entry(self):
     """Returns the offset to the program entry point.
 
     Should be calculated dynamically.
@@ -298,7 +315,7 @@ class ELFHeader(object):
     return self.__class__.elf64_addr(self.entry if self.entry else 0)
 
   @property
-  def ELF_PHOFF(self):
+  def e_phoff(self):
     """Returns the offset to the program header table in bytes.
 
     Should be calculated dynamically.
@@ -306,16 +323,15 @@ class ELFHeader(object):
     return self.__class__.elf64_off(self.phoff if self.phoff else 0)
 
   @property
-  def ELF_SHOFF(self):
+  def e_shoff(self):
     """Returns the offset to the section header table in bytes.
 
     Should be calculated dynamically.
     """
     return self.__class__.elf64_off(self.shoff if self.shoff else 0)
 
-  ELF_SHSTRNDX       = 0x0       # This member holds the
   @property
-  def ELF_FLAGS(self):
+  def e_flags(self):
     """Returns the ELF_IDENT_MAG3 byte.
 
     x86_64 architecture doesn't define any machine-specific flags, so it is
@@ -327,7 +343,7 @@ class ELFHeader(object):
     return self.__class__.elf64_word(self.flags)
 
   @property
-  def ELF_EHSIZE(self):
+  def e_ehsize(self):
     """Returns the the ELF's header size in bytes.
 
     Hard-coded to 64 bytes for now.
@@ -338,7 +354,7 @@ class ELFHeader(object):
     return self.__class__.elf64_half(self.ehsize)
 
   @property
-  def ELF_PHENTSIZE(self):
+  def e_phentsize(self):
     """Returns the holds the size in bytes of one entry in the file's program
     header table.
 
@@ -347,7 +363,7 @@ class ELFHeader(object):
     return self.__class__.elf64_half(self.phentsize if self.phentsize else 0)
 
   @property
-  def ELF_PHNUM(self):
+  def e_phnum(self):
     """Returns the number of entries in the program header table.
 
     If the file has no program header table, this holds the value zero. Should
@@ -356,7 +372,7 @@ class ELFHeader(object):
     return self.__class__.elf64_half(self.phnum if self.phnum else 0)
 
   @property
-  def ELF_SHENTSIZE(self):
+  def e_shentsize(self):
     """Returns the section header's size in bytes.
 
     A section header is one entry in the section header table. All entries are
@@ -365,7 +381,7 @@ class ELFHeader(object):
     return self.__class__.elf64_half(self.shentsize if self.shentsize else 0)
 
   @property
-  def ELF_SHNUM(self):
+  def e_shnum(self):
     """Returns the number of entries in the section header table.
 
     If the file has no section header table, this holds the value zero.
@@ -374,7 +390,7 @@ class ELFHeader(object):
     return self.__class__.elf64_half(self.shnum if self.shnum else 0)
 
   @property
-  def ELF_SHSTRNDX(self):
+  def e_shstrndx(self):
     """Returns the section header table index of the entry associated with the
     section name string table.
 
@@ -387,33 +403,22 @@ class ELFHeader(object):
   def build(self):
     """Returns the ELF header as bytes.
     """
-    magic = ''.join([
-        self.ELF_IDENT_MAG0,
-        self.ELF_IDENT_MAG1,
-        self.ELF_IDENT_MAG2,
-        self.ELF_IDENT_MAG3,
-        self.ELF_IDENT_CLASS,
-        self.ELF_IDENT_DATA,
-        self.ELF_IDENT_VERSION,
-        self.ELF_IDENT_PAD
+    self.header = ''.join([
+        self.magic,
+        self.e_type,
+        self.e_machine,
+        self.e_version,
+        self.e_entry,
+        self.e_phoff,
+        self.e_shoff,
+        self.e_flags,
+        self.e_ehsize,
+        self.e_phentsize,
+        self.e_phnum,
+        self.e_shentsize,
+        self.e_shnum,
+        self.e_shstrndx
         ])
-
-    rest_of_elf_header = ''.join([
-        self.ELF_TYPE,
-        self.ELF_MACHINE,
-        self.ELF_VERSION,
-        self.ELF_ENTRY,
-        self.ELF_PHOFF,
-        self.ELF_SHOFF,
-        self.ELF_FLAGS,
-        self.ELF_EHSIZE,
-        self.ELF_PHENTSIZE,
-        self.ELF_PHNUM,
-        self.ELF_SHENTSIZE,
-        self.ELF_SHNUM,
-        self.ELF_SHSTRNDX,
-        ])
-    self.header = ''.join([magic, rest_of_elf_header])
 
     # So that they can be chained.
     return self
