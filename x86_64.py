@@ -259,7 +259,7 @@ class Instruction(object):
   def __len__(self):
     """Returns the length of the binary bytes for the instruction.
     """
-    return length(self.binary)
+    return len(self.binary)
 
   def __str__(self):
     """Returns the binary bytes for the instruction.
