@@ -331,7 +331,8 @@ class CMP(Instruction):
 
   OPCODE_TABLE = {
       ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x3B },
-      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x39 }
+      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x39 },
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
       }
 
   def __init__(self, destination, source):
