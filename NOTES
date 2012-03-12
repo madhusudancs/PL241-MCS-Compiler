@@ -1,0 +1,6 @@
+* Only short near jumps are implemented (jumps within signed 32-bits can be the max jump value).
+* Only integers are implemented.
+* Immediate values cannot be moved to memory, they have to be moved to a register and then moved to memory.
+* Cannot add anything to memory directly. The result should be stored in a register and if required then moved to memory.
+
+
