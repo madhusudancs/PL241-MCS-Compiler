@@ -324,6 +324,24 @@ class CALL(JumpInstruction):
     """
     super(JMP,self).__init__()
 
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    if not self.target:
+      self.target = 0x0
+
+    if not isinstance(self.target, int):
+      raise InvalidInstructionException(
+          'Target of branch instruction is not integer. The value given is '
+          '%s.' % self.target)
+
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               self.OPCODE_TABLE['rel32']['OPCODE'])
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
+
 
 class CMP(Instruction):
   """Implements the CMP instruction.
@@ -581,6 +599,24 @@ class JMP(JumpInstruction):
     """Constructs the JMP instruction.
     """
     super(JMP,self).__init__()
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    if not self.target:
+      self.target = 0x0
+
+    if not isinstance(self.target, int):
+      raise InvalidInstructionException(
+          'Target of branch instruction is not integer. The value given is '
+          '%s.' % self.target)
+
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               self.OPCODE_TABLE['rel32']['OPCODE'])
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
 
 
 class JNE(JumpInstruction):
