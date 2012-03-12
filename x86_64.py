@@ -292,6 +292,7 @@ class JumpInstruction(Instruction):
 
     self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
                                self.OPCODE_TABLE['rel32']['OPCODE'])
+
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
 
 
