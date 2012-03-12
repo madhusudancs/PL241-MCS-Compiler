@@ -100,10 +100,15 @@ class Memory(object):
     if new_allocation:
       self.__class__.reset_counter()
     else:
-      self.index = self.__class__.counter
       self.__class__.counter += 1
 
+    self.index = self.__class__.counter
+
     self.name = name
+
+    # This is the real memory offset from the base of the stack. This will be
+    # used only during code generation.
+    self.offset = None
 
   def __str__(self):
     """Returns the string representation for this memory enclosed in [].
@@ -179,6 +184,13 @@ class Instruction(object):
     # arbitrary number of operands finding the last operand becomes a pain.
     # So easiest way is to store the result separately
     self.result = None
+
+    # These stores the assigned registers for the operands after register
+    # allocation. These are introduced to make debugging easier.
+    self.assigned_operand1 = None
+    self.assigned_operand2 = None
+    self.assigned_operands = []
+    self.assigned_result = None
 
     self.label = self.__class__.label_counter
     self.__class__.label_counter += 1
@@ -395,7 +407,8 @@ class IntermediateRepresentation(object):
     self.function_pointer = {}
 
     # We need to only convert function bodies to IR. The declaration of
-    # variables really exist for scope checking. So we can directly skip to
+    # variables really exist for scope checking and to ensure the variables
+    # from the right scope is used. So we can directly skip to
     # generate IR for the first function we encounter.
     self.symbol_table = self.parse_tree.symbol_table
 
@@ -703,7 +716,7 @@ class IntermediateRepresentation(object):
     return_store_result = self.instruction('load', storage)
 
     # Backpatch return label
-    self.ir[return_label].update(operand1='#%d' % return_store_result)
+    self.ir[return_label].update(operand1=Memory('ret'))
 
     return return_store_result
 
@@ -821,7 +834,7 @@ class IntermediateRepresentation(object):
   def number(self, root):
     """Returns the number by prefixing # as per convention.
     """
-    return '#%s' % (root.value)
+    return Immediate(root.value)
 
   def dfs(self, root):
     """Depth-first search the parse tree and translate node by node.

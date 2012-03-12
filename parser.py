@@ -365,7 +365,7 @@ class Parser(object):
   def __parse_abstract_number(self, parent):
     look_ahead_token = self.__token_stream.look_ahead()
     if NUMBER_RE.match(look_ahead_token):
-      next_token = self.__token_stream.next()
+      next_token = int(self.__token_stream.next())
       Node('number', next_token, parent)
       return next_token
 
