@@ -1167,6 +1167,10 @@ class RegisterAllocator(object):
       if instruction.instruction == 'phi':
         continue
 
+      if self.ssa_deconstructed_instructions[instruction]:
+        first, last = (self.ssa_deconstructed_instructions[instruction][0],
+                     self.ssa_deconstructed_instructions[instruction][-1])
+        first.label, last.label = last.label, first.label
       assigned_ssa.extend(self.ssa_deconstructed_instructions[instruction])
 
     self.ssa.ssa = assigned_ssa
@@ -1181,11 +1185,7 @@ class RegisterAllocator(object):
     """
     self.ssa_deconstructed_instructions[following_instruction].insert(
         0, instruction)
-    first, last = (self.ssa_deconstructed_instructions[
-                       following_instruction][0],
-                   self.ssa_deconstructed_instructions[
-                       following_instruction][-1])
-    first.label, last.label = last.label, first.label
+
 
   def insert_spill(self, register, spilled_at, memory):
     """Insert a spill instruction.
@@ -1508,7 +1508,7 @@ class RegisterAllocator(object):
     """Return the printable string for the SSA deconstructed instructions.
     """
     instructions = []
-    for ssa_instruction in self.ssa.optimized():
+    for ssa_instruction in self.ssa.ssa:
       if ssa_instruction.instruction == 'phi':
         continue
 
