@@ -34,6 +34,7 @@ from argparse import ArgumentParser
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
 from datastructures import LiveIntervalsHeap
+from ir import Immediate
 from ir import Instruction
 from ir import IntermediateRepresentation
 from ir import Memory
@@ -1139,6 +1140,16 @@ class RegisterAllocator(object):
     """
     return True if (operand and isinstance(operand, Register)) else False
 
+  def is_memory(self, operand):
+    """Checks if the given operand is actually a memory object.
+    """
+    return True if (operand and isinstance(operand, Memory)) else False
+
+  def is_immediate(self, operand):
+    """Checks if the given operand is actually an immediate operand object.
+    """
+    return True if (operand and isinstance(operand, Immediate)) else False
+
   def str_virtual_register_allocation(self):
     """Gets the text representation of the program after virtual allocation.
     """
@@ -1147,6 +1158,18 @@ class RegisterAllocator(object):
        virtual_alloc_str += '%10s  <- %s\n' % (
            instruction.result if instruction.result else '', instruction)
     return virtual_alloc_str
+
+  def generate_assigned_instructions(self):
+    """Generates instructions which have registers assigned and phi-resolved.
+    """
+    assigned_ssa = []
+    for instruction in self.ssa.optimized():
+      if instruction.instruction == 'phi':
+        continue
+
+      assigned_ssa.extend(self.ssa_deconstructed_instructions[instruction])
+
+    self.ssa.ssa = assigned_ssa
 
   def insert_instruction(self, instruction, following_instruction):
     """Inserts the given instruction before the following instruction.
@@ -1174,6 +1197,7 @@ class RegisterAllocator(object):
     """
     store_instruction = Instruction('store', register, memory)
     store_instruction.assigned_operand1 = register
+    store_instruction.assigned_operand2 = memory
     self.insert_instruction(store_instruction, spilled_at)
 
   def insert_reload(self, memory, original_register, spilled_to, new_register):
@@ -1188,6 +1212,7 @@ class RegisterAllocator(object):
     reload_instruction = Instruction('load', memory)
     reload_instruction.result = original_register
     reload_instruction.assigned_result = new_register
+    reload_instruction.assigned_operand1 = memory
     self.insert_instruction(reload_instruction, spilled_to)
 
   def insert_spill_reload(self, register, spill):
@@ -1283,12 +1308,16 @@ class RegisterAllocator(object):
           instruction.assigned_operand1, spill = operand1.assignment(
               instruction)
           self.insert_spill_reload(operand1, spill)
+        elif self.is_memory(operand1) or self.is_immediate(operand1):
+          instruction.assigned_operand1 = operand1
 
         operand2 = instruction.operand2
         if self.is_register(operand2):
           instruction.assigned_operand2, spill = operand2.assignment(
               instruction)
           self.insert_spill_reload(operand2, spill)
+        elif self.is_memory(operand2) or self.is_immediate(operand2):
+          instruction.assigned_operand2 = operand2
 
         operands_assigned = []
         for operand in instruction.operands:
@@ -1296,6 +1325,8 @@ class RegisterAllocator(object):
             operand_assigned, spill = operand.assignment(instruction)
             self.insert_spill_reload(operand, spill)
             operands_assigned.append(operand_assigned)
+          elif self.is_memory(operand) or self.is_immediate(operand):
+            operands_assigned.append(operand)
 
         instruction.assigned_operands = operands_assigned
 
@@ -1420,6 +1451,8 @@ class RegisterAllocator(object):
       first, last = (self.ssa_deconstructed_instructions[instruction][0],
           self.ssa_deconstructed_instructions[instruction][-1])
       first.label, last.label = last.label, first.label
+
+    self.generate_assigned_instructions()
 
   def registers_assigned_instructions(self):
     """Return the printable string for the registers assigned instructions
