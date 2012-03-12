@@ -361,29 +361,60 @@ class IDIV(Instruction):
     """Builds the instruction bytes.
     """
     self.binary = ''
-    if not isinstance(self.source, Register):
+
+    if isinstance(self.source, Register):
+      source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
+
+      opcode_entry = self.OPCODE_TABLE['rm64']
+
+      # FIXME: May be buggy because reg may be 0xb111 instead of 0
+      mod = 0b11
+      reg = 0b0
+      rm = src_reg['REG']
+      modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          B=source_reg['REX'])
+
+      if rex:
+        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 opcode_entry['OPCODE'])
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 modregrm)
+    elif isinstance(self.source, Memory):
+      source_mem = self.source
+
+      opcode_entry = self.OPCODE_TABLE['rm64']
+
+      # FIXME: May be buggy because reg may be 0xb111 instead of 0
+      mod = 0b10
+      reg = 0b0
+      if isinstance(source_mem.offset, Register):
+        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+        rm = source_reg['REG']
+        offset = 0
+      else:
+        source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = source_reg['REG']
+        offset = -source_mem.offset
+
+      modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          B=source_reg['REX'])
+
+      if rex:
+        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 opcode_entry['OPCODE'])
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 modregrm)
+      self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+
+    else:
       raise NotImplementedError('Signed integer division is not implemented '
                                 'on non register source operands.')
-
-    source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
-
-    opcode_entry = self.OPCODE_TABLE['rm64']
-
-    # FIXME: May be buggy because reg may be 0xb111 instead of 0
-    mod = 0b11
-    reg = 0b0
-    rm = src_reg['REG']
-    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
-    rex = self.rex_byte(base=opcode_entry['REX'],
-                        B=source_reg['REX'])
-
-    if rex:
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
-
-    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                               opcode_entry['OPCODE'])
-    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                               modregrm)
 
 
 class IMUL(Instruction):

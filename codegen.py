@@ -202,13 +202,13 @@ class CodeGenerator(object):
 
     # Also create memory object to where they get spilled.
     memory_rax = Memory()
-    memory_rbx = Memory()
+    memory_rdx = Memory()
 
     operands = (rax, memory_rax)
-    store_rax = self.store(result=None, *operands)
+    store_rax = self.handle_store(None, *operands)
     self.instructions.append(store_rax)
     operands = (rax, memory_rdx)
-    store_rdx = self.store(result=None, *operands)
+    store_rdx = self.handle_store(None, *operands)
     self.instructions.append(store_rdx)
 
     mov = MOV(rax, operands[0])
@@ -220,9 +220,9 @@ class CodeGenerator(object):
     mov_result = MOV(result, rax)
     self.instructions.append(mov_result)
 
-    load_rax = self.load(rax, memory_rax)
+    load_rax = self.handle_load(rax, memory_rax)
     self.instructions.append(load_rax)
-    load_rdx = self.load(rdx, memory_rdx)
+    load_rdx = self.handle_load(rdx, memory_rdx)
     self.instructions.append(load_rdx)
 
   def handle_load(self, result, *operands):
