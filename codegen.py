@@ -235,7 +235,13 @@ class CodeGenerator(object):
       memory.offset = operands[0]
     elif isinstance(operands[0], Memory):
       memory = operands[0]
-      self.memory_offset -= memory.offset
+      if memory.offset:
+        offset = memory.offset
+      else:
+        offset = memory.index * MEMORY_WIDTH
+        memory.offset = offset
+
+      self.memory_offset -= offset
 
     mov = MOV(register, memory)
     self.instructions.append(mov)
@@ -293,6 +299,8 @@ class CodeGenerator(object):
       memory.offset = self.memory_offset
 
       self.memory_offset += MEMORY_WIDTH
+    else:
+      return
 
     mov = MOV(memory, register)
     self.instructions.append(mov)
