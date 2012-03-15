@@ -63,7 +63,7 @@ IDENT_PATTERN = r'[a-zA-Z][a-zA-Z0-9]*'
 NUMBER_PATTERN = r'-?\d+'
 IDENT_RE = re.compile(IDENT_PATTERN)
 NUMBER_RE = re.compile(NUMBER_PATTERN)
-TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t +])' % (
+TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t\r +])' % (
     NUMBER_PATTERN, IDENT_PATTERN))
 
 
