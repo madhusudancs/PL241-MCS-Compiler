@@ -651,6 +651,20 @@ class MOV(Instruction):
     super(MOV, self).__init__(destination, source)
 
 
+class RET(Instruction):
+  """Implements the RET instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('noperand'): { 'REX': 0x00, 'OPCODE': 0xCB },
+      }
+
+  def __init__(self):
+    """Constructs the RET instruction.
+    """
+    super(RET, self).__init__(destination=None, source=None)
+
+
 class SUB(Instruction):
   """Implements the SUB instruction.
   """
