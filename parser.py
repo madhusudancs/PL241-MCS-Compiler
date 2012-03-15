@@ -67,6 +67,9 @@ TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t\r +])' % (
     NUMBER_PATTERN, IDENT_PATTERN))
 
 
+GLOBAL_SCOPE_NAME = 'global'
+
+
 class ParserBaseException(Exception):
   def __init__(self, msg):
     self._msg = msg
@@ -262,7 +265,14 @@ class Parser(object):
     # dictionary represents the scope of the symbol whose value is another
     # dictionary whose keys are the symbols and values are the latest value
     # of the symbol.
-    self.symbol_table = {}
+    # Initialize the symbol table with the functions provided by the language.
+    self.symbol_table = {
+        GLOBAL_SCOPE_NAME: {
+            'InputNum': None,
+            'OutputNum': None,
+            'OutputNewLine': None,
+            }
+        }
 
     self.root = self.__parse()
 
@@ -290,7 +300,7 @@ class Parser(object):
     node = Node('keyword', main)
 
     # Since main is getting defined here, update the scope to indicate it.
-    self.__update_scope('main')
+    self.__update_scope(GLOBAL_SCOPE_NAME)
 
     while True:
       try:
@@ -318,7 +328,7 @@ class Parser(object):
     # Although we won't have any more variable declarations, to be on the
     # safer side set the scope back to main since we are done with all the
     # function declarations.
-    self.__update_scope('main')
+    self.__update_scope(GLOBAL_SCOPE_NAME)
 
     main_body = Node('abstract', 'funcBody', node)
 
@@ -346,15 +356,28 @@ class Parser(object):
 
     return node
 
-  def __parse_abstract_ident(self, parent):
+  def __parse_abstract_ident(self, parent, add=False):
+    """Parses the ident type of elements in the grammar.
+
+    Args:
+      parent: The parent node to which this ident should be added.
+      add: True if new item should be created else False. If add is False
+          and the symbol doesn't exist in the symbol table an exception
+          is raised.
+    """
     look_ahead_token = self.__token_stream.look_ahead()
     if IDENT_RE.match(look_ahead_token):
       next_token = self.__token_stream.next()
       Node('ident', next_token, parent)
 
       # Symbol table should be updated at this point since we found a new name.
-      if next_token not in self.symbol_table[self.__current_scope]:
+      if add:
         self.symbol_table[self.__current_scope][next_token] = None
+      else:
+        if (next_token not in self.symbol_table[self.__current_scope] and
+            next_token not in self.symbol_table[GLOBAL_SCOPE_NAME]):
+          raise LanguageSyntaxError('%d: Symbol %s not declared.' % (
+              self.__token_stream.linenum(), next_token))
       return next_token
 
     self.__token_stream.debug()
@@ -603,7 +626,8 @@ class Parser(object):
     self.__parse_abstract_function_procedure(node)
 
   def __parse_abstract_function_procedure(self, parent):
-    func_name = self.__parse_abstract_ident(parent)
+    self.__update_scope(GLOBAL_SCOPE_NAME)
+    func_name = self.__parse_abstract_ident(parent, add=True)
 
     # This function's name is still in the previous scope so that it can be
     # called from the function outside this own function. Once we are done
@@ -617,6 +641,9 @@ class Parser(object):
         self.__parse_abstract_formal_param(parent)
       except RightParenthesisFoundException:
         look_ahead_token = self.__token_stream.look_ahead()
+        if look_ahead_token == ')':
+          self.__token_stream.next()
+          look_ahead_token = self.__token_stream.look_ahead()
 
     if look_ahead_token != ';':
       raise LanguageSyntaxError('%d: Expected ";" but "%s" was found.' % (
@@ -675,13 +702,13 @@ class Parser(object):
 
     dimensions = self.__parse_abstract_type_decl(node)
 
-    ident = self.__parse_abstract_ident(node)
+    ident = self.__parse_abstract_ident(node, add=True)
     self.symbol_table[self.__current_scope][ident] = dimensions
 
     while self.__token_stream.look_ahead() == ',':
       self.__token_stream.next()
 
-      self.__parse_abstract_ident(node)
+      self.__parse_abstract_ident(node, add=True)
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != ';':
@@ -709,11 +736,11 @@ class Parser(object):
       self.__parse_rightparen(parent)
 
     node = Node('abstract', 'formalParam', parent)
-    self.__parse_abstract_ident(node)
+    self.__parse_abstract_ident(node, add=True)
 
     while self.__token_stream.look_ahead() == ',':
       self.__token_stream.next()
-      self.__parse_abstract_ident(node)
+      self.__parse_abstract_ident(node, add=True)
 
     if self.__token_stream.look_ahead() == ')':
       self.__token_stream.next()
