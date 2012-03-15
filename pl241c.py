@@ -24,10 +24,12 @@
 
 import argparse
 import os
+import sys
 
 from codegen import CodeGenerator
 from ir import IntermediateRepresentation
 from optimizations import Optimize
+from parser import LanguageSyntaxError
 from parser import Parser
 from ssa import SSA
 from regalloc import RegisterAllocator
@@ -77,7 +79,12 @@ def bootstrap():
   args = parser.parse_args()
   filename, fileext = os.path.splitext(args.file_names[0])
 
-  p = Parser(args.file_names[0])
+
+  try:
+    p = Parser(args.file_names[0])
+  except LanguageSyntaxError, e:
+    print e
+    sys.exit(1)
 
   if args.parsetreevcg or args.dumpall:
     parser_vcg_file = open('%s.parser.vcg' % filename, 'w')
