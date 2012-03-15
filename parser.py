@@ -810,7 +810,7 @@ def bootstrap():
                       help='name of the input files.')
   parser.add_argument('-d', '--debug', action='store_true',
                       help='Enable debug logging to the console.')
-  parser.add_argument('-g', '--vcg', metavar="VCG", type=str,
+  parser.add_argument('-g', '--vcg', metavar='VCG', type=str,
                       nargs='?', const=True,
                       help='Generate the Visualization Compiler Graph output.')
   args = parser.parse_args()
