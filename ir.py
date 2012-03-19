@@ -77,6 +77,7 @@ from argparse import ArgumentParser
 
 from datastructures import CFG
 from datastructures import CFGNode
+from parser import GLOBAL_SCOPE_NAME
 from parser import LanguageSyntaxError
 from parser import Parser
 
@@ -207,6 +208,9 @@ class Instruction(object):
     self.assigned_operands = []
     self.assigned_result = None
 
+    # For function instructions, the function name is stored.
+    self.function_name = None
+
     self.label = self.__class__.label_counter
     self.__class__.label_counter += 1
 
@@ -297,23 +301,6 @@ class Instruction(object):
         self.operand2, ' '.join(['%s' % (o) for o in self.operands])))
 
 
-class FunctionInstruction(Instruction):
-  """Abstracts the function related instructions like call, pro- and epilogue.
-
-  This class stores additional information of function related instructions.
-  For example, for all the instructions it stores the function name.
-  """
-
-  def __init__(self, name, instruction, *operands):
-    """Constructs the function specific instructions.
-
-    Args:
-      name: The name of the function this object represents/points to.
-    """
-    self.name = name
-    super(FunctionInstruction, self).__init__(instruction, *operands)
-
-
 class IntermediateRepresentation(object):
   """Stores the entire program in the Intermediate Representation form.
   """
@@ -352,51 +339,34 @@ class IntermediateRepresentation(object):
       'bra': ['bra'],
       }
 
-  def __init__(self, parse_tree, local_symbol_table={},
+  def __init__(self, function_name, parse_tree, local_symbol_table={},
                global_symbol_table={}):
     """Initializes the datastructres required for Intermediate Representation.
 
     Args:
+      function_name: The name of the function that we are parsing.
       parse_tree: The parse tree for which the IR should be generated.
       local_symbol_table: Dictionary containing a symbol table for the
           given function being parsed
       global_symbol_table: Dictionary containing the symbol table for globals.
     """
+    self.function_name = function_name
+
     self.parse_tree = parse_tree
 
     self.local_symbol_table = local_symbol_table
     self.global_symbol_table = global_symbol_table
+
+    # Indicates whether this IR is being generated for functions or procedures.
+    self.type = self.parse_tree.value
 
     # The instructions for the given function.
     self.ir = None
 
     self.basic_blocks = None
 
-    # Map for each function name to its start label.
-    self.function_pointer = None
-
     # Control Flow Graph for the IR.
     self.cfg = None
-
-    self.scope_stack = []
-
-  def push_scope(self, scope):
-    """Pushes the scope to the scope stack.
-
-    Args:
-      scope: A string that represents the current scope.
-    """
-    self.scope_stack.append(scope)
-
-  def pop_scope(self):
-    """Pops and returns the element from the top of the scope stack.
-    """
-    return self.scope_stack.pop(len(self.scope_stack) - 1)
-
-  def current_scope(self):
-    """Returns the current scope of the program, which is the top of the stack.
-    """
-    return self.scope_stack[-1]
 
   def instruction(self, operator, *operands):
     """Builds the instruction for the given arguments.
@@ -431,26 +401,28 @@ class IntermediateRepresentation(object):
 
   def generate(self):
     """Generates the Intermediate Representation from the parse tree.
+
+    Since the IR holds a single function, this method directly kicks of the
+    generation of IR for the function definition.
     """
     Instruction.reset_counter()
     self.ir = []
 
-    self.function_pointer = {}
+    ident, formal_param, func_body = self.parse_tree.children
 
-    for c in self.parse_tree.root.children:
-      if c.type == 'abstract' and c.value == 'varDecl':
-        continue
-      elif c.type == 'keyword' and c.value == 'function':
-        self.function(c)
-      elif c.type == 'abstract' and c.value == 'funcBody':
-        # Initalize the first function IR with the scope label for
-        # the function IR.
-        scope = 'main'
-        self.push_scope(scope)
-        self.instruction('.begin_%s' % scope)
-        self.funcBody(c.children[0], 'main')
-        # Add the end instruction.
-        self.instruction('.end_%s' % scope)
+    formal_parameters = []
+    for parameter in formal_param.children:
+      formal_parameters.append(self.ident(parameter))
+
+    prologue_instruction = self.instruction('.begin_')
+    self.ir[prologue_instruction].operands = formal_parameters
+    self.ir[prologue_instruction].function_name = self.function_name
+
+    stat_seq = func_body.children[-1]
+    self.funcBody(stat_seq)
+
+    epilogue_instruction = self.instruction('.end_')
+    self.ir[epilogue_instruction].function_name = self.function_name
 
   def identify_basic_blocks(self):
     """Identifies the basic block for the IR.
@@ -461,31 +433,25 @@ class IntermediateRepresentation(object):
     leaders = [0]
 
     targets = collections.defaultdict(list)
-    func_ends = {}
     return_targets = {}
-
-    current_func = 0 if self.ir[0].instruction.startswith('.begin_') else None
 
     i = 1
     while i < len(self.ir):
       instruction = self.ir[i]
-      if instruction.instruction == 'bra':
+      if instruction.instruction == 'ret':
+        return_targets[i] = True
+      elif instruction.instruction == 'call':
+        # We need to skip this iteration because this instruction is
+        # a function call and we don't treat this branch instruction
+        # the same way we treat the regular branch instructions within
+        # a function. Function starting points are added as leaders
+        # separately below. And we consider call instructions as
+        # continuous flow without a branch within a function.
+        pass
+      elif instruction.instruction == 'bra':
         target = instruction.operand1
-        if isinstance(target, Memory) and target.name == 'ret':
-          return_targets[i] = current_func
-        else:
-          if self.ir[target].instruction.startswith('.begin_'):
-            # We need to skip this iteration because this instruction is
-            # a function call and we don't treat this branch instruction
-            # the same way we treat the regular branch instructions within
-            # a function. Function starting points are added as leaders
-            # separately below. And we consider call instructions as
-            # continuous flow without a branch within a function.
-            i += 1
-            continue
-          else:
-            leaders.append(target)
-            targets[i].append(target)
+        leaders.append(target)
+        targets[i].append(target)
 
         leaders.append(i + 1)
       elif instruction.instruction in ['beq', 'bne', 'blt',
@@ -495,14 +461,9 @@ class IntermediateRepresentation(object):
 
         leaders.append(i + 1)
         targets[i].append(i+1)
-      elif instruction.instruction.startswith('.end_'):
-        func_ends[current_func] = i
-      elif instruction.instruction.startswith('.begin_'):
-        current_func = i
-        leaders.append(i)
-        leaders.append(i + 1)
 
       i += 1
+
 
     sorted_leaders = sorted(set(leaders))
     i = 1
@@ -515,7 +476,7 @@ class IntermediateRepresentation(object):
       block_dict = {
           'end': end,
           'targets': targets.get(end, []),
-          'return_target': func_ends.get(return_targets.get(end, None), None)
+          'return_target': return_targets.get(end, False)
           }
 
       if not (block_dict['targets'] or block_dict['return_target'] or
@@ -529,7 +490,7 @@ class IntermediateRepresentation(object):
     leader = sorted_leaders[-1]
     self.basic_blocks[leader] = {
         'end': len(self.ir) - 1,
-        'return_target': len(self.ir) - 1,
+        'return_target': True,
         }
 
     # Create a basic block that grounds all the nodes in the end.
@@ -561,9 +522,9 @@ class IntermediateRepresentation(object):
       for target_leader in basic_block.get('targets', []):
         node.append_out_edges(nodes[target_leader])
 
-      return_target = basic_block.get('return_target', None)
+      return_target = basic_block.get('return_target', False)
       if return_target:
-        node.append_out_edges(nodes[return_target])
+        node.append_out_edges(nodes[end])
 
     cfg_nodes = nodes.values()
 
@@ -602,57 +563,7 @@ class IntermediateRepresentation(object):
     func = getattr(self, root.value)
     return func(root)
 
-  def formalParam(self, root):
-    """Generates the IR for loading formal paramters.
-    """
-    # The first formal parameter value is after framelength and return
-    # label. But we know return label's address was calculated three
-    # instructions before we came here, so get the label of that instruction.
-    start = self.ir[-2].label
-
-    for parameter in root.children:
-      start = self.instruction('+', start, Immediate(4))
-      instruction_label = self.instruction('load', start)
-      ident_label = self.ident(parameter)
-      instruction_label = self.instruction('move', instruction_label,
-                                           ident_label)
-
-    return instruction_label
-
-  def function(self, root):
-    """Process the complete function and generate IR for it.
-    """
-    ident, formal_param, func_body = root.children
-
-    scope = ident.value
-
-    self.push_scope(scope)
-
-    # Initalize the first function IR with the scope label for the function IR.
-    func_label = self.instruction('.begin_%s' % (scope))
-    self.function_pointer['.begin_%s' % (scope)] = func_label
-
-    start = self.instruction('+', '!FP', Immediate(0))
-    fp_label = self.instruction('load', start)
-    self.instruction('move', fp_label, Memory('framesize'))
-
-    ret = self.instruction('+', start, Immediate(4))
-    return_label = self.instruction('load', ret)
-    self.instruction('move', return_label, Memory('ret'))
-
-    return_value = self.instruction('+', ret, Immediate(4))
-    self.instruction('move', return_value, Memory(scope))
-
-    self.formalParam(formal_param)
-
-    stat_seq = func_body.children[-1]
-    self.funcBody(stat_seq, ident.value)
-
-    func_label = self.instruction('.end_%s' % (scope))
-
-    self.pop_scope()
-
-  def funcBody(self, root, scope):
+  def funcBody(self, root):
     """Process the body of the function and generate IR for it.
     """
     # Generate IR for the function.
@@ -696,24 +607,17 @@ class IntermediateRepresentation(object):
     func_name = func_node.value
     arguments = root.children[1:]
 
-    self.instruction('call', Immediate((len(arguments) + 3) * 4), '!FP')
-
     argument_results = []
     for arg in arguments:
-      storage = self.instruction('+', storage, Immediate(4))
-      expression_result = self.expression(arg)
-      argument_results.append(self.instruction('store', expression_result,
-                                               storage))
+      argument_results.append(self.expression(arg))
 
+    call_instruction = self.instruction('call')
+    self.ir[call_instruction].function_name = func_name
+    self.ir[call_instruction].operands = argument_results
 
-    # FIXME: For procedures.
-    # Need to store the return result.
-    return_store_result = self.instruction('load', storage)
-
-    # Backpatch return label
-    self.ir[return_label].update(operand1=Memory('ret'))
-
-    return return_store_result
+    # All functions return whatever self.instruction method return which
+    # returns a label, so let us be consistent
+    return call_instruction
 
   def keyword_let(self, root):
     """Process the let statement.
@@ -729,15 +633,20 @@ class IntermediateRepresentation(object):
   def keyword_return(self, root):
     """Process the return statement.
     """
+    if self.type == 'procedure':
+      raise LanguageSyntaxError('A return statement was encountered in the '
+          'procedure "%s". Procedures can\'t return values. If you want to '
+          'return a value use functions instead' % (self.function_name))
+
     result = self.expression(root.children[0])
 
-    # Store the result of the return in the memory address corresponding
-    # to the return value of this function which is denoted by the function
-    # name.
-    self.instruction('store', result, Memory(self.current_scope()))
-    result = self.instruction('bra', Memory('ret'))
+    return_instruction = self.instruction('ret')
+    self.ir[return_instruction].operand1 = result
+    self.ir[return_instruction].function_name = self.function_name
 
-    return result
+    # All functions return whatever self.instruction method return which
+    # returns a label, so let us be consistent
+    return return_instruction
 
   def keyword_while(self, root):
     """Generate the IR for while statement.
@@ -761,8 +670,15 @@ class IntermediateRepresentation(object):
     if len(root.children) <= 1:
       return (result, False) if lvalue else result
 
-    dimensions = self.symbol_table[self.current_scope()][
-        result.split('/')[-1]]
+    # Else this must be an array.
+
+    array_scope, array_name = result.split('/')
+    if array_scope == self.function_name:
+      symtab_entry = self.local_symbol_table[array_name]
+    elif array_scope == GLOBAL_SCOPE_NAME:
+      symtab_entry = self.global_symbol_table[array_name]
+
+    dimensions = symtab_entry['dimensions']
     expression_result = self.expression(root.children[1])
     for i, offset in enumerate(root.children[2:]):
       temp_result = self.instruction('*', expression_result,
@@ -824,7 +740,15 @@ class IntermediateRepresentation(object):
   def ident(self, root):
     """Return identifier as the operator.
     """
-    return '%s/%s' % (self.current_scope(), root.value)
+    if root.value in self.local_symbol_table:
+      scope = self.function_name
+    elif root.value in self.global_symbol_table:
+      scope = GLOBAL_SCOPE_NAME
+    else:
+      raise LanguageSyntaxError('Identifier "%s" encountered which is not '
+          'declared anywhere.')
+
+    return '%s/%s' % (scope, root.value)
 
   def number(self, root):
     """Returns the number by prefixing # as per convention.
