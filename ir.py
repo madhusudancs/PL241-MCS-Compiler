@@ -86,6 +86,32 @@ from parser import Parser
 LOGGER = logging.getLogger(__name__)
 
 
+# Anything that begins with this is not a valid variable in the source
+# program and hence can be ignored during SSA construction.
+NON_VARIABLE_OPERANDS_STARTSWITH = {
+    '#': True,
+    '.': True,
+    '!': True,
+    '[': True,
+    }
+
+
+def is_variable_or_label(operand):
+  """Checks if a given operand is a variable or a LABEL.
+
+  Args:
+    operand: The operand that must be checked if it is a variable or label
+  """
+  if operand:
+    if isinstance(operand, str) and (
+        operand[0] not in NON_VARIABLE_OPERANDS_STARTSWITH):
+      return True
+    elif isinstance(operand, int):
+      return True
+
+  return False
+
+
 class Memory(object):
   """Represents a memory operand in a generic way.
 
@@ -154,14 +180,6 @@ class Immediate(object):
 class Instruction(object):
   """Abstraction for all the instruction in the Intermediate Representation.
   """
-  # Anything that begins with this is not a valid variable in the source
-  # program and hence can be ignored during SSA construction.
-  NON_VARIABLE_OPERANDS_STARTSWITH = {
-      '#': True,
-      '.': True,
-      '!': True,
-      '[': True,
-      }
 
   label_counter = 0
 
@@ -234,7 +252,7 @@ class Instruction(object):
           it is a variable or not.
     """
     if operand and isinstance(operand, str) and (
-          operand[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
+          operand[0] not in NON_VARIABLE_OPERANDS_STARTSWITH):
       return True
 
     return False
@@ -247,14 +265,7 @@ class Instruction(object):
       operand: The operand to an instruction which must be checked for whether
           it is a variable or a label of another instruction not.
     """
-    if operand:
-      if isinstance(operand, str) and (
-          operand[0] not in self.NON_VARIABLE_OPERANDS_STARTSWITH):
-        return True
-      elif isinstance(operand, int):
-        return True
-
-    return False
+    return is_variable_or_label(operand)
 
   def __contains__(self, operand):
     """Checks if the given operand belongs to the instruction.
