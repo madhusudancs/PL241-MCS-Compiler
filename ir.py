@@ -352,24 +352,25 @@ class IntermediateRepresentation(object):
       'bra': ['bra'],
       }
 
-  def __init__(self, parse_tree):
+  def __init__(self, parse_tree, local_symbol_table={},
+               global_symbol_table={}):
     """Initializes the datastructres required for Intermediate Representation.
 
     Args:
       parse_tree: The parse tree for which the IR should be generated.
+      local_symbol_table: Dictionary containing a symbol table for the
+          given function being parsed
+      global_symbol_table: Dictionary containing the symbol table for globals.
     """
     self.parse_tree = parse_tree
 
-    self.symbol_table = None
+    self.local_symbol_table = local_symbol_table
+    self.global_symbol_table = global_symbol_table
 
-    # We will have an IR per function which we concatenate in the end.
+    # The instructions for the given function.
     self.ir = None
 
     self.basic_blocks = None
-
-    # Stores all the call statements branch instructions that will be
-    # backpatched in the end.
-    self.backpatch_function_branch = None
 
     # Map for each function name to its start label.
     self.function_pointer = None
@@ -434,15 +435,7 @@ class IntermediateRepresentation(object):
     Instruction.reset_counter()
     self.ir = []
 
-    self.backpatch_function_branch = []
-
     self.function_pointer = {}
-
-    # We need to only convert function bodies to IR. The declaration of
-    # variables really exist for scope checking and to ensure the variables
-    # from the right scope is used. So we can directly skip to
-    # generate IR for the first function we encounter.
-    self.symbol_table = self.parse_tree.symbol_table
 
     for c in self.parse_tree.root.children:
       if c.type == 'abstract' and c.value == 'varDecl':
@@ -458,10 +451,6 @@ class IntermediateRepresentation(object):
         self.funcBody(c.children[0], 'main')
         # Add the end instruction.
         self.instruction('.end_%s' % scope)
-
-    for bra in self.backpatch_function_branch:
-      self.ir[bra].update(
-          operand1=self.function_pointer[self.ir[bra].operand1])
 
   def identify_basic_blocks(self):
     """Identifies the basic block for the IR.
@@ -707,25 +696,7 @@ class IntermediateRepresentation(object):
     func_name = func_node.value
     arguments = root.children[1:]
 
-    # Advance the frame pointer by the framesize of the calling function
-    advance = self.instruction('+', '!FP', Memory('framesize'))
-    # Store it as the current framepointer
-    self.instruction('move', advance, '!FP')
-
-    offset = 0
-    # The length of the new function's frame will be number of arguments
-    # + the framelength storage + return label storage + return value
-    # storage multiplied by size of each storage which is 4
-    self.instruction('store', Immediate((len(arguments) + 3) * 4), '!FP')
-
-    # Store the return label, we don't know the exact label, we will
-    # backpatch it.
-    ret = self.instruction('+', advance, Immediate(4))
-    return_label = self.instruction('store', None, ret)
-
-    # FIXME: For procedures
-    # Store the return label in the next storage area.
-    storage = self.instruction('+', ret, Immediate(4))
+    self.instruction('call', Immediate((len(arguments) + 3) * 4), '!FP')
 
     argument_results = []
     for arg in arguments:
@@ -734,14 +705,6 @@ class IntermediateRepresentation(object):
       argument_results.append(self.instruction('store', expression_result,
                                                storage))
 
-    if func_name in self.BUILT_INS_MAP:
-      result = self.instruction(self.BUILT_INS_MAP[func_name])
-    else:
-      # Currently a dummy value which is the label of the function is inserted
-      # but will later be updated with the actual value when merging IR for
-      # each individual functions.
-      result = self.instruction('bra', '.begin_%s' % (func_name))
-      self.backpatch_function_branch.append(result)
 
     # FIXME: For procedures.
     # Need to store the return result.
