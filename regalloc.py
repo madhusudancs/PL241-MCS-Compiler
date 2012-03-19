@@ -34,6 +34,7 @@ from argparse import ArgumentParser
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
 from datastructures import LiveIntervalsHeap
+from ir import is_variable_or_label
 from ir import Immediate
 from ir import Instruction
 from ir import IntermediateRepresentation
@@ -274,6 +275,9 @@ class RegisterAllocator(object):
 
     self.num_registers = num_registers
 
+    # Reset the register counter for this register allocator.
+    Register.reset_name_counter()
+
     # Dictionary whose keys are opernads (or variables) and the values are
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
@@ -306,87 +310,26 @@ class RegisterAllocator(object):
       self.variable_register_map[operand] = register
       return register
 
-  def allocate_virtual_registers(self):
-    """Allocate registers in virtual infinite space of registers.
+  def virtual_reg_basic_block(self, start_node, node):
+    """Assign virtual registers to all the statements in a basic block.
 
-    This is the most important phase because, we actually explicitly allocate
-    some register for the result of the instructions in this phase.
+    Args:
+
     """
-    # List of (phi instruction, phi function) tuples. Ordering is important,
-    # so no dictionary only a list of tuples. Further we only do sequential
-    # processing so doesn't make sense to use a dictionary.
-    phi_instructions = []
+    if node.phi_functions:
+      start_node.phi_nodes.append(node)
 
-    for instruction in self.ssa.optimized():
-      if instruction.instruction.startswith('.begin_'):
-        continue
-      elif instruction.instruction.startswith('.end_'):
-        # Process all the phi-functions in the end of the function because
-        # there are phi-functions especially in case of blocks whose operands
-        # are defined after this block. And also it may so happen that, that
-        # definition is removed because of copy propagation and only some
-        # other instructions label remaining. This cannot be determined or
-        # fixed before the result of the instruction whose result is the
-        # operand for the phi function is computed
-        for phi_instruction, phi_function in phi_instructions:
-          operand2 = phi_instruction.operand2
-          if phi_instruction.is_variable_or_label(operand2):
-            new_register = self.register_for_operand(operand2)
-            new_register.set_use(phi_instruction)
-
-            phi_instruction.operand2 = new_register
-
-            phi_function['RHS'][0] = new_register
-
-          new_operands = []
-          for i, operand in enumerate(phi_instruction.operands):
-            if phi_instruction.is_variable_or_label(operand):
-              new_register = self.register_for_operand(operand)
-              new_register.set_use(phi_instruction)
-              new_operands.append(new_register)
-
-              phi_function['RHS'][i + 1] = new_register
-
-          phi_instruction.operands = new_operands
-
-        # We need to keep track of this for spilling registers which spawns
-        # off new registers to give the new registers the names.
-        # FIXME: should be eliminated once each function can be compiled
-        # independently
-        instruction.last_register_count = Register.name_counter
-
-        # Reset all the function level datastructures
-        Register.reset_name_counter()
-        self.variable_register_map = {}
-        phi_instructions = []
-
-      elif instruction.instruction == 'bra':
-        continue
-      elif instruction.instruction == 'phi':
-        # phi instructions are special cases, so handle them separately
-        # Phi functions in the original basic blocks should be
-        # updated as well
-        node = self.ssa.label_nodes[instruction.label]
-
-        original_variable = instruction.operand1.rsplit('_', 1)[0]
-        phi_function = node.phi_functions[original_variable]
-
-        # The first operand of the phi instruction is actually the result
-        # of the phi function and the operands from 2 to all other operands
-        # are the inputs to the phi function.
-        operand1 = instruction.operand1
-        if instruction.is_variable_or_label(operand1):
-          new_register = self.register_for_operand(operand1)
-          new_register.set_def(instruction)
-
-          instruction.operand1 = new_register
+      for phi_function in node.phi_functions.values():
+        # The LHS of the phi function is actually the result the function
+        # RHS are the operands.
+        new_register = self.register_for_operand(phi_function['LHS'])
+        new_register.set_def(self.ssa.ir.ir[node.value[0]])
 
         phi_function['LHS'] = new_register
 
-        # The operands/RHS of the phi function are handled at the end of the
-        # function call. See the comment where it is handled to know why.
-        # Just record the phi instruction here, process later
-        phi_instructions.append((instruction, phi_function))
+    for instruction in self.ssa.optimized(node.value[0], node.value[1]):
+      if instruction.instruction in ['.begin_', '.end_', 'bra']:
+        continue
       else:
         if instruction.is_variable_or_label(instruction.operand1):
           instruction.operand1 = self.register_for_operand(
@@ -424,6 +367,42 @@ class RegisterAllocator(object):
         self.variable_register_map[instruction.label] = register
         instruction.result = register
 
+    for child in node.out_edges:
+      if self.visited.get(child, False):
+        self.loop_pair[child] = node
+        continue
+
+      self.visited[child] = True
+
+      self.virtual_reg_basic_block(start_node, child)
+
+  def allocate_virtual_registers(self, start_node):
+    """Allocate registers in virtual infinite space of registers.
+
+    This is the most important phase because, we actually explicitly allocate
+    some register for the result of the instructions in this phase.
+    """
+    self.visited = {}
+
+    self.virtual_reg_basic_block(start_node, start_node)
+
+    # Process all the phi-functions in the end of the function because
+    # there are phi-functions especially in case of blocks whose operands
+    # are defined after this block. And also it may so happen that, that
+    # definition is removed because of copy propagation and only some
+    # other instructions label remaining. This cannot be determined or
+    # fixed before the result of the instruction whose result is the
+    # operand for the phi function is computed
+    for phi_node in start_node.phi_nodes:
+      for phi_function in phi_node.phi_functions.values():
+        for i, operand in enumerate(phi_function['RHS']):
+          if is_variable_or_label(operand):
+            new_register = self.register_for_operand(operand)
+            new_register.set_use(self.ssa.ir.ir[phi_node.value[0]])
+
+            phi_function['RHS'][i] = new_register
+
+
   def analyze_basic_block_liveness(self, start_node, node):
     """Analyzes the liveness of the variables in the given basic block
 
@@ -444,7 +423,6 @@ class RegisterAllocator(object):
     """
     for child in node.out_edges:
       if self.visited.get(child, False):
-        self.loop_pair[child] = node
         continue
 
       self.visited[child] = True
@@ -507,10 +485,6 @@ class RegisterAllocator(object):
       # name value to the start node
       # FIXME: Get rid of this when functions can be compiled independently.
       if instruction.instruction.startswith('.end_'):
-        start_node.last_register_count = instruction.last_register_count
-        continue
-
-      if instruction.instruction == 'phi':
         continue
 
       if self.is_register(instruction.result):
@@ -575,9 +549,6 @@ class RegisterAllocator(object):
 
     node.live_in = live
     node.live_include = include
-
-    if node.phi_functions:
-      start_node.phi_nodes.append(node)
 
     for operand in intervals:
       if operand in start_node.live_intervals:
@@ -787,8 +758,7 @@ class RegisterAllocator(object):
       current_node.append_edges(*collisions)
       self.register_nodes[register] = current_node
 
-  def build_interference_graph(self, live_intervals, phi_nodes,
-                               last_register_count):
+  def build_interference_graph(self, live_intervals, phi_nodes):
     """Builds the interference graph for the given control flow subgraph.
 
     Args:
@@ -796,15 +766,9 @@ class RegisterAllocator(object):
           entire function.
       phi_nodes: Contains all the phi nodes for the given function in the
           program.
-      last_register_count: The count of the last register in this function.
-          The actual name of the last register is -1 of this value.
     """
     # Clear the register_nodes dictionary for a new start
     self.register_nodes = {}
-
-    # FIXME: We do not have to do this if we compile each function
-    # independently.
-    self.last_register_count = last_register_count
 
     for phi_node in phi_nodes:
       for phi_function in phi_node.phi_functions.values():
@@ -1113,25 +1077,25 @@ class RegisterAllocator(object):
   def allocate(self):
     """Allocate the registers to the program.
     """
-    self.allocate_virtual_registers()
-    for dom_tree in self.ssa.cfg.dom_trees:
-      self.liveness(dom_tree)
-      # FIXME: We do not have to pass the second argument if we compile
-      # each function independently.
-      ifg = self.build_interference_graph(
-          dom_tree.live_intervals,
-          dom_tree.phi_nodes,
-          dom_tree.last_register_count)
-      is_allocated, allocation = self.sat_solve(ifg)
-      if is_allocated:
-        LOGGER.debug('Allocated for subgraph %s!' % (
-            dom_tree))
-      else:
-        LOGGER.debug('Allocation Failed for subgraph %s :-(' % (
-            dom_tree))
-        # No point in proceeding if register allocation fails. Some major
-        # bug in the code. So bail out.
-        return False, dom_tree
+    start_node = self.ssa.cfg[0]
+    self.allocate_virtual_registers(start_node)
+
+    self.liveness(start_node)
+    # FIXME: We do not have to pass the second argument if we compile
+    # each function independently.
+    ifg = self.build_interference_graph(
+        start_node.live_intervals,
+        start_node.phi_nodes)
+    is_allocated, allocation = self.sat_solve(ifg)
+    if is_allocated:
+      LOGGER.debug('Allocated for subgraph %s!' % (
+          start_node))
+    else:
+      LOGGER.debug('Allocation Failed for subgraph %s :-(' % (
+          start_node))
+      # No point in proceeding if register allocation fails. Some major
+      # bug in the code. So bail out.
+      return False, start_node
 
     return True, None
 
@@ -1153,11 +1117,42 @@ class RegisterAllocator(object):
   def str_virtual_register_allocation(self):
     """Gets the text representation of the program after virtual allocation.
     """
-    virtual_alloc_str = ''
-    for instruction in self.ssa.optimized():
-       virtual_alloc_str += '%10s  <- %s\n' % (
+    bfs_queue = [self.ssa.cfg[0]]
+    visited = set([])
+    virtual_reg_blocks = []
+
+    start_labels_to_blocks = {}
+
+    while bfs_queue:
+      virtual_reg = ''
+      node = bfs_queue.pop(0)
+      if node in visited:
+        continue
+
+      visited.add(node)
+      bfs_queue.extend(node.out_edges[::-1])
+
+      for phi_function in node.phi_functions.values():
+        virtual_reg += '%10s  <- %4s: %5s' % (phi_function['LHS'], '', 'phi')
+
+        for operand in phi_function['RHS']:
+          virtual_reg += '%50s' % operand
+
+        virtual_reg += '\n'
+
+      start_labels_to_blocks[len(virtual_reg_blocks)] = node.value[0]
+      for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
+        virtual_reg += '%10s  <- %s\n' % (
            instruction.result if instruction.result else '', instruction)
-    return virtual_alloc_str
+
+      virtual_reg_blocks.append(virtual_reg)
+
+    # Sort the basic blocks according to their start instruction label
+    sorted_blocks = sorted(
+        enumerate(virtual_reg_blocks),
+        key=lambda k: start_labels_to_blocks[k[0]])
+
+    return '\n'.join([b[1] for b in sorted_blocks])
 
   def generate_assigned_instructions(self):
     """Generates instructions which have registers assigned and phi-resolved.
