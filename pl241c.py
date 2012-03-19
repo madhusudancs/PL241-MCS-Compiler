@@ -106,6 +106,11 @@ def bootstrap():
     parser_vcg_file.close()
 
   global_symbol_table = p.symbol_table[GLOBAL_SCOPE_NAME]
+
+  # A dictionary whose key is the function name and the value is another
+  # dictionary with the functions compilation stages
+  compilation_stages = {}
+
   for function_tree in p.trees['function_definitions'].children:
     # The first child of the function root is the "ident" node which
     # is the function name. So get the symbol table entries from that
@@ -119,56 +124,117 @@ def bootstrap():
         function_name, function_tree, symbol_table, global_symbol_table)
     ir.generate()
 
-
     cfg = ir.build_cfg()
     cfg.compute_dominance_frontiers()
 
+    compilation_stages[function_name] = {
+      'ir': ir,
+      'cfg': cfg
+      }
+
   if args.cfg or args.dumpall:
     ir_cfg_vcg_file = open('%s.ir.cfg.vcg' % filename, 'w')
-    ir_cfg_vcg_file.write(cfg.generate_vcg(ir=ir.ir))
+
+    graph = """graph: { title: "CFG"
+    port_sharing: no
+    """
+
+    for function in compilation_stages.values():
+      graph += function['cfg'].generate_vcg(ir=function['ir'].ir)
+      graph += '\n'
+
+    graph += '}'
+    ir_cfg_vcg_file.write(graph)
     ir_cfg_vcg_file.close()
 
   if args.ir or args.dumpall:
     ir_file = open('%s.ir' % filename, 'w')
-    ir_file.write(str(ir))
+    for function in compilation_stages.values():
+      ir_file.write(str(function['ir']) + '\n\n')
+
     ir_file.close()
+
 
   if args.dom or args.dumpall:
     dom_file = open('%s.domtree.vcg' % filename, 'w')
-    dom_file.write(str(cfg.generate_dom_vcg()))
+
+    graph = """graph: { title: "CFG"
+    port_sharing: no
+    """
+
+    for function in compilation_stages.values():
+      graph += str(function['cfg'].generate_dom_vcg())
+      graph += '\n'
+
+    graph += '}'
+    dom_file.write(graph)
     dom_file.close()
 
 
-  ssa = SSA(ir, cfg)
-  ssa.construct()
-
-  if args.ssavcg or args.dumpall:
-    ssa_cfg_vcg_file = open('%s.ssa.cfg.vcg' % filename, 'w')
-    ssa_cfg_vcg_file.write(ssa.ssa_cfg.generate_vcg(ir=ssa.ssa))
-    ssa_cfg_vcg_file.close()
+  for function_name in compilation_stages:
+    ir = compilation_stages[function_name]['ir']
+    cfg = compilation_stages[function_name]['cfg']
+    ssa = SSA(ir, cfg)
+    ssa.construct()
+    compilation_stages[function_name]['ssa'] = ssa
 
   if args.ssa or args.dumpall:
     ssa_file = open('%s.ssa' % filename, 'w')
-    ssa_file.write(str(ssa))
+    for function in compilation_stages.values():
+      ssa_file.write(str(function['ssa']) + '\n\n')
+
     ssa_file.close()
 
+  if args.ssavcg or args.dumpall:
+    ssa_cfg_vcg_file = open('%s.ssa.cfg.vcg' % filename, 'w')
 
-  optimize = Optimize(ssa)
-  optimize.optimize()
+    graph = """graph: { title: "CFG"
+    port_sharing: no
+    """
+
+    for function in compilation_stages.values():
+      graph += function['ir'].cfg.generate_vcg(ir=function['ir'].ir)
+      graph += '\n'
+
+    graph += '}'
+    ssa_cfg_vcg_file.write(graph)
+    ssa_cfg_vcg_file.close()
+
+  for function_name in compilation_stages:
+    optimize = Optimize(compilation_stages[function_name]['ssa'])
+    optimize.optimize()
+    compilation_stages[function_name]['optimize'] = optimize
 
   if args.optimized or args.dumpall:
     optimized_file = open('%s.optimized.ssa' % filename, 'w')
-    optimized_file.write('\n'.join([str(s) for s in ssa.optimized()]))
+    for function in compilation_stages.values():
+      optimized_file.write(str(function['optimize']) + '\n\n')
+
     optimized_file.close()
 
   if args.optimizedvcg or args.dumpall:
     ssa_after_optimized_vcg_file = open('%s.optimized.ssa.vcg' % filename, 'w')
-    ssa_after_optimized_vcg_file.write(ssa.ssa_cfg.generate_vcg())
+
+    graph = """graph: { title: "CFG"
+    port_sharing: no
+    """
+
+    for function in compilation_stages.values():
+      graph += function['ssa'].cfg.generate_vcg(
+          ir=function['ssa'].ir.ir,
+          optimized=function['ssa'].optimized_removal)
+      graph += '\n'
+
+    graph += '}'
+    ssa_after_optimized_vcg_file.write(graph)
     ssa_after_optimized_vcg_file.close()
 
 
-  regalloc = RegisterAllocator(ssa)
-  is_allocated, failed_subgraph = regalloc.allocate()
+  for function_name in compilation_stages:
+    regalloc = RegisterAllocator(
+        compilation_stages[function_name]['ssa'])
+    is_allocated, failed_subgraph = regalloc.allocate()
+    compilation_stages[function_name]['regalloc'] = regalloc
 
   if args.virtualregvcg or args.dumpall:
     virtualreggraph_file = open('%s.virtualreg.vcg' % filename, 'w')
