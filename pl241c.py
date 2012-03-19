@@ -111,9 +111,12 @@ def bootstrap():
     # is the function name. So get the symbol table entries from that
     # name of the function.
     function_name = function_tree.children[0].value
-    symbol_table = p.symbol_table[function_name]
-    ir = IntermediateRepresentation(function_tree, symbol_table,
-                                    global_symbol_table)
+    if function_name == 'main':
+      symbol_table = {}
+    else:
+      symbol_table = p.symbol_table[function_name]
+    ir = IntermediateRepresentation(
+        function_name, function_tree, symbol_table, global_symbol_table)
     ir.generate()
 
 
