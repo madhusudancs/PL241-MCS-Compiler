@@ -47,106 +47,55 @@ class Optimize(object):
     """
     self.ssa = ssa
 
-  def replace_phi_functions(self):
-    """Replace all phi functions
+  def cse_cp(self, root, operand_replacements,
+                         instruction_replacements):
+    """Performs the common sub-expression elimination and copy propogation.
+
+    Args:
+      root: The root of the dominator subtree.
+      operand_replacements: The operand replacements passed on by the parent.
+      instruction_replacements: The instruction replacements passed on by the
+          parent.
     """
-    for node in set(self.phi_nodes):
-      for phi_function in node.phi_functions.values():
-        new_operands = []
-        for operand in phi_function['RHS']:
-          if operand in self.operand_replacements:
-            new_operands.append(self.operand_replacements[operand])
-          else:
-            new_operands.append(operand)
-        phi_function['RHS'] = new_operands
+    block_operand_replacements = {}
+    block_instruction_replacements = {}
 
-  def replace_phis(self):
-    """Replace the operands of the phi instructions with the optimized code.
-
-    This also replaces the phi functions in the nodes.
-    ALERT! Don't touch the LHS of the phi functions and hence the first
-    operand of the phi instructions! It doesn't make sense to replace them!
-    """
-    self.phi_nodes = []
-    for label in self.phi_instructions:
-      instruction = self.ssa.ssa[label]
-      # We should not touch the first operand of the phi function since it
-      # is the result of the phi function. We only start replacing from the
-      # second operand which are the RHS of the phi-functions.
-      if instruction.operand2 in self.operand_replacements:
-        instruction.operand2 = self.operand_replacements[instruction.operand2]
-
-      new_operands = []
-      for operand in instruction.operands:
-        if operand in self.operand_replacements:
-          new_operands.append(self.operand_replacements[operand])
-        else:
-          new_operands.append(operand)
-
-      instruction.operands = tuple(new_operands)
-
-      original_variable = instruction.operand1.rsplit('_', 1)[0]
-
-      self.phi_nodes.append(self.ssa.label_nodes.get(label))
-
-  def cse_cp(self):
-    """Performs common sub-expression elimination and copy propogation.
-    """
-    # FIXME: Don't copy-propagate main function variables since they are global
-    # variables!!! That is the most dangerous thing because any function can
-    # use the global variables! So we cannot copy-propagate it in the function
-    # since it changes for every function call whose exact value cannot be
-    # determined statically (i.e. until runtime)
-
-    # For each statement stores its replacement for either the statement
-    # itself or the result of the statement if the statement was removed
-    # because of Common Sub-expression elimination or Copy propogation.
-    self.operand_replacements = {}
-
-    self.instruction_replacements = {}
-
-    self.phi_instructions = []
-
-    for instruction in self.ssa.ssa:
-      # We will process all the phi functions in the end because in some cases
-      # like loops, the phi operands appear before they are actually defined.
-      # We need to take care of those too, so let us process them separately.
-      if instruction.instruction == 'phi':
-        self.phi_instructions.append(instruction.label)
-        continue
-
-      # If end of function is reached reset the instruction_replacements
-      # since we cannot optimize it anyway.
-      # Also we need not reset operand_replacements because they don't
-      # affect each other anyway because of the scoped-representation of
-      # the symbols we have chosen and instruction labels are different
-      # anyway.
-      # FIXME: Get rid of this when functions are compiled independently
-      if instruction.instruction.startswith('.end_'):
-        self.instruction_replacements = {}
-
+    for instruction in self.ssa.ir.ir[root.value[0]:root.value[1] + 1]:
       # Check if the operands exist in the replacements dictionary, if so
       # replace them with the value of the operand key in the replacements
       # dictionary.
-      if instruction.operand1 in self.operand_replacements:
-        instruction.operand1 = self.operand_replacements[instruction.operand1]
-      if instruction.operand2 in self.operand_replacements:
-        instruction.operand2 = self.operand_replacements[instruction.operand2]
+      if instruction.operand1 in block_operand_replacements:
+        instruction.operand1 = block_operand_replacements[instruction.operand1]
+      elif instruction.operand1 in operand_replacements:
+        instruction.operand1 = operand_replacements[instruction.operand1]
+
+      if instruction.operand2 in block_operand_replacements:
+        instruction.operand2 = block_operand_replacements[instruction.operand2]
+      elif instruction.operand2 in operand_replacements:
+        instruction.operand2 = operand_replacements[instruction.operand2]
+
 
       new_operands = []
       for operand in instruction.operands:
-        if operand in self.operand_replacements:
-          new_operands.append(self.operand_replacements[operand])
+        if operand in block_operand_replacements:
+          new_operands.append(block_operand_replacements[operand])
+        elif operand in operand_replacements:
+          new_operands.append(operand_replacements[operand])
         else:
           new_operands.append(operand)
 
       instruction.operands = tuple(new_operands)
+
+      # Leave the prologue and epilogue instructions alone
+      if (instruction.instruction == '.begin_' or
+          instruction.instruction == '.end_'):
+        continue
 
       # Remove all move instructions by copy propagation and record
       # the replacement.
       if (instruction.instruction == 'move' and
           instruction.is_variable(instruction.operand2)):
-        self.operand_replacements[instruction.operand2] = instruction.operand1
+        block_operand_replacements[instruction.operand2] = instruction.operand1
 
         self.ssa.optimized_removal[instruction.label] = True
 
@@ -156,24 +105,95 @@ class Optimize(object):
 
       # FIXME: This code may become buggy if two values (unrelated
       # instructions) compute to the same hash.
-      if hash(instruction) in self.instruction_replacements:
+      if hash(instruction) in block_instruction_replacements:
         # This instruction should be a common sub-expression, record the
         # replacement for it and remove it (effectively do not add it to
         # new SSA list)
-        self.operand_replacements[instruction.label] = \
-            self.instruction_replacements[hash(instruction)]
+        block_operand_replacements[instruction.label] = \
+            block_instruction_replacements[hash(instruction)]
         self.ssa.optimized_removal[instruction.label] = True
+      elif hash(instruction) in instruction_replacements:
+        # This instruction should be a common sub-expression, record the
+        # replacement for it and remove it (effectively do not add it to
+        # new SSA list)
+        block_operand_replacements[instruction.label] = \
+            instruction_replacements[hash(instruction)]
+        self.ssa.optimized_removal[instruction.label] = True        
       else:
         # We need this instruction, so copy to the new SSA and record it in the
         # replacements dictionary.
-        self.instruction_replacements[hash(instruction)] = instruction.label
+        block_instruction_replacements[hash(instruction)] = instruction.label
+
+
+    merged_operand_replacements = operand_replacements
+    merged_operand_replacements.update(block_operand_replacements)
+    merged_instruction_replacements = instruction_replacements
+    merged_instruction_replacements.update(block_instruction_replacements)
+
+    children_operand_replacements = {}
+    for child in root.dom_children:
+      op_repl, ins_repl = self.cse_cp(child, merged_operand_replacements, 
+                  merged_instruction_replacements)
+      children_operand_replacements.update(op_repl)
+
+    # We will process all the phi functions in the end because in some cases
+    # like loops, the phi operands appear before they are actually defined.
+    # We need to take care of those too, so let us process them separately.
+    for phi_function in root.phi_functions.values():
+      for i, operand in enumerate(phi_function['RHS']):
+        if operand in block_operand_replacements:
+          phi_function['RHS'][i] = block_operand_replacements[operand]
+        elif operand in operand_replacements:
+          phi_function['RHS'][i] = operand_replacements[operand]
+        elif operand in children_operand_replacements:
+          phi_function['RHS'][i] = children_operand_replacements[operand]
+
+    return merged_operand_replacements, merged_instruction_replacements
 
   def optimize(self):
     """Bootstraps the whole optimization process
     """
-    self.cse_cp()
-    self.replace_phis()
-    self.replace_phi_functions()
+    self.cse_cp(self.ssa.cfg[0], {}, {})
+
+  def __str__(self):
+    """Prints the SSA stored for the program
+    """
+    bfs_queue = [self.ssa.cfg[0]]
+    visited = set([])
+    ssa_blocks = []
+
+    start_labels_to_blocks = {}
+
+    while bfs_queue:
+      ssa = ''
+      node = bfs_queue.pop(0)
+      if node in visited:
+        continue
+
+      visited.add(node)
+      bfs_queue.extend(node.out_edges[::-1])
+
+      for phi_function in node.phi_functions.values():
+        ssa += '%4s: %5s' % ('', 'phi')
+
+        ssa += '%50s' % phi_function['LHS']
+        for operand in phi_function['RHS']:
+          ssa += '%50s' % operand
+
+        ssa += '\n'
+
+      start_labels_to_blocks[len(ssa_blocks)] = node.value[0]
+      for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
+        ssa += '%s\n' % (instruction)
+
+      ssa_blocks.append(ssa)
+
+    # Sort the basic blocks according to their start instruction label
+    sorted_blocks = sorted(
+        enumerate(ssa_blocks), key=lambda k: start_labels_to_blocks[k[0]])
+
+    # Ditch the last block since that is a repeatition of the end instruction.
+    return '\n'.join([b[1] for b in sorted_blocks])
 
 
 def bootstrap():
