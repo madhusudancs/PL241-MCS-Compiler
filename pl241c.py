@@ -238,12 +238,28 @@ def bootstrap():
 
   if args.virtualregvcg or args.dumpall:
     virtualreggraph_file = open('%s.virtualreg.vcg' % filename, 'w')
-    virtualreggraph_file.write(ssa.ssa_cfg.generate_virtual_reg_vcg(ssa=ssa))
+
+    graph = """graph: { title: "CFG"
+    port_sharing: no
+    """
+
+    for function in compilation_stages.values():
+      graph += function['ssa'].cfg.generate_virtual_reg_vcg(
+          ssa=function['ssa'])
+      graph += '\n'
+
+    graph += '}'
+
+    virtualreggraph_file.write(graph)
     virtualreggraph_file.close()
 
   if args.virtualreg or args.dumpall:
     virtualreg_file = open('%s.virtualreg' % filename, 'w')
-    virtualreg_file.write(regalloc.str_virtual_register_allocation())
+
+    for function in compilation_stages.values():
+      virtualreg_file.write(
+        function['regalloc'].str_virtual_register_allocation() + '\n\n')
+
     virtualreg_file.close()
 
   if args.interferencevcg or args.dumpall:
