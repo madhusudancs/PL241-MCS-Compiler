@@ -45,8 +45,22 @@ Allowed Intermediate Representation instructions are:
     write                 write
     wln                   writeLn
 
+    Not in Prof. Franz's specs but makes things easier. He has given the
+    liberty to add such things.
+    call funcname a b c  calls a function or a procedure. Contains the name
+                         of the function it calls and its operands are the
+                         arguments to the function. If it is a function, it
+                         returns a result, if it is a procedure not result
+                         needs to be returned.
+
+    .begin FUNCNAME a b  Denotes the prologue of a function and its formal
+                         parameters.
+    .end FUNCNAME a b    Denotes the epilogue of a function and its formal
+                         parameters.
+
 Conventions followed:
-    [a]                value loaded from memory at memory address a
+    [a]                value loaded from memory at memory offset (continuously
+                       numbered not the memory bytes). Stored as memory object.
     #X                 X is a literal number
     !FP                Frame Pointer register
     .begin_funcname    Beginning of the function
