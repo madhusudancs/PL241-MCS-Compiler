@@ -265,9 +265,16 @@ def bootstrap():
   if args.interferencevcg or args.dumpall:
     interference_vcg_file = open('%s.virtualreg.interference.vcg' % filename,
                                  'w')
-    for graph in regalloc.interference_graphs:
-      interference_vcg_file.write('%s\n' % graph.generate_vcg())
+    graph = """graph: { title: "CFG"
+    port_sharing: no
+    """
 
+    for function in compilation_stages.values():
+      graph += function['regalloc'].interference_graph.generate_vcg()
+      graph += '\n'
+
+    graph += '}'
+    interference_vcg_file.write(graph)
     interference_vcg_file.close()
 
 
