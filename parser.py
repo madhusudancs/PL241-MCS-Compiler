@@ -361,15 +361,16 @@ class Parser(object):
     # a period token, otherwise there is a syntax error in the program
     # according to the grammar.
     if self.__token_stream.next() != '.':
-      raise LanguageSyntaxError('%d: Program does not end with a "."',
-                                self.__token_stream.linenum(), )
+      raise LanguageSyntaxError('%d: Program does not end with a "."' %
+                                self.__token_stream.linenum())
 
     return {
         'globals': global_node,
         'function_definitions': functions_node
         }
 
-  def __parse_abstract_ident(self, parent, add=False):
+  def __parse_abstract_ident(self, parent, add=False,
+                             ident_type='integer', dimensions=None):
     """Parses the ident type of elements in the grammar.
 
     Args:
@@ -377,6 +378,9 @@ class Parser(object):
       add: True if new item should be created else False. If add is False
           and the symbol doesn't exist in the symbol table an exception
           is raised.
+      ident_type: The type of the identifier, can be 'array', 'integer' or
+          'function_name'
+      dimensions: The dimensions of the identifier if it is an array.
     """
     look_ahead_token = self.__token_stream.look_ahead()
     if IDENT_RE.match(look_ahead_token):
@@ -385,11 +389,14 @@ class Parser(object):
 
       # Symbol table should be updated at this point since we found a new name.
       if add:
-        self.symbol_table[self.__current_scope][next_token] = None
+        self.symbol_table[self.__current_scope][next_token] = {
+            'type': ident_type,
+            'dimensions': dimensions,
+            }
       else:
         if (next_token not in self.symbol_table[self.__current_scope] and
             next_token not in self.symbol_table[GLOBAL_SCOPE_NAME]):
-          raise LanguageSyntaxError('%d: Symbol %s not declared.' % (
+          raise LanguageSyntaxError('%d: Symbol "%s" not declared.' % (
               self.__token_stream.linenum(), next_token))
       return next_token
 
@@ -450,8 +457,9 @@ class Parser(object):
           look_ahead_token = self.__token_stream.look_ahead()
           if self.is_control_character(look_ahead_token):
             next_token = self.__token_stream.next()
-            parser_method = '_Parser_parser_%s' % (
+            parser_method_name = '_Parser__parse_%s' % (
                 self.CONTROL_CHARACTERS_MAP[next_token])
+            parser_method = getattr(self, parser_method_name)
             parser_method(node)
           else:
             # Re-raise the exception back if it is not a control character.
@@ -640,7 +648,8 @@ class Parser(object):
 
   def __parse_abstract_function_procedure(self, parent):
     self.__update_scope(GLOBAL_SCOPE_NAME)
-    func_name = self.__parse_abstract_ident(parent, add=True)
+    func_name = self.__parse_abstract_ident(parent, add=True,
+                                            ident_type='function_name')
 
     # This function's name is still in the previous scope so that it can be
     # called from the function outside this own function. Once we are done
@@ -715,13 +724,19 @@ class Parser(object):
 
     dimensions = self.__parse_abstract_type_decl(node)
 
-    ident = self.__parse_abstract_ident(node, add=True)
-    self.symbol_table[self.__current_scope][ident] = dimensions
+    if dimensions:
+      ident_type = 'array'
+    else:
+      ident_type = 'integer'
+
+    ident = self.__parse_abstract_ident(node, add=True, ident_type=ident_type,
+                                        dimensions=dimensions)
 
     while self.__token_stream.look_ahead() == ',':
       self.__token_stream.next()
 
-      self.__parse_abstract_ident(node, add=True)
+      self.__parse_abstract_ident(node, add=True, ident_type=ident_type,
+                                  dimensions=dimensions)
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != ';':
@@ -749,7 +764,7 @@ class Parser(object):
       self.__parse_rightparen(parent)
 
     node = Node('abstract', 'formalParam', parent)
-    self.__parse_abstract_ident(node, add=True)
+    self.__parse_abstract_ident(node, add=True, ident_type='integer')
 
     while self.__token_stream.look_ahead() == ',':
       self.__token_stream.next()
