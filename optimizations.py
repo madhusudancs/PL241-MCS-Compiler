@@ -125,9 +125,13 @@ class Optimize(object):
         block_instruction_replacements[hash(instruction)] = instruction.label
 
 
-    merged_operand_replacements = operand_replacements
+    # ALERT IMPORTANT EVERYTHING: It will be disastrous if you don't create
+    # a new dictionary here since Python updates the same object
+    merged_operand_replacements = {}
+    merged_operand_replacements.update(operand_replacements)
     merged_operand_replacements.update(block_operand_replacements)
-    merged_instruction_replacements = instruction_replacements
+    merged_instruction_replacements = {}
+    merged_instruction_replacements.update(instruction_replacements)
     merged_instruction_replacements.update(block_instruction_replacements)
 
     children_operand_replacements = {}
