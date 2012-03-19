@@ -412,7 +412,7 @@ class CFG(list):
 
     return self.dom_trees
 
-  def generate_graph_for_vcg(self, node, ir=None):
+  def generate_graph_for_vcg(self, node, ir=None, optimized={}):
     """Generate this node and all the outward edges from this node.
 
     Args:
@@ -446,18 +446,20 @@ class CFG(list):
 
     if node.phi_functions:
       node_str += '\nPhi Functions\n'
-      for v in node.phi_functions:
-        node_str += '\n%s = phi(...)' % (v)
+      for v, phi_function in node.phi_functions.items():
+        node_str += '\n%s = phi(' % (v)
+        node_str += '%s, ' % phi_function['LHS']
+        node_str += ', '.join([str(op) for op in phi_function['RHS']])
+        node_str += ')'
 
       node_str += '\n\n'
 
     if ir:
       instructions = []
       instructions = [str(ir[i]) for i in range(
-          node.value[0], node.value[1] + 1)]
+          node.value[0], node.value[1] + 1) if i not in optimized]
 
-      for i in range(node.value[0], node.value[1] + 1):
-        node_str += '\n%s' % (ir[i])
+      node_str += '\n'.join(instructions)
 
     node_str += '" }'
 
@@ -467,12 +469,12 @@ class CFG(list):
           'edge: {sourcename: "%s" targetname: "%s" }' % (
               id(node), id(out_edge)))
 
-  def generate_vcg(self, title="Control Flow Graph", ir=None):
+  def generate_vcg(self, title="Control Flow Graph", ir=None, optimized={}):
     """Generate the Visualization of Compiler Graphs for this node as the root.
     """
     self.vcg_output = []
     for node in self:
-      self.generate_graph_for_vcg(node, ir)
+      self.generate_graph_for_vcg(node, ir, optimized)
 
     return """graph: { title: "%(title)s"
     folding: 1
@@ -481,7 +483,6 @@ class CFG(list):
     width: 700
     x: 30
     y: 30
-    color: lightcyan
     stretch: 7
     shrink: 10
     orientation: top_to_bottom
