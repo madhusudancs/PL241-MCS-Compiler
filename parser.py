@@ -274,7 +274,10 @@ class Parser(object):
             }
         }
 
-    self.root = self.__parse()
+    # This will contain two trees, the global tree with all the global
+    # declarations and the functions tree that contain all the function
+    # defintions including main.
+    self.trees = self.__parse()
 
   def __update_scope(self, scope):
     """Update the current scope, add it to the symbol table if doesn't exist.
@@ -296,15 +299,15 @@ class Parser(object):
     # the program entry point as main.
     self.__token_stream.fastforward('main')
 
-    main = self.__token_stream.next()
-    node = Node('keyword', main)
+    global_token = self.__token_stream.next()
+    global_node = Node('global', 'global_var_declarations')
 
     # Since main is getting defined here, update the scope to indicate it.
     self.__update_scope(GLOBAL_SCOPE_NAME)
 
     while True:
       try:
-        self.__parse_abstract_var_decl(node)
+        self.__parse_abstract_var_decl(global_node)
       except EndOfStatementFoundException:
         continue
       except LanguageSyntaxError, e:
@@ -314,9 +317,10 @@ class Parser(object):
         else:
           raise
 
+    functions_node = Node('functions', 'function_definitions')
     while True:
       try:
-        self.__parse_abstract_func_decl(node)
+        self.__parse_abstract_func_decl(functions_node)
       except LanguageSyntaxError, e:
         if str(e).startswith(
             'SyntaxError:%d: Expected "function" or "procedure" but "' % (
@@ -330,7 +334,13 @@ class Parser(object):
     # function declarations.
     self.__update_scope(GLOBAL_SCOPE_NAME)
 
-    main_body = Node('abstract', 'funcBody', node)
+    # The following three nodes are added to make main function definition
+    # consistent with all other function defintions
+    main_node = Node('keyword', 'function', functions_node)
+    Node('ident', 'main', main_node)
+    node = Node('abstract', 'formalParam', main_node)
+
+    main_body = Node('abstract', 'funcBody', main_node)
 
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token != '{':
@@ -354,7 +364,10 @@ class Parser(object):
       raise LanguageSyntaxError('%d: Program does not end with a "."',
                                 self.__token_stream.linenum(), )
 
-    return node
+    return {
+        'globals': global_node,
+        'function_definitions': functions_node
+        }
 
   def __parse_abstract_ident(self, parent, add=False):
     """Parses the ident type of elements in the grammar.
@@ -852,17 +865,20 @@ def bootstrap():
     p = Parser(args.file_names[0])
 
     if args.vcg:
-      vcg_file = open(args.vcg, 'w') if isinstance(args.vcg, str) else \
-          sys.stdout
-      vcg_file.write(p.root.generate_vcg())
-      vcg_file.close()
+      for name, tree in p.trees.items():
+          parser_vcg_file = open('%s.parser.%s.vcg' % (
+              filename, name), 'w')
+          parser_vcg_file.write(tree.generate_vcg(
+              'TREE-%s' % name) + '\n\n')
+          parser_vcg_file.close()
 
-    return p.root
+          parser_vcg_file.close()
+
+    return p
 
   except LanguageSyntaxError, e:
     print e
     sys.exit(1)
 
 if __name__ == '__main__':
-  root = bootstrap()
-
+  p = bootstrap()
