@@ -297,6 +297,23 @@ class Instruction(object):
         self.operand2, ' '.join(['%s' % (o) for o in self.operands])))
 
 
+class FunctionInstruction(Instruction):
+  """Abstracts the function related instructions like call, pro- and epilogue.
+
+  This class stores additional information of function related instructions.
+  For example, for all the instructions it stores the function name.
+  """
+
+  def __init__(self, name, instruction, *operands):
+    """Constructs the function specific instructions.
+
+    Args:
+      name: The name of the function this object represents/points to.
+    """
+    self.name = name
+    super(FunctionInstruction, self).__init__(instruction, *operands)
+
+
 class IntermediateRepresentation(object):
   """Stores the entire program in the Intermediate Representation form.
   """
