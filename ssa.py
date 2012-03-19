@@ -59,16 +59,6 @@ class SSA(object):
     self.ir = ir
     self.cfg = cfg
 
-    # Stores the SSA form of the IR as a list.
-    self.ssa = []
-
-    # ---------------------------------IMPORTANT---------------------------
-    # A separate CFG for SSA but not complete. Do not use for anything
-    # other than instructions contained, in and outedges and dominance
-    # frontier. None of the other properties like dominator trees, connected
-    # components, etc are computed correctly!
-    self.ssa_cfg = None
-
     # Like an inverted index, for every label as key its value is the
     # CFG node it corresponds to.
     # Note this can be constructed in linear time in the size of the number
@@ -105,7 +95,7 @@ class SSA(object):
   def identify_assignment_and_usage_nodes(self):
     """Linearly scans the IR to determine assignment and usage nodes in CFG.
     """
-    for i in self.ir:
+    for i in self.ir.ir:
       if i.is_variable(i.operand1):
         node = self.label_nodes[i.label]
         node.mentions[i.operand1] = True
@@ -170,7 +160,7 @@ class SSA(object):
       count[variable] = i + 1
 
     for label in range(root.value[0], root.value[1] + 1):
-      instruction = self.ssa[label]
+      instruction = self.ir.ir[label]
       if instruction.instruction == 'move':
         variable = instruction.operand1
         if instruction.is_variable(variable):
@@ -233,7 +223,7 @@ class SSA(object):
       self.search(child, stacks, count)
 
     for label in range(root.value[0], root.value[1] + 1):
-      instruction = self.ssa[label]
+      instruction = self.ir.ir[label]
       if instruction.instruction == 'move' and hasattr(
           instruction, 'old_operand2'):
         stacks[instruction.old_operand2].pop()
@@ -254,162 +244,74 @@ class SSA(object):
 
       self.search(tree, stacks, count)
 
-  def regenerate_ir(self):
-    """Regenerate Intermediate Representation by inserting phi instructions.
-    """
-    Instruction.reset_counter()
-
-    # This mapping should be recreated.
-    new_label_nodes = {}
-
-    new_ssa = []
-    nodes_phi_ed = {}
-    # Creates new instruction for every phi instruction and the old
-    # instruction. Also creates a new CFG for the old CFG
-    for instruction in self.ssa:
-      node = self.label_nodes[instruction.label]
-
-      # Generate phi instructions.
-      if node not in nodes_phi_ed:
-        for phi in node.phi_functions.values():
-          new_instruction = Instruction('phi', phi['LHS'], *phi['RHS'])
-
-          phi['instruction'] = new_instruction
-
-          new_ssa.append(new_instruction)
-
-          # Update labels to nodes mapping
-          new_label_nodes[new_instruction.label] = node
-
-        nodes_phi_ed[node] = True
-
-      # Just regenerate the old instructions.
-      new_instruction = Instruction(
-          instruction.instruction, instruction.operand1,
-          instruction.operand2, *instruction.operands)
-      new_ssa.append(new_instruction)
-
-      # Update labels to nodes mapping
-      new_label_nodes[new_instruction.label] = node
-
-      self.labels_ir_to_ssa[instruction.label] = new_instruction.label
-
-    self.label_nodes = new_label_nodes
-
-    # FIXME: This may be a possible source of error, since this instruction
-    # may be referring to the result of some 10 instructions before and
-    # "phi" functions may have been inserted in between. First checkpoint
-    # if bug appears.
-    # Post processing to adjust all the instructions whose operands are
-    # other instruction labels. We are doing a scan again because, we do
-    # not know how branch instructions behave in the previous processing,
-    # i.e. if "phi" instruction gets inserted anywhere in the future before
-    # we regenerate the instruction to which this branch statement targets.
-    for instruction in new_ssa:
-      operand1 = instruction.operand1
-      operand2 = instruction.operand2
-      if isinstance(instruction.operand1, int):
-        if operand1 in self.labels_ir_to_ssa:
-          operand1 = self.labels_ir_to_ssa[operand1]
-      if isinstance(instruction.operand2, int):
-        if operand2 in self.labels_ir_to_ssa:
-          operand2 = self.labels_ir_to_ssa[operand2]
-
-      operands = []
-      for op in instruction.operands:
-        if isinstance(op, int) and op in self.labels_ir_to_ssa:
-          operands.append(self.labels_ir_to_ssa[op])
-        else:
-          operands.append(op)
-
-      instruction.update(operand1=operand1, operand2=operand2)
-      instruction.operands = operands
-
-    # Throw away old ssa copy, we don't want it anymore!
-    self.ssa = new_ssa
-
-  def regenerate_cfg(self):
-    """Regenerate a new CFG for the SSA.
-    """
-    nodes_ir_to_ssa = {}
-    new_nodes = []
-
-    for node in self.cfg:
-      start, end = node.value
-      new_start = self.labels_ir_to_ssa[start] - len(node.phi_functions)
-      new_end = self.labels_ir_to_ssa[end]
-      new_node = copy.deepcopy(node)
-      new_node.value = (new_start, new_end)
-
-      # Maintain pointers to the nodes in both directions.
-      new_node.other_universe_node = node
-      node.other_universe_node = new_node
-
-      new_nodes.append(new_node)
-      nodes_ir_to_ssa[node] = new_node
-
-    for node in self.cfg:
-      new_node = nodes_ir_to_ssa[node]
-
-      # Make the label_nodes map point to SSA CFG nodes.
-      for i in range(new_node.value[0], new_node.value[1] + 1):
-        self.label_nodes[i] = new_node
-
-      new_node.out_edges = []
-      new_node.in_edges = []
-      new_node.dominance_frontier = []
-      for edge in node.out_edges:
-        new_node.out_edges.append(nodes_ir_to_ssa[edge])
-      for edge in node.in_edges:
-        new_node.in_edges.append(nodes_ir_to_ssa[edge])
-      for dominance_frontier in node.dominance_frontier:
-        new_node.dominance_frontier.append(nodes_ir_to_ssa[dominance_frontier])
-
-    self.ssa_cfg = CFG(new_nodes)
-
   def construct(self):
     """Constructs the SSA form of the IR.
     """
-    # Begin with a completely new copy of original IR.
-    self.ssa = copy.deepcopy(self.ir.ir)
-
     self.populate_labels()
     self.identify_assignment_and_usage_nodes()
 
     self.place_phi()
     self.rename()
 
-    self.regenerate_ir()
-    self.regenerate_cfg()
-
   def optimized(self, start=None, stop=None, reversed=False):
     """Yields the optimized SSA form of the IR as an iterator.
     """
     i = start if start else 0
-    stop = stop if stop else len(self.ssa)
+    stop = stop if stop else len(self.ir.ir)
     if reversed:
       while i > stop:
         i -= 1
         if i + 1 in self.optimized_removal:
           continue
 
-        yield self.ssa[i + 1]
+        yield self.ir.ir[i + 1]
     else:
       while i < stop:
         i += 1
         if i - 1 in self.optimized_removal:
           continue
 
-        yield self.ssa[i - 1]
+        yield self.ir.ir[i - 1]
 
   def __str__(self):
     """Prints the SSA stored for the program
     """
-    ssa = ''
-    for instruction in self.ssa:
-      ssa += '%s\n' % (instruction)
+    bfs_queue = [self.cfg[0]]
+    visited = set([])
+    ssa_blocks = []
 
-    return ssa
+    start_labels_to_blocks = {}
+
+    while bfs_queue:
+      ssa = ''
+      node = bfs_queue.pop(0)
+      if node in visited:
+        continue
+
+      visited.add(node)
+      bfs_queue.extend(node.out_edges[::-1])
+
+      for phi_function in node.phi_functions.values():
+        ssa += '%4s: %5s' % ('', 'phi')
+
+        ssa += '%50s' % phi_function['LHS']
+        for operand in phi_function['RHS']:
+          ssa += '%50s' % operand
+
+        ssa += '\n'
+
+      start_labels_to_blocks[len(ssa_blocks)] = node.value[0]
+      for instruction in self.ir.ir[node.value[0]:node.value[1] + 1]:
+        ssa += '%s\n' % (instruction)
+
+      ssa_blocks.append(ssa)
+
+    # Sort the basic blocks according to their start instruction label
+    sorted_blocks = sorted(
+        enumerate(ssa_blocks), key=lambda k: start_labels_to_blocks[k[0]])
+
+    # Ditch the last block since that is a repeatition of the end instruction.
+    return '\n'.join([b[1] for b in sorted_blocks])
 
 
 def bootstrap():

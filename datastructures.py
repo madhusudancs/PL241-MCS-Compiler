@@ -260,9 +260,6 @@ class CFGNode(Node):
     # instruction in SSA.
     self.phi_functions = {}
 
-    # Maintain pointers to ssa node in the ir node and vice-versa.
-    self.other_universe_node = None
-
     # Dictionary of the live-in variables for each basic block where the
     # keys of the dictionary are the variable names and values are just
     # the dummy True values.
