@@ -29,6 +29,7 @@ import sys
 from codegen import CodeGenerator
 from ir import IntermediateRepresentation
 from optimizations import Optimize
+from parser import GLOBAL_SCOPE_NAME
 from parser import LanguageSyntaxError
 from parser import Parser
 from ssa import SSA
@@ -87,16 +88,37 @@ def bootstrap():
     sys.exit(1)
 
   if args.parsetreevcg or args.dumpall:
-    parser_vcg_file = open('%s.parser.vcg' % filename, 'w')
-    parser_vcg_file.write(p.root.generate_vcg())
+    global_graph = p.trees['globals'].generate_vcg(
+        'TREE-GLOBALS')
+    function_definitions_graph = p.trees['function_definitions'].generate_vcg(
+        'TREE-FUNCTIONDEFINITIONS')
+
+    graph = """graph: { title: "PARSER TREES"
+    port_sharing: no
+    %s
+    %s
+    }
+    """ % (global_graph, function_definitions_graph)
+
+    parser_vcg_file = open('%s.parser.vcg' % (
+        filename), 'w')
+    parser_vcg_file.write(graph)
     parser_vcg_file.close()
 
+  global_symbol_table = p.symbol_table[GLOBAL_SCOPE_NAME]
+  for function_tree in p.trees['function_definitions'].children:
+    # The first child of the function root is the "ident" node which
+    # is the function name. So get the symbol table entries from that
+    # name of the function.
+    function_name = function_tree.children[0].value
+    symbol_table = p.symbol_table[function_name]
+    ir = IntermediateRepresentation(function_tree, symbol_table,
+                                    global_symbol_table)
+    ir.generate()
 
-  ir = IntermediateRepresentation(p)
-  ir.generate()
 
-  cfg = ir.build_cfg()
-  cfg.compute_dominance_frontiers()
+    cfg = ir.build_cfg()
+    cfg.compute_dominance_frontiers()
 
   if args.cfg or args.dumpall:
     ir_cfg_vcg_file = open('%s.ir.cfg.vcg' % filename, 'w')

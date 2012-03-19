@@ -782,7 +782,7 @@ class RegisterAllocator(object):
 
       # We cannot do this processing until we find all the interferences at
       # the definition point of the current register.
-      collisions = self.spill(current_node, collisions)
+      #collisions = self.spill(current_node, collisions)
 
       current_node.append_edges(*collisions)
       self.register_nodes[register] = current_node
