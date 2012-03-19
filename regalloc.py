@@ -1115,23 +1115,23 @@ class RegisterAllocator(object):
     """
     self.allocate_virtual_registers()
     for dom_tree in self.ssa.cfg.dom_trees:
-      self.liveness(dom_tree.other_universe_node)
+      self.liveness(dom_tree)
       # FIXME: We do not have to pass the second argument if we compile
       # each function independently.
       ifg = self.build_interference_graph(
-          dom_tree.other_universe_node.live_intervals,
-          dom_tree.other_universe_node.phi_nodes,
-          dom_tree.other_universe_node.last_register_count)
+          dom_tree.live_intervals,
+          dom_tree.phi_nodes,
+          dom_tree.last_register_count)
       is_allocated, allocation = self.sat_solve(ifg)
       if is_allocated:
         LOGGER.debug('Allocated for subgraph %s!' % (
-            dom_tree.other_universe_node))
+            dom_tree))
       else:
         LOGGER.debug('Allocation Failed for subgraph %s :-(' % (
-            dom_tree.other_universe_node))
+            dom_tree))
         # No point in proceeding if register allocation fails. Some major
         # bug in the code. So bail out.
-        return False, dom_tree.other_universe_node
+        return False, dom_tree
 
     return True, None
 
@@ -1390,7 +1390,7 @@ class RegisterAllocator(object):
 
     self.phi_map = collections.defaultdict(list)
     for dom_tree in self.ssa.cfg.dom_trees:
-      self.deconstruct_basic_block(dom_tree.other_universe_node)
+      self.deconstruct_basic_block(dom_tree)
 
     def key_func(instruction):
       """Returns the sort key for the phi's resolved instructions.
