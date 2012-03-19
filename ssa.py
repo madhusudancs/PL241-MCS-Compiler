@@ -120,6 +120,12 @@ class SSA(object):
           node.mentions[i.operand2] = True
           self.variable_mentions[i.operand2].append(node)
 
+      for op in i.operands:
+        if i.is_variable(op):
+          node = self.label_nodes[i.label]
+          node.mentions[op] = True
+          self.variable_mentions[op].append(node)
+
   def place_phi(self):
     """Places the phi functions for the nodes in the control flow graph.
     """
@@ -183,6 +189,19 @@ class SSA(object):
           # in the class.
           instruction.old_operand2 = variable
       else:
+        # For the prologue make dummy assignments or pretend to make
+        # assignments so that phi function results won't get the same
+        # subscript as the formal parameter subscripts.
+        if instruction.instruction == '.begin_':
+          operands = []
+          for op in instruction.operands:
+            if instruction.is_variable(op):
+              i = count[op]
+              stacks[op].push(i)
+              count[op] = i + 1
+
+        # After this continue normally for all instructions
+
         variable1 = instruction.operand1
         if instruction.is_variable(variable1):
           i = stacks[variable1].top()
@@ -192,6 +211,16 @@ class SSA(object):
         if instruction.is_variable(variable2):
           i = stacks[variable2].top()
           instruction.operand2 = '%s_%d' % (variable2, i)
+
+        operands = []
+        for op in instruction.operands:
+          if instruction.is_variable(op):
+            i = stacks[op].top()
+            operands.append('%s_%d' % (op, i))
+          else:
+            operands.append(op)
+
+        instruction.operands = operands
 
     for successor in root.out_edges:
       # My implementation of WhichPred(Y, X)
@@ -257,7 +286,7 @@ class SSA(object):
       # Just regenerate the old instructions.
       new_instruction = Instruction(
           instruction.instruction, instruction.operand1,
-          instruction.operand2)
+          instruction.operand2, *instruction.operands)
       new_ssa.append(new_instruction)
 
       # Update labels to nodes mapping
@@ -286,7 +315,15 @@ class SSA(object):
         if operand2 in self.labels_ir_to_ssa:
           operand2 = self.labels_ir_to_ssa[operand2]
 
+      operands = []
+      for op in instruction.operands:
+        if isinstance(op, int) and op in self.labels_ir_to_ssa:
+          operands.append(self.labels_ir_to_ssa[op])
+        else:
+          operands.append(op)
+
       instruction.update(operand1=operand1, operand2=operand2)
+      instruction.operands = operands
 
     # Throw away old ssa copy, we don't want it anymore!
     self.ssa = new_ssa
