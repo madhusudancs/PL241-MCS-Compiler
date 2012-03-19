@@ -519,6 +519,15 @@ class CFG(list):
     for variable in sorted(node.live_in):
       node_str += '%s\n' % (variable)
 
+    if node.phi_functions:
+      node_str += '\nPhi Functions\n'
+      for v, phi_function in node.phi_functions.items():
+        node_str += '\n%s <- phi(' % (phi_function['LHS'])
+        node_str += ', '.join([str(op) for op in phi_function['RHS']])
+        node_str += ')'
+
+      node_str += '\n\n'
+
     for instruction in ssa.optimized(node.value[0],
                                      node.value[1] + 1):
       node_str += '\n%10s <-%s' % (
@@ -557,7 +566,6 @@ class CFG(list):
     width: 700
     x: 30
     y: 30
-    color: lightcyan
     stretch: 7
     shrink: 10
     orientation: top_to_bottom
