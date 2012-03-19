@@ -47,6 +47,13 @@ class Optimize(object):
     """
     self.ssa = ssa
 
+    # A dictionary containing the node as the keys and values which is the
+    # merged operand replacements dictionay
+    self.node_operands_replacements = {}
+
+    # List of nodes that have phi functions
+    self.phi_nodes = {}
+
   def cse_cp(self, root, operand_replacements,
                          instruction_replacements):
     """Performs the common sub-expression elimination and copy propogation.
@@ -134,30 +141,34 @@ class Optimize(object):
     merged_instruction_replacements.update(instruction_replacements)
     merged_instruction_replacements.update(block_instruction_replacements)
 
-    children_operand_replacements = {}
-    for child in root.dom_children:
-      op_repl, ins_repl = self.cse_cp(child, merged_operand_replacements, 
-                  merged_instruction_replacements)
-      children_operand_replacements.update(op_repl)
+    self.node_operands_replacements[root] = merged_operand_replacements
 
+    for child in root.dom_children:
+      self.cse_cp(child, merged_operand_replacements,
+                  merged_instruction_replacements)
+
+    if root.phi_functions:
+      self.phi_nodes[root] = True
+
+  def replace_phis(self):
+    """All the phi-functions should be replaced in the end.
+    """
     # We will process all the phi functions in the end because in some cases
     # like loops, the phi operands appear before they are actually defined.
     # We need to take care of those too, so let us process them separately.
-    for phi_function in root.phi_functions.values():
-      for i, operand in enumerate(phi_function['RHS']):
-        if operand in block_operand_replacements:
-          phi_function['RHS'][i] = block_operand_replacements[operand]
-        elif operand in operand_replacements:
-          phi_function['RHS'][i] = operand_replacements[operand]
-        elif operand in children_operand_replacements:
-          phi_function['RHS'][i] = children_operand_replacements[operand]
-
-    return merged_operand_replacements, merged_instruction_replacements
+    for node in self.phi_nodes:
+      for phi_function in node.phi_functions.values():
+        for i, operand in enumerate(phi_function['RHS']):
+          in_edge = node.in_edges[i]
+          if operand in self.node_operands_replacements[in_edge]:
+            phi_function['RHS'][i] = self.node_operands_replacements[
+                in_edge][operand]
 
   def optimize(self):
     """Bootstraps the whole optimization process
     """
     self.cse_cp(self.ssa.cfg[0], {}, {})
+    self.replace_phis()
 
   def __str__(self):
     """Prints the SSA stored for the program
