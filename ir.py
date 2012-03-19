@@ -93,41 +93,42 @@ class Memory(object):
   during the code generation phase.
   """
 
-  counter = 0
-
-  @classmethod
-  def reset_counter(cls):
-    """Resets the counter for the new memory allocation.
-    """
-    cls.counter = 0
-
-  def __init__(self, name=None, new_allocation=False):
+  def __init__(self, name=None, size=None, base=None, offset=None):
     """Constructs a placeholder for memory required for the program.
 
     Args:
-      name: Name for the particular memory location. Special memory locations
-          like base stack pointer memory, return value memory can use these
-          special names.
-      new_allocation: True if the current counter run should be reset for new
-          allocation False otherwise.
+      name: Name for the particular memory location. Represents the name of
+          the variable
+      size: The size of this memory object in multiples of size of integers.
+      base: The base memory address for this memory object. None indicates
+          the beginning of the function.
+      offset: The offset in the multiples of integer sizes from the base
+          address where memory is allocated for this memory object.
     """
-    if new_allocation:
-      self.__class__.reset_counter()
-    else:
-      self.__class__.counter += 1
-
-    self.index = self.__class__.counter
-
+    # The name for the memory object. Represents the name of the variable.
     self.name = name
 
-    # This is the real memory offset from the base of the stack. This will be
+    # Until the code generation phase the size required is represented in
+    # the multiples of size required to store an integer. Architecture
+    # specific details will take care of this.
+    self.size = None
+
+    # The base memory address.
+    self.base = None
+
+    # This is the memory offset from the base of the stack. This will be
     # used only during code generation.
     self.offset = None
 
   def __str__(self):
     """Returns the string representation for this memory enclosed in [].
     """
-    return ('[%s]' % self.name) if self.name else ('[%d]' % self.counter)
+    mem_str = '%d(%s)' % (
+        self.offset if self.offset else 0, self.base if self.base else 0)
+    if self.name:
+      mem_str += ' [%s]' % (self.name)
+
+    return mem_str
 
 
 class Immediate(object):
