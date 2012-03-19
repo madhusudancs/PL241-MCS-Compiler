@@ -289,8 +289,8 @@ class RegisterAllocator(object):
     # Dictionary containing the live ranges for each register
     self.live_ranges = {}
 
-    # List of interference graphs where each graph corresponds to a function.
-    self.interference_graphs = []
+    # Interference graph for this allocator.
+    self.interference_graph = None
 
     # Dictionary of color assigned SSA deconstructed instructions.
     # Key is the original label of the instruction and value is the list of
@@ -324,12 +324,20 @@ class RegisterAllocator(object):
         # RHS are the operands.
         new_register = self.register_for_operand(phi_function['LHS'])
         new_register.set_def(self.ssa.ir.ir[node.value[0]])
-
         phi_function['LHS'] = new_register
 
     for instruction in self.ssa.optimized(node.value[0], node.value[1]):
-      if instruction.instruction in ['.begin_', '.end_', 'bra']:
+      if instruction.instruction in ['.end_', 'bra']:
         continue
+      elif instruction.instruction == '.begin_':
+        new_operands = []
+        for operand in instruction.operands:
+          if instruction.is_variable_or_label(operand):
+            new_register = self.register_for_operand(operand)
+            new_register.set_def(instruction)
+            new_operands.append(new_register)
+
+        instruction.operands = new_operands
       else:
         if instruction.is_variable_or_label(instruction.operand1):
           instruction.operand1 = self.register_for_operand(
@@ -401,7 +409,6 @@ class RegisterAllocator(object):
             new_register.set_use(self.ssa.ir.ir[phi_node.value[0]])
 
             phi_function['RHS'][i] = new_register
-
 
   def analyze_basic_block_liveness(self, start_node, node):
     """Analyzes the liveness of the variables in the given basic block
@@ -487,6 +494,17 @@ class RegisterAllocator(object):
       if instruction.instruction.startswith('.end_'):
         continue
 
+      if instruction.instruction == '.begin_':
+        for operand in instruction.operands:
+          if self.is_register(operand):
+            if operand not in live:
+              intervals[operand] = [node.value[0], instruction.label]
+              live[operand] = True
+            else:
+              intervals[operand][0] = node.value[0]
+
+        continue
+
       if self.is_register(instruction.result):
         if instruction.result not in live:
           # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
@@ -530,11 +548,10 @@ class RegisterAllocator(object):
         phi_operands[operand] = True
 
         if operand in intervals:
-          intervals[operand][1] = phi_function['instruction'].label
+          intervals[operand][1] = node.value[0]
         elif self.is_register(operand):
           live[operand] = True
-          intervals[operand] = [node.value[0],
-                                phi_function['instruction'].label]
+          intervals[operand] = [node.value[0], node.value[0]]
 
     # Every operand that is live at the loop header and is not a phi-operand
     # or a phi-result should live from the beginning of the block to the end.
@@ -785,7 +802,7 @@ class RegisterAllocator(object):
     nodes = self.register_nodes.values()
 
     interference_graph = InterferenceGraph(nodes)
-    self.interference_graphs.append(interference_graph)
+    self.interference_graph = interference_graph
 
     return interference_graph
 
