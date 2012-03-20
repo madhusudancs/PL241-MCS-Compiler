@@ -713,8 +713,7 @@ class IntermediateRepresentation(object):
                                            temp_result)
 
     offset_result = self.instruction('*', expression_result, Immediate(4))
-    base_result = self.instruction('+', '!FP', '#%s' % (result))
-    result = self.instruction('adda', offset_result, base_result)
+    result = self.instruction('adda', offset_result, '#%s' % (result))
     if lvalue:
       return result, True
 
