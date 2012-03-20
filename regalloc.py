@@ -366,9 +366,11 @@ class RegisterAllocator(object):
       for phi_function in node.phi_functions.values():
         # The LHS of the phi function is actually the result the function
         # RHS are the operands.
-        new_register = self.register_for_operand(phi_function['LHS'])
+        operand = phi_function['LHS']
+        new_register = self.register_for_operand(operand)
         new_register.set_def(self.ssa.ir.ir[node.value[0]])
         phi_function['LHS'] = new_register
+        self.variable_register_map[operand] = new_register
 
     for instruction in self.ssa.optimized(node.value[0], node.value[1]):
       if instruction.instruction in ['.end_', 'bra']:
@@ -450,7 +452,10 @@ class RegisterAllocator(object):
         for i, operand in enumerate(phi_function['RHS']):
           if is_variable_or_label(operand):
             new_register = self.register_for_operand(operand)
-            new_register.set_use(self.ssa.ir.ir[phi_node.value[0]])
+            use = self.ssa.ir.ir[phi_node.in_edges[i].value[1]]
+            new_register.set_use(use)
+            new_register.use_instructions.sort(
+                key=lambda i: i.label, reverse=True)
 
             phi_function['RHS'][i] = new_register
 
@@ -589,7 +594,6 @@ class RegisterAllocator(object):
 
       phi_operands[phi_function['LHS']] = True
 
-
     for phi_function in node.phi_functions.values():
       for i, operand in enumerate(phi_function['RHS']):
         include[node.in_edges[i]].append(operand)
@@ -597,9 +601,8 @@ class RegisterAllocator(object):
 
         if operand in intervals:
           intervals[operand][1] = node.value[0]
-        elif self.is_register(operand):
-          live[operand] = True
-          intervals[operand] = [node.value[0], node.value[0]]
+        # Don't do else part, that over writes registers that get defined
+        # inside the loop
 
     # Every operand that is live at the loop header and is not a phi-operand
     # or a phi-result should live from the beginning of the block to the end.
@@ -626,7 +629,6 @@ class RegisterAllocator(object):
         # Add a new interval
         start_node.live_intervals[operand] = intervals[operand]
 
-
   def liveness(self, start):
     """Computes the liveness range for each variable.
 
@@ -646,6 +648,15 @@ class RegisterAllocator(object):
     # traversal.
     self.visited = {}
     self.analyze_basic_block_liveness(start, start)
+
+    self.live_intervals = start.live_intervals
+
+    for phi_node in start.phi_nodes:
+      for phi_function in phi_node.phi_functions.values():
+        for operand in phi_function['RHS']:
+          if operand in self.live_intervals:
+            if (operand.definition().label > operand.uses()[-1].label):
+              self.live_intervals[operand][0] = operand.definition().label
 
   def spill(self, current_node, collisions):
     """Checks if the spilling is necessary, if so spills the register.
@@ -702,7 +713,7 @@ class RegisterAllocator(object):
       # next_use because we are traversing the list reverse. Also we don't
       # test if this use is before the current instruction because, if that
       # is the case the register is already dead and not even interfering.
-      next_use_index, next_use = -1, collision_register_uses[-1]
+      next_use_index, next_use = 0, collision_register_uses[0]
 
       if next_use.label < current_instruction.label and (
           next_use.instruction != 'phi'):
@@ -717,7 +728,7 @@ class RegisterAllocator(object):
                 current_node.register))
 
       # A binary search may be better in this case than linear.
-      for use_index, use in enumerate(collision_register_uses[-2::-1]):
+      for use_index, use in enumerate(collision_register_uses[1:]):
         if use.label < current_instruction.label:
           break
         next_use_index, next_use = use_index, use
@@ -750,15 +761,15 @@ class RegisterAllocator(object):
 
     new_register.set_def(next_farthest_use['next_use'])
     new_register.set_use(
-        *spill_register.uses()[next_farthest_use['next_use_index']:])
+        *spill_register.uses()[:next_farthest_use['next_use_index'] + 1])
 
     # Push the new register down the heap. If there is no next use, then
     # it should probably be part of the loop. So set things at the end of
     # loop.
     if next_farthest_use['next_use']:
       self.live_intervals_heap.push(new_register,
-          (next_farthest_use['next_use'].label,
-         spilling_node.instructions[1]))
+          [next_farthest_use['next_use'].label,
+         spilling_node.instructions[1]])
 
     # Cut short the instruction range for the spilled register node.
     spilling_node.instructions[1] = current_instruction.label
@@ -776,7 +787,7 @@ class RegisterAllocator(object):
 
     return collisions
 
-  def populate_collisions(self):
+  def populate_collisions(self, with_spill=False):
     """?Greedy?/?Dynamic Programming? algorithm to find the register collision.
 
     Args:
@@ -815,14 +826,13 @@ class RegisterAllocator(object):
           if previous_collision.instructions[1] > instructions[0]:
             collisions.append(previous_collision)
 
-      # We cannot do this processing until we find all the interferences at
-      # the definition point of the current register.
-      #collisions = self.spill(current_node, collisions)
+      if with_spill:
+        collisions = self.spill(current_node, collisions)
 
       current_node.append_edges(*collisions)
       self.register_nodes[register] = current_node
 
-  def build_interference_graph(self, live_intervals, phi_nodes):
+  def build_interference_graph(self, with_spill=False):
     """Builds the interference graph for the given control flow subgraph.
 
     Args:
@@ -834,17 +844,9 @@ class RegisterAllocator(object):
     # Clear the register_nodes dictionary for a new start
     self.register_nodes = {}
 
-    for phi_node in phi_nodes:
-      for phi_function in phi_node.phi_functions.values():
-        for operand in phi_function['RHS']:
-          if operand in live_intervals:
-            if (operand.definition().label > operand.uses()[-1].label):
-              live_intervals[operand][0] = operand.definition().label
+    self.live_intervals_heap = LiveIntervalsHeap(self.live_intervals)
 
-    self.live_intervals_heap = LiveIntervalsHeap(live_intervals)
-
-    self.current_live_intervals = live_intervals
-    self.populate_collisions()
+    self.populate_collisions(with_spill)
 
     nodes = self.register_nodes.values()
 
@@ -1098,7 +1100,6 @@ class RegisterAllocator(object):
       # Do a conversion from binary string to integer using the built-in int
       # type constructor with base as the argument.
       register.color = int(reg_binary, 2)
-
       LOGGER.debug('Register: %s Color: %d' % (register, register.color))
 
   def sat_solve(self, interference_graph):
@@ -1130,13 +1131,16 @@ class RegisterAllocator(object):
     lines = output[0].rsplit('\n', 3)
 
     if lines[-2] == 's UNSATISFIABLE':
+      # We cannot do this processing until we find all the interferences at
+      # the definition point of the current register.
+      # collisions = self.spill(current_node, collisions)
       LOGGER.debug('SAT Unsatisfiable')
-      return False, ''
+      return False
     elif lines[-3] == 's SATISFIABLE':
       assignment = lines[-2]
       self.generate_assignments(assignment)
       LOGGER.debug('SAT Satisfiable! Allocation: %s' % (lines[-1]))
-      return True, assignment
+      return True
 
   def allocate(self):
     """Allocate the registers to the program.
@@ -1147,19 +1151,20 @@ class RegisterAllocator(object):
     self.liveness(start_node)
     # FIXME: We do not have to pass the second argument if we compile
     # each function independently.
-    ifg = self.build_interference_graph(
-        start_node.live_intervals,
-        start_node.phi_nodes)
-    is_allocated, allocation = self.sat_solve(ifg)
+    ifg = self.build_interference_graph()
+    is_allocated = self.sat_solve(ifg)
     if is_allocated:
       LOGGER.debug('Allocated for subgraph %s!' % (
           start_node))
     else:
-      LOGGER.debug('Allocation Failed for subgraph %s :-(' % (
+      ifg = self.build_interference_graph(with_spill=True)
+      is_allocated = self.sat_solve(ifg)
+      if not is_allocated:
+        LOGGER.debug('Allocation Failed for subgraph %s :-(' % (
           start_node))
-      # No point in proceeding if register allocation fails. Some major
-      # bug in the code. So bail out.
-      return False
+        # No point in proceeding if register allocation fails. Some major
+        # bug in the code. So bail out.
+        return False
 
     return True
 
@@ -1232,7 +1237,7 @@ class RegisterAllocator(object):
         first.label, last.label = last.label, first.label
       assigned_ssa.extend(self.ssa_deconstructed_instructions[instruction])
 
-    self.ssa.ssa = assigned_ssa
+    self.ssa.ir.ir = assigned_ssa
 
   def insert_instruction(self, instruction, following_instruction):
     """Inserts the given instruction before the following instruction.
@@ -1244,7 +1249,6 @@ class RegisterAllocator(object):
     """
     self.ssa_deconstructed_instructions[following_instruction].insert(
         0, instruction)
-
 
   def insert_spill(self, register, spilled_at, memory):
     """Insert a spill instruction.
@@ -1323,71 +1327,63 @@ class RegisterAllocator(object):
     Args:
       node: The basic block node to process.
     """
-    # This needs to be per function, so reset to zero for every function.
-    Memory.reset_counter()
-
     phi_operands = {}
 
+    for phi_function in node.phi_functions.values():
+      # We should not add phi instruction to the resulting instructions.
+      phi_operands[phi_function['LHS']] = True
+
+      for i, predecessor in enumerate(node.in_edges):
+        operand = phi_function['RHS'][i]
+        if self.is_register(operand):
+          assignment, spilled = operand.assignment(
+              self.ssa.ir.ir[node.value[0]])
+        else:
+          assignment, spilled = operand, None
+
+        # Note we want original registers not the assigned registers. This
+        # is because the live intervals store the original registers not
+        # the assignments.
+        phi_operands[operand] = True
+
+        self.resolve_noncontiguous_blocks(predecessor, phi_function['LHS'],
+                                          assignment, spilled)
+
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
-      if instruction.instruction == 'phi':
-        # We should not add phi instruction to the resulting instructions.
+      self.ssa_deconstructed_instructions[instruction] = [instruction]
 
-        phi_result = instruction.operand1
+      result = instruction.result
+      if self.is_register(result):
+        # Since we are using SSA there won't be any reloads for the result
+        # So we don't call the corresponding insertion method.
+        instruction.assigned_result, spill = result.assignment(instruction)
 
-        phi_operands[phi_result] = True
+      operand1 = instruction.operand1
+      if self.is_register(operand1):
+        instruction.assigned_operand1, spill = operand1.assignment(
+            instruction)
+        self.insert_spill_reload(operand1, spill)
+      elif self.is_memory(operand1) or self.is_immediate(operand1):
+        instruction.assigned_operand1 = operand1
 
-        for i, predecessor in enumerate(node.in_edges):
-          if i == 0:
-            operand = instruction.operand2
-          else:
-            operand = instruction.operands[i - 1]
-          if self.is_register(operand):
-            assignment, spilled = operand.assignment(instruction)
-          else:
-            assignment, spilled = operand, None
+      operand2 = instruction.operand2
+      if self.is_register(operand2):
+        instruction.assigned_operand2, spill = operand2.assignment(
+            instruction)
+        self.insert_spill_reload(operand2, spill)
+      elif self.is_memory(operand2) or self.is_immediate(operand2):
+        instruction.assigned_operand2 = operand2
 
-          # Note we want original registers not the assigned registers. This
-          # is because the live intervals store the original registers not
-          # the assignments.
-          phi_operands[operand] = True
+      operands_assigned = []
+      for operand in instruction.operands:
+        if self.is_register(operand):
+          operand_assigned, spill = operand.assignment(instruction)
+          self.insert_spill_reload(operand, spill)
+          operands_assigned.append(operand_assigned)
+        elif self.is_memory(operand) or self.is_immediate(operand):
+          operands_assigned.append(operand)
 
-          self.resolve_noncontiguous_blocks(predecessor, phi_result,
-                                            assignment, spilled)
-      else:
-        self.ssa_deconstructed_instructions[instruction] = [instruction]
-
-        result = instruction.result
-        if self.is_register(result):
-          # Since we are using SSA there won't be any reloads for the result
-          # So we don't call the corresponding insertion method.
-          instruction.assigned_result, spill = result.assignment(instruction)
-
-        operand1 = instruction.operand1
-        if self.is_register(operand1):
-          instruction.assigned_operand1, spill = operand1.assignment(
-              instruction)
-          self.insert_spill_reload(operand1, spill)
-        elif self.is_memory(operand1) or self.is_immediate(operand1):
-          instruction.assigned_operand1 = operand1
-
-        operand2 = instruction.operand2
-        if self.is_register(operand2):
-          instruction.assigned_operand2, spill = operand2.assignment(
-              instruction)
-          self.insert_spill_reload(operand2, spill)
-        elif self.is_memory(operand2) or self.is_immediate(operand2):
-          instruction.assigned_operand2 = operand2
-
-        operands_assigned = []
-        for operand in instruction.operands:
-          if self.is_register(operand):
-            operand_assigned, spill = operand.assignment(instruction)
-            self.insert_spill_reload(operand, spill)
-            operands_assigned.append(operand_assigned)
-          elif self.is_memory(operand) or self.is_immediate(operand):
-            operands_assigned.append(operand)
-
-        instruction.assigned_operands = operands_assigned
+      instruction.assigned_operands = operands_assigned
 
     for child in node.out_edges:
       if self.visited.get(child, False):
@@ -1399,7 +1395,7 @@ class RegisterAllocator(object):
 
     if node in self.loop_pair:
       loop_footer = self.loop_pair[node]
-      loop_last_instruction = self.ssa.ssa[loop_footer.value[1]]
+      loop_last_instruction = self.ssa.ir.ir[loop_footer.value[1]]
       while loop_last_instruction in self.ssa.optimized_removal:
         loop_last_instruction -= 1
 
@@ -1408,7 +1404,7 @@ class RegisterAllocator(object):
           # Even if it is spilled we don't insert a reload here, we just
           # make sure that the loop footer moves to the required assignment.
           assignment, spilled = operand.assignment(
-              self.ssa.ssa[node.value[0]])
+              self.ssa.ir.ir[node.value[0]])
           new_assignment, new_spilled = operand.assignment(
               loop_last_instruction)
           # Lives till the end of the loop footer block.
@@ -1448,8 +1444,7 @@ class RegisterAllocator(object):
     self.visited = {}
 
     self.phi_map = collections.defaultdict(list)
-    for dom_tree in self.ssa.cfg.dom_trees:
-      self.deconstruct_basic_block(dom_tree)
+    self.deconstruct_basic_block(self.ssa.cfg[0])
 
     def key_func(instruction):
       """Returns the sort key for the phi's resolved instructions.
@@ -1464,47 +1459,65 @@ class RegisterAllocator(object):
       """
       if (pair1[0].assignments_equal(pair2[1]) and
           pair2[0].assignments_equal(pair1[1])):
-        raise RegisterAllocationFailedException('Register Allocation cannot '
-            'proceed since two move instructions are such that the result '
-            'of one is the operand for the other and hence they cannot be '
-            'ordered. Try recompiling again. Hint or developer: Implement '
-            'the use of x86 XCHG instruction or if not available 3 XORs to '
-            'accomplish this.')
+        # Since two move instructions are such that the result of one is the
+        # operand for the other and hence they cannot be ordered, we insert
+        # a XCHG instruction.
+        # Architectures that don't support XCHG can implement this using
+        # 3 XOR instructions.
+        xchg_map[pair1] = pair2
+        xchg_map[pair2] = pair1
+        return 0
       elif pair1[0].assignments_equal(pair2[1]):
         return 1
       elif pair2[0].assignments_equal(pair1[1]):
         return -1
       else:
-        # FIXME: MOST IMPORTANT! If the two registers have the overlapping
-        # operand and result assignments they need to be swapped. x86_64
-        # gives a XCHG instruction, use that or use 3 XOR instructions to
-        # resolve this case!
         return 0
 
     # Insert the respective instructions for phi-functions in the predecissor.
     for predecessor in self.phi_map:
+      xchg_map = {}
       instructions = sorted(self.phi_map[predecessor],
                             cmp=cmp_func, key=key_func)
+      if xchg_map:
+        new_instructions = []
+        xchg_processed = set([])
+        for instruction in instructions:
+          if instruction.instruction == 'move':
+            pair = instruction.operand2, instruction.operand1
+          elif instruction.instruction == 'load':
+            pair = instruction.result, instruction.operand1
+          if pair in xchg_map:
+            if pair not in xchg_processed:
+              xchg_processed.add(pair)
+              xchg_instruction = Instruction('xchg', pair[0], pair[1])
+              xchg_instruction.assigned_operand1 = pair[0]
+              xchg_instruction.assigned_operand2 = pair[1]
+              new_instructions.append(xchg_instruction)
+          else:
+            new_instructions.append(instruction)
+
+        instructions = new_instructions
 
       if predecessor.value[1] in self.ssa.optimized_removal:
         last_existing_label = predecessor.value[1] - 1
         while last_existing_label in self.ssa.optimized_removal:
           last_existing_label -= 1
 
-        instruction = self.ssa.ssa[last_existing_label]
+        instruction = self.ssa.ir.ir[last_existing_label]
         self.ssa_deconstructed_instructions[instruction].extend(instructions)
-      elif self.ssa.ssa[predecessor.value[1]].instruction == 'bra':
-        instruction = self.ssa.ssa[predecessor.value[1]]
+      elif self.ssa.ir.ir[predecessor.value[1]].instruction == 'bra':
+        instruction = self.ssa.ir.ir[predecessor.value[1]]
         self.ssa_deconstructed_instructions[instruction] = instructions + \
             self.ssa_deconstructed_instructions[instruction]
-      elif (self.ssa.ssa[predecessor.value[1] - 1].instruction == 'cmp' and
-          self.ssa.ssa[predecessor.value[1]].instruction in [
+      elif (self.ssa.ir.ir[predecessor.value[1] - 1].instruction == 'cmp' and
+          self.ssa.ir.ir[predecessor.value[1]].instruction in [
           'beq', 'bne', 'blt', 'ble', 'bgt', 'bge']):
-        instruction = self.ssa.ssa[predecessor.value[1] - 1]
+        instruction = self.ssa.ir.ir[predecessor.value[1] - 1]
         self.ssa_deconstructed_instructions[instruction] = instructions + \
             self.ssa_deconstructed_instructions[instruction]
       else:
-        instruction = self.ssa.ssa[predecessor.value[1]]
+        instruction = self.ssa.ir.ir[predecessor.value[1]]
         self.ssa_deconstructed_instructions[instruction].extend(instructions)
 
       first, last = (self.ssa_deconstructed_instructions[instruction][0],
@@ -1567,7 +1580,7 @@ class RegisterAllocator(object):
     """Return the printable string for the SSA deconstructed instructions.
     """
     instructions = []
-    for ssa_instruction in self.ssa.ssa:
+    for ssa_instruction in self.ssa.ir.ir:
       if ssa_instruction.instruction == 'phi':
         continue
 
@@ -1576,7 +1589,7 @@ class RegisterAllocator(object):
         if self.is_register(instruction.result):
           assignment = instruction.assigned_result
           instruction_str += '%-4d' % assignment.color if \
-              assignment != None else '      None'
+              assignment.color != None else '      None'
           instruction_str += '%-10s' % ('(%s)' % instruction.result,)
         else:
           instruction_str += ' ' * 14
@@ -1587,7 +1600,7 @@ class RegisterAllocator(object):
         if self.is_register(instruction.operand1):
           assignment = instruction.assigned_operand1
           instruction_str += '%-10d' % assignment.color if \
-              assignment != None else ('' * 6 + 'None')
+              assignment.color != None else ('' * 6 + 'None')
           instruction_str += '%-10s' % (assignment,)
           instruction_str += '%-30s' % ('(%s)' % instruction.operand1,)
         else:
@@ -1596,7 +1609,7 @@ class RegisterAllocator(object):
         if self.is_register(instruction.operand2):
           assignment = instruction.assigned_operand2
           instruction_str += '%-10d' % assignment.color if \
-              assignment != None else '      None '
+              assignment.color != None else '      None '
           instruction_str += '%s   ' % (assignment,)
           instruction_str += '%-10s' % ('(%s)' % instruction.operand2,)
         else:
@@ -1606,7 +1619,7 @@ class RegisterAllocator(object):
           if self.is_register(op):
             assignment = op
             instruction_str += '%-10d' % assignment.color if \
-                assignment != None else '      None '
+                assignment.color != None else '      None '
             instruction_str += '%s   ' % (assignment,)
             instruction_str += '%-10s' % ('(%s)' % op,)
           else:
@@ -1664,7 +1677,7 @@ def bootstrap():
     optimize.optimize()
 
     regalloc = RegisterAllocator(ssa)
-    is_allocated, failed_subgraph = regalloc.allocate()
+    is_allocated = regalloc.allocate()
     regalloc.deconstruct_ssa()
 
     # If an allocation fails there is no point continuing, bail out.
