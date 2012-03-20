@@ -565,8 +565,7 @@ class IntermediateRepresentation(object):
   def fallthrough(self, root):
     """Process the fallthrough branch in the branch instructions.
     """
-    self.dfs(root.children[0])
-    return self.instruction('bra')
+    return self.dfs(root.children[0])
 
   def abstract(self, root):
     """Process the abstract nodes in the parse tree.
@@ -603,13 +602,18 @@ class IntermediateRepresentation(object):
     taken = root.children[1]
     fallthrough = root.children[2] if len(root.children) == 3 else None
 
-    condition_result = self.condition(condition)
-    fallthrough_result = self.fallthrough(fallthrough)
-    self.ir[condition_result].update(operand2=fallthrough_result+1)
+    condition_result = self.condition(condition, complement=True)
     taken_result = self.taken(taken)
-    self.ir[fallthrough_result].update(operand1=taken_result+1)
 
-    return taken_result
+    if fallthrough == None:
+      self.ir[condition_result].update(operand2=taken_result+1)
+      return taken_result
+    else:
+      taken_result = self.instruction('bra')
+      self.ir[condition_result].update(operand2=taken_result+1)
+      fallthrough_result = self.fallthrough(fallthrough)
+      self.ir[taken_result].update(operand1=fallthrough_result+1)
+      return fallthrough_result
 
   def keyword_call(self, root):
     """Process the call statement.
