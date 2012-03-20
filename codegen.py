@@ -65,7 +65,6 @@ from parser import LanguageSyntaxError
 from parser import Parser
 from regalloc import Register
 from regalloc import RegisterAllocator
-from ssa import SSA
 
 # Architecture specific imports
 from x86_64 import ADD
@@ -81,6 +80,9 @@ from x86_64 import JMP
 from x86_64 import JNE
 from x86_64 import MEMORY_WIDTH
 from x86_64 import MOV
+from x86_64 import POP
+from x86_64 import PUSH
+from x86_64 import RET
 from x86_64 import SUB
 from x86_64 import Instruction
 
@@ -94,13 +96,14 @@ class CodeGenerator(object):
   """Generates the code for the given SSA object.
   """
 
-  def __init__(self, ssa):
+  def __init__(self, ir):
     """Constructs the datastructures required for code generation.
 
     Args:
-      ssa: The SSA object which contains the registers allocated instructions.
+      ir: The Intermediate Representation object which contains the registers
+          allocated instructions.
     """
-    self.ssa = ssa
+    self.ir = ir
 
     # Contains the set of instructions generated.
     self.instructions = []
@@ -324,20 +327,73 @@ class CodeGenerator(object):
     sub = SUB(result, operands[1])
     self.instructions.append(sub)
 
+  def create_stack(self):
+    """Creates the stack with the current memory offset value.
+    """
+    # Create a dummy register and give it a color to keep the API consistent.
+    rbp = Register()
+    rbp.color = 'rbp'        # The color of %rbp
+    push = PUSH(rbp)
+    self.instructions.append(push)
+
+    # Another dummy register for %rsp
+    rsp = Register()
+    rsp.color = 'rsp'
+    mov = MOV(rbp, rsp)
+    self.instructions.append(mov)
+
+    if self.memory_offset:
+      # Allocate memory for locals
+      sub = SUB(rsp, self.memory_offset)
+      self.instructions.append(sub)
+
   def handle_prologue(self, func_name, *operands):
     """Handles the prologue of the function definition in IR.
     """
     self.memory_offset = 0
 
+    # Allocate memory for both the defined variables and the formal parameters.
+    # Symbol table will have entry for all of them.
+    for symtab_entry in self.ir.local_symbol_table.values():
+      if 'memory' in symtab_entry:
+        symtab_entry['memory'].offset = self.memory_offset
+        symtab_entry['memory'].size = MEMORY_WIDTH
+        symtab_entry['memory'].base = 0
+
+        self.memory_offset += MEMORY_WIDTH
+
+      elif symtab_entry.get('dimensions'):
+        if 'memory' not in symtab_entry:
+          symtab_entry['memory'] = Memory()
+
+        symtab_entry['memory'].offset = self.memory_offset
+        total_size = 1
+        for dimension in symtab_entry['dimensions']:
+          total_size *= dimension
+
+        symtab_entry['memory'].size = total_size * MEMORY_WIDTH
+        symtab_entry['memory'].base = 0
+
+        self.memory_offset += total_size * MEMORY_WIDTH
+
+    self.create_stack()
+
   def handle_epilogue(self, func_name, *operands):
     """Handles the epilogue of the function definition in IR.
     """
-    pass
+    # Create a dummy register and give it a color to keep the API consistent.
+    rbp = Register()
+    rbp.color = 'rbp'        # The color of %rbp
+    pop = POP(rbp)
+    self.instructions.append(rbp)
+
+    ret = RET()
+    self.instructions.append(ret)
 
   def generate(self):
     """Bootstraps the code generation for the SSA object.
     """
-    for instruction in self.ssa.ir.ir:
+    for instruction in self.ir.ir:
       mnemonic = instruction.instruction
       if mnemonic.startswith('.begin_'):
         self.handle_prologue(mnemonic[7:], instruction.operands)
