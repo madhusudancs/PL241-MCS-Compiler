@@ -196,7 +196,7 @@ class Register(object):
 
     # Either when the register is not spilled at all as above or spilled but
     # at any instruction before spill the same register is used.
-    if instruction.label <= self.spill['spilled_at'].label:
+    if instruction.label < self.spill['spilled_at'].label:
       return self, None
 
     # If the register is spilled and the current instruction is later than
@@ -358,7 +358,9 @@ class RegisterAllocator(object):
     """Assign virtual registers to all the statements in a basic block.
 
     Args:
-
+      start_node: The start node of the CFG
+      node: The current node that is to be processed for assigning virtual
+          registers.
     """
     if node.phi_functions:
       start_node.phi_nodes.append(node)
@@ -1304,10 +1306,10 @@ class RegisterAllocator(object):
     """
     if spilled:
       memory = Memory()
-      self.insert_spill(spilled['register'], spilled['spilled_at'])
-      reload_instruction = Instruction('load', memory)
+      self.insert_spill(assignment, spilled['spilled_at'], memory)
 
-      reload_instruction.result = None
+      reload_instruction = Instruction('load', memory)
+      reload_instruction.result = result
       reload_instruction.assigned_result = result
       self.phi_map[node].append(reload_instruction)
     # We don't do anything for the case where assignment and
@@ -1337,7 +1339,9 @@ class RegisterAllocator(object):
         operand = phi_function['RHS'][i]
         if self.is_register(operand):
           assignment, spilled = operand.assignment(
-              self.ssa.ir.ir[node.value[0]])
+              self.ssa.ir.ir[predecessor.value[1]])
+          if spilled:
+            spilled['register'] = operand
         else:
           assignment, spilled = operand, None
 
@@ -1347,10 +1351,10 @@ class RegisterAllocator(object):
         phi_operands[operand] = True
 
         self.resolve_noncontiguous_blocks(predecessor, phi_function['LHS'],
-                                          assignment, spilled)
+                                          operand, spilled)
 
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
-      self.ssa_deconstructed_instructions[instruction] = [instruction]
+      self.ssa_deconstructed_instructions[instruction].append(instruction)
 
       result = instruction.result
       if self.is_register(result):
@@ -1450,9 +1454,9 @@ class RegisterAllocator(object):
       """Returns the sort key for the phi's resolved instructions.
       """
       if instruction.instruction == 'move':
-        return instruction.operand2, instruction.operand1
+        return instruction.assigned_operand2, instruction.assigned_operand1
       elif instruction.instruction == 'load':
-        return instruction.result, instruction.operand1
+        return instruction.assigned_result, instruction.assigned_operand1
 
     def cmp_func(pair1, pair2):
       """Defines how the result, operand pair should be compared.
@@ -1490,6 +1494,7 @@ class RegisterAllocator(object):
           if pair in xchg_map:
             if pair not in xchg_processed:
               xchg_processed.add(pair)
+              xchg_processed.add(xchg_map[pair])
               xchg_instruction = Instruction('xchg', pair[0], pair[1])
               xchg_instruction.assigned_operand1 = pair[0]
               xchg_instruction.assigned_operand2 = pair[1]
