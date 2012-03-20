@@ -337,7 +337,7 @@ class CodeGenerator(object):
   def generate(self):
     """Bootstraps the code generation for the SSA object.
     """
-    for instruction in self.ssa.ssa:
+    for instruction in self.ssa.ir.ir:
       mnemonic = instruction.instruction
       if mnemonic.startswith('.begin_'):
         self.handle_prologue(mnemonic[7:], instruction.operands)
