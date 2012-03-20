@@ -128,6 +128,7 @@ def bootstrap():
     cfg.compute_dominance_frontiers()
 
     compilation_stages[function_name] = {
+      'name': function_name,
       'ir': ir,
       'cfg': cfg
       }
@@ -140,7 +141,8 @@ def bootstrap():
     """
 
     for function in compilation_stages.values():
-      graph += function['cfg'].generate_vcg(ir=function['ir'].ir)
+      graph += function['cfg'].generate_vcg(title=function['name'],
+                                            ir=function['ir'].ir)
       graph += '\n'
 
     graph += '}'
@@ -163,7 +165,7 @@ def bootstrap():
     """
 
     for function in compilation_stages.values():
-      graph += str(function['cfg'].generate_dom_vcg())
+      graph += str(function['cfg'].generate_dom_vcg(title=function['name']))
       graph += '\n'
 
     graph += '}'
@@ -193,7 +195,8 @@ def bootstrap():
     """
 
     for function in compilation_stages.values():
-      graph += function['ir'].cfg.generate_vcg(ir=function['ir'].ir)
+      graph += function['ir'].cfg.generate_vcg(title=function['name'],
+                                               ir=function['ir'].ir)
       graph += '\n'
 
     graph += '}'
@@ -221,7 +224,7 @@ def bootstrap():
 
     for function in compilation_stages.values():
       graph += function['ssa'].cfg.generate_vcg(
-          ir=function['ssa'].ir.ir,
+          title=function['name'], ir=function['ssa'].ir.ir,
           optimized=function['ssa'].optimized_removal)
       graph += '\n'
 
@@ -233,9 +236,7 @@ def bootstrap():
   for function_name in compilation_stages:
     regalloc = RegisterAllocator(
         compilation_stages[function_name]['ssa'])
-    is_allocated = regalloc.allocate()
-    if is_allocated:
-      regalloc.deconstruct_ssa()
+    compilation_stages[function_name]['is_allocated'] = regalloc.allocate()
     compilation_stages[function_name]['regalloc'] = regalloc
 
   if args.virtualregvcg or args.dumpall:
@@ -247,7 +248,7 @@ def bootstrap():
 
     for function in compilation_stages.values():
       graph += function['ssa'].cfg.generate_virtual_reg_vcg(
-          ssa=function['ssa'])
+          title=function['name'], ssa=function['ssa'])
       graph += '\n'
 
     graph += '}'
@@ -272,12 +273,16 @@ def bootstrap():
     """
 
     for function in compilation_stages.values():
-      graph += function['regalloc'].interference_graph.generate_vcg()
+      graph += function['regalloc'].interference_graph.generate_vcg(
+          title=function['name'],)
       graph += '\n'
 
     graph += '}'
     interference_vcg_file.write(graph)
     interference_vcg_file.close()
+
+  for function_name in compilation_stages:
+    compilation_stages[function_name]['regalloc'].deconstruct_ssa()
 
   if args.regassigned or args.dumpall:
     reg_assigned_file = open('%s.reg.assigned' % filename, 'w')
