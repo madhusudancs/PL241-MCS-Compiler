@@ -233,7 +233,9 @@ def bootstrap():
   for function_name in compilation_stages:
     regalloc = RegisterAllocator(
         compilation_stages[function_name]['ssa'])
-    is_allocated, failed_subgraph = regalloc.allocate()
+    is_allocated = regalloc.allocate()
+    if is_allocated:
+      regalloc.deconstruct_ssa()
     compilation_stages[function_name]['regalloc'] = regalloc
 
   if args.virtualregvcg or args.dumpall:
@@ -277,12 +279,13 @@ def bootstrap():
     interference_vcg_file.write(graph)
     interference_vcg_file.close()
 
-
-  regalloc.deconstruct_ssa()
-
   if args.regassigned or args.dumpall:
     reg_assigned_file = open('%s.reg.assigned' % filename, 'w')
-    reg_assigned_file.write('%s\n' % regalloc.almost_machine_instructions())
+
+    for function in compilation_stages.values():
+      reg_assigned_file.write(
+          function['regalloc'].almost_machine_instructions() + '\n\n')
+
     reg_assigned_file.close()
 
 
