@@ -34,12 +34,14 @@ from argparse import ArgumentParser
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
 from datastructures import LiveIntervalsHeap
+from ir import is_variable
 from ir import is_variable_or_label
 from ir import Immediate
 from ir import Instruction
 from ir import IntermediateRepresentation
 from ir import Memory
 from optimizations import Optimize
+from parser import GLOBAL_SCOPE_NAME
 from parser import LanguageSyntaxError
 from parser import Parser
 from ssa import SSA
@@ -111,6 +113,9 @@ class Register(object):
     else:
       self.name = self.__class__.name_counter
       self.__class__.name_counter += 1
+
+    # The memory object this register points to.
+    self.memory = None
 
     # The instruction object where the register is defined, part of the
     # def-use chain for the register.
@@ -282,6 +287,8 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
+    self.register_memory_map = {}
+
     # Dictionary of loop header nodes as the keys and the values are the
     # loop footer nodes.
     self.loop_pair = {}
@@ -297,6 +304,40 @@ class RegisterAllocator(object):
     # instructions including the spill/reload in the order.
     self.ssa_deconstructed_instructions = collections.defaultdict(list)
 
+
+  def assign_memory(self, operand, register):
+    """Assign the memory object to the register based on the symbol table.
+
+    Args:
+      operand: The operand that this register belongs to.
+      register: The register which should have a corresponding memory location.
+    """
+    function_name = self.ssa.ir.function_name
+
+    # We will not allocate memory for non-variable registers, i.e. the result
+    # of the instructions right now. This is because most of them may not
+    # need a memory. We will allocate memory to them as they are needed, in
+    # case of spills.
+    if is_variable(operand):
+      scoped_variable, ssanumber = operand.rsplit('_', 1)
+      scope, variable = scoped_variable.split('/')
+      if scope == function_name:
+        var_entry = self.ssa.ir.local_symbol_table[variable]
+      elif scope == GLOBAL_SCOPE_NAME:
+        var_entry = self.ssa.ir.global_symbol_table[variable]
+      else:
+        raise ValueError('Scope "%s" was not found in this function "%s"' %
+            scope, function_name)
+
+      if 'memory' in var_entry:
+        self.register_memory_map[register] = var_entry['memory']
+        return var_entry['memory']
+      else:
+        memory = Memory(name=variable, size=1)
+        self.register_memory_map[register] = memory
+        var_entry['memory'] = memory
+        return memory
+
   def register_for_operand(self, operand):
     """Finds an already existing register for the operand or creates a new one.
 
@@ -308,6 +349,7 @@ class RegisterAllocator(object):
     else:
       register = Register()
       self.variable_register_map[operand] = register
+      self.assign_memory(operand, register)
       return register
 
   def virtual_reg_basic_block(self, start_node, node):
@@ -702,8 +744,7 @@ class RegisterAllocator(object):
     # register.
     # FIXME: We do not have to do this name assignments if we compile each
     # function independently
-    new_register = Register(name=self.last_register_count)
-    self.last_register_count += 1
+    new_register = Register()
 
     new_register.set_def(next_farthest_use['next_use'])
     new_register.set_use(
@@ -1116,9 +1157,9 @@ class RegisterAllocator(object):
           start_node))
       # No point in proceeding if register allocation fails. Some major
       # bug in the code. So bail out.
-      return False, start_node
+      return False
 
-    return True, None
+    return True
 
   def is_register(self, operand):
     """Checks if the given operand is actually a register.
