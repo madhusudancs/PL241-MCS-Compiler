@@ -96,6 +96,20 @@ NON_VARIABLE_OPERANDS_STARTSWITH = {
     }
 
 
+def is_variable(operand):
+  """Returns True if the operand is a variable.
+
+    Args:
+      operand: The operand to an that must be checked whether it is a
+          variable or not.
+  """
+  if operand and isinstance(operand, str) and (
+      operand[0] not in NON_VARIABLE_OPERANDS_STARTSWITH):
+    return True
+
+  return False
+
+
 def is_variable_or_label(operand):
   """Checks if a given operand is a variable or a LABEL.
 
@@ -251,11 +265,7 @@ class Instruction(object):
       operand: The operand to an instruction which must be checked for whether
           it is a variable or not.
     """
-    if operand and isinstance(operand, str) and (
-          operand[0] not in NON_VARIABLE_OPERANDS_STARTSWITH):
-      return True
-
-    return False
+    return is_variable(operand)
 
   def is_variable_or_label(self, operand):
     """Returns True if the operand is a variable or a label of another
