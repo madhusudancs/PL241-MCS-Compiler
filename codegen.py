@@ -84,6 +84,7 @@ from x86_64 import POP
 from x86_64 import PUSH
 from x86_64 import RET
 from x86_64 import SUB
+from x86_64 import XCHG
 from x86_64 import Instruction
 
 
@@ -290,6 +291,11 @@ class CodeGenerator(object):
     """
     pass
 
+  def handle_ret(self, result, *operands):
+    """Handles the read instruction of IR.
+    """
+    pass
+
   def handle_store(self, result, *operands):
     """Handles the store instruction of IR.
     """
@@ -326,6 +332,12 @@ class CodeGenerator(object):
 
     sub = SUB(result, operands[1])
     self.instructions.append(sub)
+
+  def handle_xchg(self, result, *operands):
+    """Handles the xchg instruction of IR.
+    """
+    xchg = XCHG(operands[0], operands[1])
+    self.instructions.append(xchg)
 
   def create_stack(self):
     """Creates the stack with the current memory offset value.
@@ -385,7 +397,7 @@ class CodeGenerator(object):
     rbp = Register()
     rbp.color = 'rbp'        # The color of %rbp
     pop = POP(rbp)
-    self.instructions.append(rbp)
+    self.instructions.append(pop)
 
     ret = RET()
     self.instructions.append(ret)
@@ -407,6 +419,10 @@ class CodeGenerator(object):
              instruction.assigned_operand2, *instruction.assigned_operands)
         self.processed_ir_instructions[instruction.label] = instruction
 
+    for instruction in self.instructions:
+      if instruction:
+        for char in instruction.binary:
+          print '%02x' % (ord(char),),
 
 def bootstrap():
   parser = ArgumentParser(description='Compiler arguments.')

@@ -1318,6 +1318,7 @@ class RegisterAllocator(object):
       reload_instruction = Instruction('load', memory)
       reload_instruction.result = result
       reload_instruction.assigned_result = result
+      reload_instruction.assigned_operand1 = memory
       self.phi_map[node].append(reload_instruction)
     # We don't do anything for the case where assignment and
     # phi_result are the same. They just remain the way they are :-)

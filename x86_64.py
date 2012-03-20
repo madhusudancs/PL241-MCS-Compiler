@@ -656,15 +656,28 @@ class POP(Instruction):
   """
 
   OPCODE_TABLE = {
-      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
-      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      'reg64': { 'REX': 0x00, 'OPCODE': 0x58 },
       }
 
-  def __init__(self, destination):
+  def __init__(self, operand):
     """Constructs the POP instruction.
     """
-    super(POP, self).__init__(destination)
+    self.operand = operand
+    super(POP, self).__init__()
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    if not isinstance(self.operand, Register):
+      raise InvalidInstructionException(
+          'Operand of pop instruction is not register. The value given is '
+          '%s.' % self.operand)
+
+    opcode = self.OPCODE_TABLE['reg64']['OPCODE']
+    opcode = opcode | REGISTER_COLOR_TO_CODE_MAP[self.operand.color]['REG']
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, opcode)
 
 
 class PUSH(Instruction):
@@ -672,15 +685,28 @@ class PUSH(Instruction):
   """
 
   OPCODE_TABLE = {
-      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
-      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      'reg64': { 'REX': 0x00, 'OPCODE': 0x50 },
       }
 
-  def __init__(self, destination):
+  def __init__(self, operand):
     """Constructs the PUSH instruction.
     """
-    super(PUSH, self).__init__(destination)
+    self.operand = operand
+    super(PUSH, self).__init__()
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    if not isinstance(self.operand, Register):
+      raise InvalidInstructionException(
+          'Operand of push instruction is not register. The value given is '
+          '%s.' % self.operand)
+
+    opcode = self.OPCODE_TABLE['reg64']['OPCODE']
+    opcode = opcode | REGISTER_COLOR_TO_CODE_MAP[self.operand.color]['REG']
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, opcode)
 
 
 class RET(Instruction):
@@ -711,6 +737,21 @@ class SUB(Instruction):
     """Constructs the SUB instruction.
     """
     super(SUB, self).__init__(destination, source)
+
+
+class XCHG(Instruction):
+  """Implements the XCHG instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x87 },
+      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x87 },
+      }
+
+  def __init__(self, destination, source):
+    """Constructs the XCHG instruction.
+    """
+    super(XCHG, self).__init__(destination, source)
 
 
 def bootstrap():
