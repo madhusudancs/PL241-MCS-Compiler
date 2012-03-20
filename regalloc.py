@@ -320,20 +320,20 @@ class RegisterAllocator(object):
       scoped_variable, ssanumber = operand.rsplit('_', 1)
       scope, variable = scoped_variable.split('/')
       if scope == function_name:
-        var_entry = self.ssa.ir.local_symbol_table[variable]
+        symtab_entry = self.ssa.ir.local_symbol_table[variable]
       elif scope == GLOBAL_SCOPE_NAME:
-        var_entry = self.ssa.ir.global_symbol_table[variable]
+        symtab_entry = self.ssa.ir.global_symbol_table[variable]
       else:
         raise ValueError('Scope "%s" was not found in this function "%s"' %
             scope, function_name)
 
-      if 'memory' in var_entry:
-        register.memory = var_entry['memory']
-        return var_entry['memory']
+      if 'memory' in symtab_entry:
+        register.memory = symtab_entry['memory']
+        return symtab_entry['memory']
       else:
         memory = Memory(name=variable, size=1)
         register.memory = memory
-        var_entry['memory'] = memory
+        symtab_entry['memory'] = memory
         return memory
 
   def register_for_operand(self, operand):
