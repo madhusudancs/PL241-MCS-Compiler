@@ -651,6 +651,38 @@ class MOV(Instruction):
     super(MOV, self).__init__(destination, source)
 
 
+class POP(Instruction):
+  """Implements the POP instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
+      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      }
+
+  def __init__(self, destination):
+    """Constructs the POP instruction.
+    """
+    super(POP, self).__init__(destination)
+
+
+class PUSH(Instruction):
+  """Implements the PUSH instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
+      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      }
+
+  def __init__(self, destination):
+    """Constructs the PUSH instruction.
+    """
+    super(PUSH, self).__init__(destination)
+
+
 class RET(Instruction):
   """Implements the RET instruction.
   """
