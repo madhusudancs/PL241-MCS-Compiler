@@ -294,8 +294,9 @@ def bootstrap():
     reg_assigned_file.close()
 
 
-  cg = CodeGenerator(ssa)
-  cg.generate()
+  for function_name in compilation_stages:
+    cg = CodeGenerator(compilation_stages[function_name]['ir'])
+    cg.generate()
 
   return cg
 
