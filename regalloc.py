@@ -287,10 +287,6 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
-    # Dictionary containing the registers as keys and the assigned memory
-    # location as values.
-    self.register_memory_map = {}
-
     # Dictionary of loop header nodes as the keys and the values are the
     # loop footer nodes.
     self.loop_pair = {}
@@ -332,11 +328,11 @@ class RegisterAllocator(object):
             scope, function_name)
 
       if 'memory' in var_entry:
-        self.register_memory_map[register] = var_entry['memory']
+        register.memory = var_entry['memory']
         return var_entry['memory']
       else:
         memory = Memory(name=variable, size=1)
-        self.register_memory_map[register] = memory
+        register.memory = memory
         var_entry['memory'] = memory
         return memory
 
@@ -760,6 +756,7 @@ class RegisterAllocator(object):
     # FIXME: We do not have to do this name assignments if we compile each
     # function independently
     new_register = Register()
+    new_register.memory = spill_register.memory
 
     new_register.set_def(next_farthest_use['next_use'])
     new_register.set_use(
@@ -1290,7 +1287,12 @@ class RegisterAllocator(object):
     if not spill:
       return
 
-    new_memory = Memory()
+    if register.memory:
+      new_memory = register.memory
+    else:
+      new_memory = Memory()
+      register.memory = new_memory
+
     self.insert_spill(register, spill['spilled_at'], new_memory)
     self.insert_reload(new_memory, register, spill['spilled_to'],
                        spill['register'])
@@ -1305,7 +1307,12 @@ class RegisterAllocator(object):
       spill: Dictionary containing spill information.
     """
     if spilled:
-      memory = Memory()
+      if assignment.memory:
+        memory = assignment.memory
+      else:
+        memory = Memory()
+        assignment.memory = memory
+
       self.insert_spill(assignment, spilled['spilled_at'], memory)
 
       reload_instruction = Instruction('load', memory)
@@ -1430,7 +1437,12 @@ class RegisterAllocator(object):
             loop_enter_memory = \
                 self.ssa_deconstructed_instructions[
                     spilled['spilled_to']][0].assigned_operand1
-            new_memory = Memory()
+            if new_assignment.memory:
+              new_memory = new_assignment.memory
+            else:
+              new_memory = Memory()
+              new_assignment.memory = new_memory
+
             self.insert_spill(new_assignment, spilled['spilled_at'],
                               new_memory)
             mmove_instruction = Instruction('mmove', new_memory,
