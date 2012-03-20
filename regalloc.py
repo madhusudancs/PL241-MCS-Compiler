@@ -455,7 +455,7 @@ class RegisterAllocator(object):
             use = self.ssa.ir.ir[phi_node.in_edges[i].value[1]]
             new_register.set_use(use)
             new_register.use_instructions.sort(
-                key=lambda i: i.label, reverse=True)
+                key=lambda i: i.label)
 
             phi_function['RHS'][i] = new_register
 
@@ -713,7 +713,7 @@ class RegisterAllocator(object):
       # next_use because we are traversing the list reverse. Also we don't
       # test if this use is before the current instruction because, if that
       # is the case the register is already dead and not even interfering.
-      next_use_index, next_use = 0, collision_register_uses[0]
+      next_use_index, next_use = -1, collision_register_uses[-1]
 
       if next_use.label < current_instruction.label and (
           next_use.instruction != 'phi'):
@@ -728,10 +728,10 @@ class RegisterAllocator(object):
                 current_node.register))
 
       # A binary search may be better in this case than linear.
-      for use_index, use in enumerate(collision_register_uses[1:]):
+      for use_index, use in enumerate(collision_register_uses[-2::-1]):
         if use.label < current_instruction.label:
           break
-        next_use_index, next_use = use_index, use
+        next_use_index, next_use = -use_index-2, use
 
       # Can't spill because it is required by current instruction.
       if next_use.label == current_instruction.label:
@@ -761,7 +761,7 @@ class RegisterAllocator(object):
 
     new_register.set_def(next_farthest_use['next_use'])
     new_register.set_use(
-        *spill_register.uses()[:next_farthest_use['next_use_index'] + 1])
+        *spill_register.uses()[next_farthest_use['next_use_index']:])
 
     # Push the new register down the heap. If there is no next use, then
     # it should probably be part of the loop. So set things at the end of
