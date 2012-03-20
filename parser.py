@@ -666,6 +666,8 @@ class Parser(object):
         if look_ahead_token == ')':
           self.__token_stream.next()
           look_ahead_token = self.__token_stream.look_ahead()
+    else:
+      node = Node('abstract', 'formalParam', parent)
 
     if look_ahead_token != ';':
       raise LanguageSyntaxError('%d: Expected ";" but "%s" was found.' % (
@@ -759,11 +761,11 @@ class Parser(object):
     parser_method(parent)
 
   def __parse_abstract_formal_param(self, parent):
+    node = Node('abstract', 'formalParam', parent)
     look_ahead_token = self.__token_stream.look_ahead()
     if look_ahead_token == ')':
       self.__parse_rightparen(parent)
 
-    node = Node('abstract', 'formalParam', parent)
     self.__parse_abstract_ident(node, add=True, ident_type='integer')
 
     while self.__token_stream.look_ahead() == ',':
