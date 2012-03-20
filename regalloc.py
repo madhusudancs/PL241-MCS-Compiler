@@ -196,7 +196,7 @@ class Register(object):
 
     # Either when the register is not spilled at all as above or spilled but
     # at any instruction before spill the same register is used.
-    if instruction.label < self.spill['spilled_at'].label:
+    if instruction.label <= self.spill['spilled_at'].label:
       return self, None
 
     # If the register is spilled and the current instruction is later than
