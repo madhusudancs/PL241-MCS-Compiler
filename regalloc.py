@@ -537,8 +537,12 @@ class RegisterAllocator(object):
           live[operand] = True
 
     for phi_function in node.phi_functions.values():
-      intervals[phi_function['LHS']][0] = node.value[0]
-      live.pop(phi_function['LHS'])
+      if phi_function['LHS'] not in intervals:
+        intervals[phi_function['LHS']] = [None, None]
+      else:
+        intervals[phi_function['LHS']][0] = node.value[0]
+        live.pop(phi_function['LHS'])
+
       phi_operands[phi_function['LHS']] = True
 
 
