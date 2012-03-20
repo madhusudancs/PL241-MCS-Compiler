@@ -287,6 +287,8 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
+    # Dictionary containing the registers as keys and the assigned memory
+    # location as values.
     self.register_memory_map = {}
 
     # Dictionary of loop header nodes as the keys and the values are the
