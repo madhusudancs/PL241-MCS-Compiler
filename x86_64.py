@@ -341,6 +341,12 @@ class JumpInstruction(Instruction):
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
 
+  def set_target(self, target):
+    """Sets the target offset and rebuilds the instruction binary.
+    """
+    self.target = target
+    self.build()
+
 
 class ADD(Instruction):
   """Implements the ADD instruction.
