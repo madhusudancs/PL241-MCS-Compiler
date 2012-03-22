@@ -191,7 +191,7 @@ class Instruction(object):
         source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
         rm = source_reg['REG']
         offset = -source_mem.offset if source_mem.offset else \
-            source_mem.index * MEMORY_WIDTH
+            (source_mem.offset if source_mem.offset else 0) * MEMORY_WIDTH
 
       modregrm = self.mod_reg_rm_byte(mod, reg, rm)
       rex = self.rex_byte(base=opcode_entry['REX'],
