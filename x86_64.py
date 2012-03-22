@@ -718,7 +718,21 @@ class JNE(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the JNE instruction.
     """
-    super(JNE,self).__init__()
+    super(JNE, self).__init__()
+
+
+class LEA(Instruction):
+  """Implements the LEA instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x8D },
+      }
+
+  def __init__(self, destination, source):
+    """Constructs the LEA instruction.
+    """
+    super(LEA, self).__init__(destination, source)
 
 
 class MOV(Instruction):
