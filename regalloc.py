@@ -1332,7 +1332,7 @@ class RegisterAllocator(object):
     if register.memory:
       new_memory = register.memory
     else:
-      new_memory = Memory()
+      new_memory = Memory(scope=self.ssa.ir.function_name)
       register.memory = new_memory
 
     self.insert_spill(register, spill['spilled_at'], new_memory)
@@ -1352,7 +1352,7 @@ class RegisterAllocator(object):
       if assignment.memory:
         memory = assignment.memory
       else:
-        memory = Memory()
+        memory = Memory(scope=self.ssa.ir.function_name)
         assignment.memory = memory
 
       self.insert_spill(assignment, spilled['spilled_at'], memory)
@@ -1390,8 +1390,6 @@ class RegisterAllocator(object):
         if self.is_register(operand):
           assignment, spilled = operand.assignment(
               self.ssa.ir.ir[predecessor.value[1]])
-          if spilled:
-            spilled['register'] = operand
         else:
           assignment, spilled = operand, None
 
@@ -1483,7 +1481,7 @@ class RegisterAllocator(object):
             if new_assignment.memory:
               new_memory = new_assignment.memory
             else:
-              new_memory = Memory()
+              new_memory = Memory(scope=self.ssa.ir.function_name)
               new_assignment.memory = new_memory
 
             self.insert_spill(new_assignment, spilled['spilled_at'],
