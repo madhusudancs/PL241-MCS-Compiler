@@ -321,7 +321,7 @@ class JumpInstruction(Instruction):
     """Constructs the JE instruction.
     """
     self.target = target
-    super(JumpInstruction,self).__init__()
+    super(JumpInstruction, self).__init__()
 
   def build(self):
     """Builds the instruction bytes.
@@ -367,9 +367,9 @@ class CALL(JumpInstruction):
       }
 
   def __init__(self, target=None):
-    """Constructs the JMP instruction.
+    """Constructs the CALL instruction.
     """
-    super(JMP,self).__init__()
+    super(CALL, self).__init__()
 
   def build(self):
     """Builds the instruction bytes.
@@ -422,7 +422,7 @@ class IDIV(Instruction):
   def __init__(self, source):
     """Constructs the IDIV instruction.
     """
-    super(IDIV,self).__init__(destination=None, source=source)
+    super(IDIV, self).__init__(destination=None, source=source)
 
   def build(self):
     """Builds the instruction bytes.
@@ -497,7 +497,7 @@ class IMUL(Instruction):
     """Constructs the IMUL instruction.
     """
     self.immediate = immediate
-    super(IMUL,self).__init__(destination, source)
+    super(IMUL, self).__init__(destination, source)
 
   def build(self):
     """Builds the instruction bytes.
@@ -570,7 +570,7 @@ class JE(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the JE instruction.
     """
-    super(JE,self).__init__()
+    super(JE, self).__init__()
 
 
 class JG(JumpInstruction):
@@ -585,7 +585,7 @@ class JG(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the JG instruction.
     """
-    super(JG,self).__init__()
+    super(JG, self).__init__()
 
 
 class JGE(JumpInstruction):
@@ -600,7 +600,7 @@ class JGE(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the JGE instruction.
     """
-    super(JGE,self).__init__()
+    super(JGE, self).__init__()
 
 
 class JL(JumpInstruction):
@@ -615,7 +615,7 @@ class JL(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the  instruction.
     """
-    super(JL,self).__init__()
+    super(JL, self).__init__()
 
 
 class JLE(JumpInstruction):
@@ -630,7 +630,7 @@ class JLE(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the JLE instruction.
     """
-    super(JLE,self).__init__()
+    super(JLE, self).__init__()
 
 
 class JMP(JumpInstruction):
@@ -645,7 +645,7 @@ class JMP(JumpInstruction):
   def __init__(self, target=None):
     """Constructs the JMP instruction.
     """
-    super(JMP,self).__init__()
+    super(JMP, self).__init__()
 
   def build(self):
     """Builds the instruction bytes.
