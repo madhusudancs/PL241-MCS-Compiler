@@ -382,15 +382,31 @@ class RegisterAllocator(object):
 
         instruction.operands = new_operands
       else:
+        # The first operand of the branch instruction should still be a label.
+        # We directly assign that off as the assigned operand since no register
+        # or memory allocation is required for it.
+        if instruction.instruction == 'bra':
+          instruction.assigned_operand1 = instruction.operand1
+          continue
+
+        # The second operand of the branch instruction should still be a label.
+        # We directly assign that off as the assigned operand since no register
+        # or memory allocation is required for it.
+        if instruction.instruction in ['beq', 'bne', 'blt',
+                                       'ble', 'bgt', 'bge']:
+          if self.is_register(cmp_instruction.result):
+            if instruction.is_variable_or_label(instruction.operand1):
+              instruction.operand1 = self.register_for_operand(
+                  instruction.operand1)
+              instruction.operand1.set_use(instruction)
+          instruction.assigned_operand2 = instruction.operand2
+          continue
+
         if instruction.is_variable_or_label(instruction.operand1):
           instruction.operand1 = self.register_for_operand(
               instruction.operand1)
           instruction.operand1.set_use(instruction)
 
-        # The second operand of the branch instruction should still be a label.
-        if instruction.instruction in ['beq', 'bne', 'blt',
-                                       'ble', 'bgt', 'bge']:
-          continue
 
         if instruction.is_variable_or_label(instruction.operand2):
           instruction.operand2 = self.register_for_operand(
@@ -409,8 +425,23 @@ class RegisterAllocator(object):
         # After Copy propagation the only move instructions that remain
         # are for the function eplilogue, prologue and at the callee site
         # we need not allocate a register for results of these instructions.
-        if instruction.instruction in ['move', 'store']:
+        # We also need not allocate registers for the result of the return
+        # instruction
+        if instruction.instruction in ['move', 'store', 'ret']:
           continue
+
+        # FIXME: This is architecture specific
+        # No need to assign a register for the compare instruction for x86_64
+        # since the architecture uses special flag register for this which
+        # is not the General Purpose Register.
+        # However if one of the operands is not a register, will want a
+        # register to hold
+        if instruction.instruction == 'cmp':
+          cmp_instruction = instruction
+          if not (
+              self.is_memory(instruction.operand1) and
+              self.is_memory(instruction.operand2)):
+            continue
 
         # Assign a register for the result of the instruction
         register = Register()
