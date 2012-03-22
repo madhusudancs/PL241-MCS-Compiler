@@ -261,6 +261,47 @@ class Instruction(object):
 
       self.binary += struct.pack('%sq' % BYTE_ORDERING_FMT, source_imm)
 
+    elif (isinstance(self.destination, Memory) and
+        isinstance(self.source, Immediate)):
+      source_imm = self.source.value
+      dest_mem = self.destination
+
+      opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
+
+      mod = 0b01
+
+      if isinstance(dest_mem.offset, Register):
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+        rm = dest_reg['REG']
+        offset = 0
+      else:
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = dest_reg['REG']
+        offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+      modregrm = self.mod_reg_rm_byte(mod, 000, rm)
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          B=dest_reg['REX'])
+
+      if rex:
+        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 modregrm)
+
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 opcode_entry['OPCODE'])
+
+      self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+
+      self.binary += struct.pack('%sq' % BYTE_ORDERING_FMT, source_imm)
+    else:
+      raise NotImplementedError('The operands for the instruction could not '
+          'be encoded. Destination: %s Source: %s' % (
+              self.destination, self.source))
+
   def __len__(self):
     """Returns the length of the binary bytes for the instruction.
     """
