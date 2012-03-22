@@ -268,9 +268,9 @@ class Parser(object):
     # Initialize the symbol table with the functions provided by the language.
     self.symbol_table = {
         GLOBAL_SCOPE_NAME: {
-            'InputNum': None,
-            'OutputNum': None,
-            'OutputNewLine': None,
+            'InputNum': {},
+            'OutputNum': {},
+            'OutputNewLine': {},
             }
         }
 
