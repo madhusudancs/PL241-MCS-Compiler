@@ -323,21 +323,14 @@ class RegisterAllocator(object):
     # need a memory. We will allocate memory to them as they are needed, in
     # case of spills.
     if is_variable(operand):
-      scoped_variable, ssanumber = operand.rsplit('_', 1)
-      scope, variable = scoped_variable.split('/')
-      if scope == function_name:
-        symtab_entry = self.ssa.ir.local_symbol_table[variable]
-      elif scope == GLOBAL_SCOPE_NAME:
-        symtab_entry = self.ssa.ir.global_symbol_table[variable]
-      else:
-        raise ValueError('Scope "%s" was not found in this function "%s"' %
-            scope, function_name)
+      variable, ssanumber = operand.rsplit('_', 1)
+      symtab_entry = self.ssa.ir.local_symbol_table[variable]
 
       if 'memory' in symtab_entry:
         register.memory = symtab_entry['memory']
         return symtab_entry['memory']
       else:
-        memory = Memory(name=variable, size=1)
+        memory = Memory(name=variable, scope=self.ssa.ir.function_name)
         register.memory = memory
         symtab_entry['memory'] = memory
         return memory
