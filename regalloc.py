@@ -207,7 +207,7 @@ class Register(object):
 
     # If the register is spilled and the current instruction is later than
     # or at the instruction where this register needs to be reloaded we
-    # delegate to the reloaded register to do return its assignment.
+    # delegate to the reloaded register to return its assignment.
     # NOTE: This gets recursive, if the reloaded register is spilled again.
     # This is very nice because we need not do this in a loop individually
     # for all the chained spills.
