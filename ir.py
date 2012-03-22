@@ -134,7 +134,7 @@ class Memory(object):
   during the code generation phase.
   """
 
-  def __init__(self, name=None, size=None, base=None, offset=None):
+  def __init__(self, name=None, size=None, base=None, offset=None, scope=None):
     """Constructs a placeholder for memory required for the program.
 
     Args:
@@ -152,14 +152,17 @@ class Memory(object):
     # Until the code generation phase the size required is represented in
     # the multiples of size required to store an integer. Architecture
     # specific details will take care of this.
-    self.size = None
+    self.size = size
 
     # The base memory address.
-    self.base = None
+    self.base = base
 
     # This is the memory offset from the base of the stack. This will be
     # used only during code generation.
-    self.offset = None
+    self.offset = offset
+
+    # The scope of this memory object.
+    self.scope = scope
 
   def __str__(self):
     """Returns the string representation for this memory enclosed in [].
