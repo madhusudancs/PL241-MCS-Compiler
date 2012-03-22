@@ -775,8 +775,15 @@ class POP(Instruction):
           'Operand of pop instruction is not register. The value given is '
           '%s.' % self.operand)
 
-    opcode = self.OPCODE_TABLE['reg64']['OPCODE']
-    opcode = opcode | REGISTER_COLOR_TO_CODE_MAP[self.operand.color]['REG']
+    reg = REGISTER_COLOR_TO_CODE_MAP[self.operand.color]
+    opcode_entry = self.OPCODE_TABLE['reg64']
+
+    opcode = opcode_entry['OPCODE'] | reg['REG']
+
+    if reg['REX'] == 1:
+      rex = self.rex_byte(base=opcode_entry['REX'], B=reg['REX'])
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
     self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, opcode)
 
 
@@ -804,8 +811,15 @@ class PUSH(Instruction):
           'Operand of push instruction is not register. The value given is '
           '%s.' % self.operand)
 
-    opcode = self.OPCODE_TABLE['reg64']['OPCODE']
-    opcode = opcode | REGISTER_COLOR_TO_CODE_MAP[self.operand.color]['REG']
+    reg = REGISTER_COLOR_TO_CODE_MAP[self.operand.color]
+    opcode_entry = self.OPCODE_TABLE['reg64']
+
+    opcode = opcode_entry['OPCODE'] | reg['REG']
+
+    if reg['REX'] == 1:
+      rex = self.rex_byte(base=opcode_entry['REX'], B=reg['REX'])
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
     self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, opcode)
 
 
@@ -821,6 +835,14 @@ class RET(Instruction):
     """Constructs the RET instruction.
     """
     super(RET, self).__init__(destination=None, source=None)
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
+                               self.OPCODE_TABLE['nooperand']['OPCODE'])
 
 
 class SUB(Instruction):
