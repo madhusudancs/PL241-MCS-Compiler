@@ -538,7 +538,7 @@ class IMUL(Instruction):
       self.binary += struct.pack('%si' % BYTE_ORDERING_FMT,
                                  imm32)
     elif (isinstance(self.destination, Register) and
-        isinstance(self.source, Register)):
+        (isinstance(self.source, Register))):
       source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
       dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
 
