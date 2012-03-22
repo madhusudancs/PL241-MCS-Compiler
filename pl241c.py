@@ -28,6 +28,7 @@ import sys
 
 from codegen import CodeGenerator
 from ir import IntermediateRepresentation
+from linker import Linker
 from optimizations import Optimize
 from parser import GLOBAL_SCOPE_NAME
 from parser import LanguageSyntaxError
@@ -294,11 +295,17 @@ def bootstrap():
     reg_assigned_file.close()
 
 
+  generated_functions = []
   for function_name in compilation_stages:
     cg = CodeGenerator(compilation_stages[function_name]['ir'])
     cg.generate()
+    generated_functions.append(cg)
+    compilation_stages[function_name]['cg'] = cg
 
-  return cg
+  linker = Linker(generated_functions)
+  linker.link()
+
+  return linker
 
 if __name__ == '__main__':
-  cg = bootstrap()
+  linker = bootstrap()
