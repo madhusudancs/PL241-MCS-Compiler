@@ -1257,15 +1257,26 @@ class RegisterAllocator(object):
     """Generates instructions which have registers assigned and phi-resolved.
     """
     assigned_ssa = []
-    for instruction in self.ssa.optimized():
-      if instruction.instruction == 'phi':
-        continue
 
-      if self.ssa_deconstructed_instructions[instruction]:
-        first, last = (self.ssa_deconstructed_instructions[instruction][0],
-                     self.ssa_deconstructed_instructions[instruction][-1])
-        first.label, last.label = last.label, first.label
-      assigned_ssa.extend(self.ssa_deconstructed_instructions[instruction])
+    for instruction in self.ssa.ir.ir:
+      if instruction.label in self.ssa.ir.start_node_map:
+        instructions = []
+
+      if instruction in self.ssa_deconstructed_instructions:
+        if self.ssa_deconstructed_instructions[instruction]:
+          first, last = (self.ssa_deconstructed_instructions[instruction][0],
+                         self.ssa_deconstructed_instructions[instruction][-1])
+        assigned_ssa.extend(self.ssa_deconstructed_instructions[instruction])
+
+        instructions.extend(self.ssa_deconstructed_instructions[instruction])
+
+      if instruction.label in self.ssa.ir.end_node_map:
+        node = self.ssa.ir.end_node_map[instruction.label]
+        node.instructions = instructions
+
+      if instruction in self.ssa_deconstructed_instructions:
+        if self.ssa_deconstructed_instructions[instruction]:
+          first.label, last.label = last.label, first.label
 
     self.ssa.ir.ir = assigned_ssa
 
