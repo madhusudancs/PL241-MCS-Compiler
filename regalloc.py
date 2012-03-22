@@ -489,7 +489,7 @@ class RegisterAllocator(object):
   def analyze_basic_block_liveness(self, start_node, node):
     """Analyzes the liveness of the variables in the given basic block
 
-    Performs a post-order traversal of the dominator tree for processing
+    Performs a post-order traversal of the control flow graph for processing
     the liveness, so the traversal is on the dominator tree.
 
     This code is almost the translation of the pseudo-code from the paper
