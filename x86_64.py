@@ -60,19 +60,24 @@ REGISTER_COLOR_TO_CODE_MAP = {
     1:      { 'REX': 0b0, 'REG': 0b011 },   # rbx
     2:      { 'REX': 0b0, 'REG': 0b001 },   # rcx
     3:      { 'REX': 0b0, 'REG': 0b010 },   # rdx
-    6:      { 'REX': 0b0, 'REG': 0b110 },   # rsi
-    7:      { 'REX': 0b0, 'REG': 0b111 },   # rdi
-    8:      { 'REX': 0b1, 'REG': 0b000 },   # r8
-    9:      { 'REX': 0b1, 'REG': 0b001 },   # r9
-    10:     { 'REX': 0b1, 'REG': 0b010 },   # r10
-    11:     { 'REX': 0b1, 'REG': 0b011 },   # r11
-    12:     { 'REX': 0b1, 'REG': 0b100 },   # r12
-    13:     { 'REX': 0b1, 'REG': 0b101 },   # r13
-    14:     { 'REX': 0b1, 'REG': 0b110 },   # r14
-    15:     { 'REX': 0b1, 'REG': 0b111 },   # r15
+    4:      { 'REX': 0b0, 'REG': 0b110 },   # rsi
+    5:      { 'REX': 0b0, 'REG': 0b111 },   # rdi
+    6:      { 'REX': 0b1, 'REG': 0b000 },   # r8
+    7:      { 'REX': 0b1, 'REG': 0b001 },   # r9
+    8:      { 'REX': 0b1, 'REG': 0b010 },   # r10
+    9:      { 'REX': 0b1, 'REG': 0b011 },   # r11
+    10:     { 'REX': 0b1, 'REG': 0b100 },   # r12
+    11:     { 'REX': 0b1, 'REG': 0b101 },   # r13
+    12:     { 'REX': 0b1, 'REG': 0b110 },   # r14
+    13:     { 'REX': 0b1, 'REG': 0b111 },   # r15
     'rsp':  { 'REX': 0b0, 'REG': 0b100 },   # rsp
     'rbp':  { 'REX': 0b0, 'REG': 0b101 }    # rbp
     }
+
+
+# Keep this pre-computed for faster set operations on register colors, like
+# set difference operation etc. which will be used in code generator.
+REGISTERS_COLOR_SET = set(range(0, 14))
 
 
 class InvalidInstructionException(Exception):
