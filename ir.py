@@ -701,11 +701,15 @@ class IntermediateRepresentation(object):
 
     # Else this must be an array.
 
-    array_scope, array_name = result.split('/')
-    if array_scope == self.function_name:
-      symtab_entry = self.local_symbol_table[array_name]
-    elif array_scope == GLOBAL_SCOPE_NAME:
-      symtab_entry = self.global_symbol_table[array_name]
+    if not isinstance(result, Memory):
+      array_name = result
+      result = Memory(name=array_name, scope=self.function_name)
+      self.local_symbol_table[array_name]['memory'] = result
+
+    if result.scope == self.function_name:
+      symtab_entry = self.local_symbol_table[result.name]
+    elif result.scope == GLOBAL_SCOPE_NAME:
+      symtab_entry = self.global_symbol_table[result.name]
 
     dimensions = symtab_entry['dimensions']
     expression_result = self.expression(root.children[1])
@@ -717,7 +721,7 @@ class IntermediateRepresentation(object):
                                            temp_result)
 
     offset_result = self.instruction('*', expression_result, Immediate(4))
-    result = self.instruction('adda', offset_result, '#%s' % (result))
+    result = self.instruction('adda', offset_result, result)
     if lvalue:
       return result, True
 
@@ -769,14 +773,17 @@ class IntermediateRepresentation(object):
     """Return identifier as the operator.
     """
     if root.value in self.local_symbol_table:
-      scope = self.function_name
+      return '%s' % (root.value)
     elif root.value in self.global_symbol_table:
-      scope = GLOBAL_SCOPE_NAME
+      if 'memory' in self.global_symbol_table[root.value]:
+        return self.global_symbol_table[root.value]['memory']
+      else:
+        memory = Memory(name=root.value, scope=GLOBAL_SCOPE_NAME)
+        self.global_symbol_table[root.value]['memory'] = memory
+        return memory
     else:
       raise LanguageSyntaxError('Identifier "%s" encountered which is not '
           'declared anywhere.')
-
-    return '%s/%s' % (scope, root.value)
 
   def number(self, root):
     """Returns the number by prefixing # as per convention.
