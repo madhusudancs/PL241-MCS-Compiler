@@ -125,6 +125,9 @@ class Register(object):
     # def-use chain for the register.
     self.use_instructions = []
 
+    # Flag to indicate if use_instructions was sorted.
+    self.sorted = False
+
     # If the register is spilled it contains a dictionary with three keys,
     #   "spilled_at": pointer to the instruction object where it was spilled
     #   "spilled_to": pointer to the instruction where this register needs
@@ -168,6 +171,7 @@ class Register(object):
     Args:
       instruction: The Instruction object where the variable is defined.
     """
+    self.sorted = False
     self.use_instructions.extend(instructions)
 
   def uses(self):
@@ -175,6 +179,8 @@ class Register(object):
 
     Returns an empty set if it is not used anywhere.
     """
+    if not self.sorted:
+      self.use_instructions.sort(key=lambda i: i.label)
     return self.use_instructions
 
   def assignment(self, instruction):
