@@ -556,9 +556,43 @@ class IMUL(Instruction):
         self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
       self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
-                                opcode_entry['OPCODE'])
+                                 opcode_entry['OPCODE'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                modregrm)
+                                 modregrm)
+
+    elif (isinstance(self.destination, Register) and
+        (isinstance(self.source, Memory))):
+      source_mem = self.source
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
+
+      opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
+
+      mod = 0b10
+      reg = dest_reg['REG']
+
+      if isinstance(source_mem.offset, Register):
+        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+        rm = source_reg['REG']
+        offset = 0
+      else:
+        source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = source_reg['REG']
+        offset = -source_mem.offset if source_mem.offset else \
+            (source_mem.offset if source_mem.offset else 0) * MEMORY_WIDTH
+
+      modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          R=dest_reg['REX'],
+                          B=source_reg['REX'])
+
+      if rex:
+        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+      self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
+                                 opcode_entry['OPCODE'])
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                                 modregrm)
+      self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
     else:
       raise NotImplementedError('Only register to register multiplications '
                                 'are implemented.')
