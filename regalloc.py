@@ -369,8 +369,8 @@ class RegisterAllocator(object):
         phi_function['LHS'] = new_register
         self.variable_register_map[operand] = new_register
 
-    for instruction in self.ssa.optimized(node.value[0], node.value[1]):
-      if instruction.instruction in ['.end_', 'bra']:
+    for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
+      if instruction.instruction == '.end_':
         continue
       elif instruction.instruction == '.begin_':
         new_operands = []
