@@ -451,7 +451,6 @@ class RegisterAllocator(object):
 
     for child in node.out_edges:
       if self.visited.get(child, False):
-        self.loop_pair[child] = node
         continue
 
       self.visited[child] = True
@@ -507,6 +506,8 @@ class RegisterAllocator(object):
     """
     for child in node.out_edges:
       if self.visited.get(child, False):
+        if node in child.out_edges:
+          self.loop_pair[child] = node
         continue
 
       self.visited[child] = True
