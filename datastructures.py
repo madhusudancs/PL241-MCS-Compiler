@@ -281,6 +281,17 @@ class CFGNode(Node):
     # function.
     self.phi_nodes = []
 
+    # A list of all the instructions that belongs to this basic block,
+    # this is used only after the register allocation phase because until
+    # then the instructions are linearly ordered in IntermediateRepresentation
+    # object's ir list according to their labels. However allocating registers
+    # and resolving phi instructions introduce additional instructions that
+    # breaks this ordering. So we store the entire list of instructions
+    # explicitly from the point of allocating registers and deconstructing
+    # SSA.
+    self.instructions = []
+
+
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
 
