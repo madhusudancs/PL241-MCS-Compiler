@@ -1578,10 +1578,6 @@ class RegisterAllocator(object):
         instruction = self.ssa.ir.ir[predecessor.value[1]]
         self.ssa_deconstructed_instructions[instruction].extend(instructions)
 
-      first, last = (self.ssa_deconstructed_instructions[instruction][0],
-          self.ssa_deconstructed_instructions[instruction][-1])
-      first.label, last.label = last.label, first.label
-
     self.generate_assigned_instructions()
 
   def registers_assigned_instructions(self):
