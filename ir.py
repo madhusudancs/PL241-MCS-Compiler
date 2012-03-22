@@ -392,6 +392,11 @@ class IntermediateRepresentation(object):
     # Control Flow Graph for the IR.
     self.cfg = None
 
+    # A reverse map of the CFG nodes from the boundaries of the
+    # CFG to the corresponding nodes.
+    self.start_node_map = {}
+    self.end_node_map = {}
+
   def instruction(self, operator, *operands):
     """Builds the instruction for the given arguments.
 
@@ -464,14 +469,6 @@ class IntermediateRepresentation(object):
       instruction = self.ir[i]
       if instruction.instruction == 'ret':
         return_targets[i] = True
-      elif instruction.instruction == 'call':
-        # We need to skip this iteration because this instruction is
-        # a function call and we don't treat this branch instruction
-        # the same way we treat the regular branch instructions within
-        # a function. Function starting points are added as leaders
-        # separately below. And we consider call instructions as
-        # continuous flow without a branch within a function.
-        pass
       elif instruction.instruction == 'bra':
         target = instruction.operand1
         leaders.append(target)
@@ -485,6 +482,8 @@ class IntermediateRepresentation(object):
 
         leaders.append(i + 1)
         targets[i].append(i+1)
+      elif instruction.instruction == '.end_':
+        leaders.append(i)
 
       i += 1
 
@@ -536,6 +535,8 @@ class IntermediateRepresentation(object):
       entry = True if self.ir[leader].instruction.startswith('.begin_') \
           else False
       node = CFGNode(value=(leader, leader_dict['end']), entry=entry)
+      self.start_node_map[leader] = node
+      self.end_node_map[leader_dict['end']] = node
       nodes[leader] = node
 
     end = len(self.ir) - 1
