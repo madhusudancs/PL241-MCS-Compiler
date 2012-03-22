@@ -756,7 +756,7 @@ class POP(Instruction):
   """
 
   OPCODE_TABLE = {
-      'reg64': { 'REX': 0x00, 'OPCODE': 0x58 },
+      'reg64': { 'REX': 0x40, 'OPCODE': 0x58 },
       }
 
   def __init__(self, operand):
@@ -785,7 +785,7 @@ class PUSH(Instruction):
   """
 
   OPCODE_TABLE = {
-      'reg64': { 'REX': 0x00, 'OPCODE': 0x50 },
+      'reg64': { 'REX': 0x40, 'OPCODE': 0x50 },
       }
 
   def __init__(self, operand):
@@ -814,7 +814,7 @@ class RET(Instruction):
   """
 
   OPCODE_TABLE = {
-      ('noperand'): { 'REX': 0x00, 'OPCODE': 0xCB },
+      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0xCB },
       }
 
   def __init__(self):
