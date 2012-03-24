@@ -765,9 +765,9 @@ class CodeGenerator(object):
     for instruction in self.ir.ir:
       mnemonic = instruction.instruction
       if mnemonic.startswith('.begin_'):
-        self.handle_prologue(mnemonic[7:], instruction.operands)
+        self.handle_prologue(instruction.function_name, *instruction.operands)
       elif mnemonic.startswith('.end_'):
-        self.handle_epilogue(mnemonic[5:], instruction.operands)
+        self.handle_epilogue(instruction.function_name, *instruction.operands)
         break
       elif mnemonic == 'call':
         self.handle_call(instruction.function_name, instruction.label,
