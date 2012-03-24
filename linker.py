@@ -89,8 +89,10 @@ class Linker(object):
 
     for function in self.functions:
       for instruction, target_function_name in function.calls_to_link:
-        target_offset = self.function_offset_map[target_function_name]
-        function_offset = self.function_offset_map[function.ir.function_name]
+        target_offset = self.function_offset_map[
+            target_function_name]['offset']
+        function_offset = self.function_offset_map[
+            function.ir.function_name]['offset']
         next_offset = function.instruction_offsets_map[
             instruction]['end_offset']
         jump_offset = target_offset - (function_offset + next_offset)
