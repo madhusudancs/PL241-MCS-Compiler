@@ -41,6 +41,21 @@ from argparse import ArgumentParser
 LOGGER = logging.getLogger(__name__)
 
 
+# Hard-coded data start memory virtual address and physical address
+# FIXME: Think of a way to make it dynamic.
+DATA_VADDR        = 0x600000
+DATA_PADDR        = 0x600000
+
+# Hard-coded program start memory virtual address and physical address
+# FIXME: Think of a way to make it dynamic.
+PROGRAM_VADDR     = 0x400000
+PROGRAM_PADDR     = 0x400000
+
+# Hard-coded section alignment value.
+# FIXME: Think of a way to make it dynamic.
+SECTION_ALIGNMENT = 0x200000
+
+
 class ELFMetaclass(type):
   """The metaclass abstracting all the datastructures required across ELF.
   """
