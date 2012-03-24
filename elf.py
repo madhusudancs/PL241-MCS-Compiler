@@ -938,8 +938,8 @@ class ELF(object):
 
   __metaclass__ = ELFMetaclass
 
-  def __init__(self, filename, elf_class=64, endianness='little',
-               architecture='x86_64', instructions=''):
+  def __init__(self, filename, linker, elf_class=64, endianness='little',
+               architecture='x86_64'):
     """Constructs the ELF object required to generate ELF binaries.
 
     Args:
@@ -955,10 +955,13 @@ class ELF(object):
         supplied to this constructor!!!
     """
     self.filename = filename
+    self.linker = linker
     self.elf_class = elf_class
     self.endianness = endianness
     self.architecture = architecture
-    self.instructions = instructions
+
+    # Final binary to be generated.
+    self.binary = None
 
     if endianness == 'little':
       self.__class__.byte_ordering_fmt = '<'
@@ -967,8 +970,6 @@ class ELF(object):
     else:
       raise TypeError('Invalid byte-order type "%s".' % endianness)
 
-    # Open the file for binary writing.
-    self.filepointer = open(filename, 'wb')
 
   def padding(self, num_bytes):
     """Returns the padding string.
@@ -990,7 +991,7 @@ class ELF(object):
     different functions/methods become a bigger pain and hampers readability
     more. That approach was tried and given up.
     """
-    instructions_size = len(self.instructions)
+    instructions_size = len(self.linker.binary)
 
     elf_header = ELFHeader()
 
@@ -1019,7 +1020,9 @@ class ELF(object):
     strtaboff = shstrtaboff + shstrtabsize
 
     strtab = STRTAB()
-    # FIXME: Should be populated from instructions.
+    strtab.append('_start')
+    for function_name in self.linker.function_offset_map:
+      strtab.append('%s' % function_name)
 
     strtabsize = len(strtab)
 
@@ -1031,11 +1034,34 @@ class ELF(object):
     symtaboff = strtaboff + strtabsize
 
     null_sym_entry = SYMTAB()
-    # FIXME: Should be populated from instructions.
     null_sym_entry.build()
 
+    # Defines the starting point of the program
+    # Value which is the memory offset needs to be recalculated again.
+    symtab_start_entry = SYMTAB(name=strtab['_start'],
+                                bind=SYMTAB.BIND.STB_GLOBAL,
+                                info_type=SYMTAB.TYPE.STT_FUNC, other=0x0,
+                                shndx=0x1, value=0x0,
+                                size=0x0)
+    symtab_start_entry.build()
 
-    symtab_locals = 1
+    function_symtab_entries = []
+    # NOTE: For shndx the index into the section header table, we always
+    # put .text section as the second entry, which has the index 1, this
+    # is the convention followed. So we just set shndx to 1.
+
+    # NOTE: The value entry will be reset again when we calculate the
+    # instructionsoffset
+    for function_name, entry in self.linker.function_offset_map.iteritems():
+      sym_entry = SYMTAB(name=strtab[function_name],
+                         bind=SYMTAB.BIND.STB_GLOBAL,
+                         info_type=SYMTAB.TYPE.STT_FUNC, other=0x0,
+                         shndx=0x1, value=entry['offset'],
+                         size=entry['size'])
+      sym_entry.build()
+      function_symtab_entries.append(sym_entry)
+
+    symtab_locals = 0
     symtabnum = SYMTAB.counter
     symtabsize = len(null_sym_entry) * symtabnum
 
@@ -1050,10 +1076,10 @@ class ELF(object):
     # FIXME: Virtual address, physical address and alignment should be made
     # dynamic if necessary.
     ph_load_header = ProgramHeader(
-        ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0, vaddr=0x400000,
-        paddr=0x400000, filesz=instructions_size, memsz=instructions_size,
+        ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0, vaddr=PROGRAM_VADDR,
+        paddr=PROGRAM_PADDR, filesz=instructions_size, memsz=instructions_size,
         flags=ProgramHeader.FLAGS.PF_X + ProgramHeader.FLAGS.PF_R,
-        align=0x200000)
+        align=SECTION_ALIGNMENT)
 
     ph_load_header.build()
 
@@ -1140,6 +1166,17 @@ class ELF(object):
 
 
 
+    # Interlinking updates
+
+    # Update the value attribute of symbol table entries for start and
+    # function names and rebuild
+    symtab_start_entry.value += instructionsvoff
+    symtab_start_entry.build()
+
+    for entry in function_symtab_entries:
+      entry.value += instructionsvoff
+      entry.build()
+
     # Complete populate the ELF header.
     elf_header.phentsize = phentsize
     elf_header.phnum = phnum
@@ -1167,25 +1204,23 @@ class ELF(object):
 
 
     # Final binary dumping.
-    binary = ''.join([
+    self.binary = ''.join([
         str(elf_header.build()),
         str(shstrtab),
         str(strtab),
-        str(null_sym_entry),
+        str(null_sym_entry), str(symtab_start_entry),
+        ''.join([str(e) for e in function_symtab_entries]),
         str(ph_load_header), self.padding(phpaddingsize),
-        str(self.instructions), self.padding(instructionspaddingsize),
+        str(self.linker.binary), self.padding(instructionspaddingsize),
         str(sh_null_header), str(sh_text_header), str(sh_shstrtab_header),
         str(sh_strtab_header), str(sh_symtab_header),
         self.padding(shpaddingsize),
         ])
 
-    self.filepointer.write(binary)
-
-  def __del__(self):
-    """Ensure that the write file is closed.
+  def __str__(self):
+    """Returns the final binary string.
     """
-    if not self.filepointer.closed:
-      self.filepointer.close()
+    return self.binary
 
 
 def bootstrap():
