@@ -68,6 +68,7 @@ from regalloc import RegisterAllocator
 
 # Architecture specific imports
 from x86_64 import ADD
+from x86_64 import CALL
 from x86_64 import CMP
 from x86_64 import IDIV
 from x86_64 import IMUL
@@ -449,9 +450,9 @@ class CodeGenerator(object):
         push = PUSH(argument)
         self.add_instruction(label, push)
 
-    jmp = JMP()
-    self.add_instruction(label, jmp)
-    self.calls_to_link.append((jmp, function_name))
+    call = CALL()
+    self.add_instruction(label, call)
+    self.calls_to_link.append((call, function_name))
 
     # Popping should be in the reverse order
     for register in pushed_registers[-1::-1]:
