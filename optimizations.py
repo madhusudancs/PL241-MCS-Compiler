@@ -24,6 +24,8 @@ import sys
 
 from argparse import ArgumentParser
 
+from datastructures import CFGNode
+from ir import Immediate
 from ir import Instruction
 from ir import IntermediateRepresentation
 from parser import LanguageSyntaxError
@@ -53,6 +55,9 @@ class Optimize(object):
 
     # List of nodes that have phi functions
     self.phi_nodes = {}
+
+    # A list of instructions which are candidate dead codes.
+    self.dead_code_candidates = []
 
   def cse_cp(self, root, operand_replacements,
                          instruction_replacements):
@@ -98,13 +103,37 @@ class Optimize(object):
           instruction.instruction == '.end_'):
         continue
 
+      # Constant folding
+      if (isinstance(instruction.operand1, Immediate) and
+          isinstance(instruction.operand2, Immediate)):
+        val1 = instruction.operand1.value
+        val2 = instruction.operand2.value
+        if instruction.instruction == 'add':
+          constant_fold = val1 + val2
+        elif instruction.instruction == 'sub':
+          constant_fold = val1 - val2
+        elif instruction.instruction == 'mul':
+          constant_fold = val1 * val2
+        elif instruction.instruction == 'div':
+          constant_fold = val1 / val2
+
+        # If any of the above 4 is true, common operation to be performed.
+        if instruction.instruction in ['add', 'sub', 'mul', 'div']:
+          block_operand_replacements[instruction.label] = \
+              Immediate(constant_fold)
+          self.ssa.optimized_removal.add(instruction.label)
+          continue
+        elif instruction.instruction == 'cmp':
+          self.dead_code_candidates.append(instruction)
+          continue
+
       # Remove all move instructions by copy propagation and record
       # the replacement.
       if (instruction.instruction == 'move' and
           instruction.is_variable(instruction.operand2)):
         block_operand_replacements[instruction.operand2] = instruction.operand1
 
-        self.ssa.optimized_removal[instruction.label] = True
+        self.ssa.optimized_removal.add(instruction.label)
 
         # Done with this instruction since we don't want to add it, move on
         # to next instruction.
@@ -118,14 +147,14 @@ class Optimize(object):
         # new SSA list)
         block_operand_replacements[instruction.label] = \
             block_instruction_replacements[hash(instruction)]
-        self.ssa.optimized_removal[instruction.label] = True
+        self.ssa.optimized_removal.add(instruction.label)
       elif hash(instruction) in instruction_replacements:
         # This instruction should be a common sub-expression, record the
         # replacement for it and remove it (effectively do not add it to
         # new SSA list)
         block_operand_replacements[instruction.label] = \
             instruction_replacements[hash(instruction)]
-        self.ssa.optimized_removal[instruction.label] = True        
+        self.ssa.optimized_removal.add(instruction.label)
       else:
         # We need this instruction, so copy to the new SSA and record it in the
         # replacements dictionary.
@@ -150,6 +179,42 @@ class Optimize(object):
     if root.phi_functions:
       self.phi_nodes[root] = True
 
+  def remove_dead_code(self):
+    """Removes the dead code and dead basic blocks.
+
+    FIXME: CMP instructions dead code branches removal is not implemented yet.
+    """
+    candidate_removals = []
+    for node in self.ssa.ir.cfg:
+      # Set of the instruction labels in this node is a subset of optimized
+      # removal, then whole node can be removed if it has no phi functions
+      # And the node has only one in-edge and one out-edge.
+      if ((set(range(node.value[0], node.value[1] + 1)) <
+          self.ssa.optimized_removal) and not node.phi_functions and
+          len(node.in_edges) == 1 and len(node.out_edges) == 1):
+        candidate_removals.append(node)
+        # The index of this node in the out_edges of the incoming node
+        out_node = node.in_edges[0]
+        out_position = out_node.out_edges.index(node)
+        # The index of this node in the in_edges of the outgoing node
+        in_node = node.out_edges[0]
+        in_position = in_node.in_edges.index(node)
+
+        out_node.out_edges[out_position] = in_node
+        in_node.in_edges[in_position] = out_node
+
+        if node in self.ssa.ir.nodes_pointed_instructions:
+          for instruction in self.ssa.ir.nodes_pointed_instructions[node]:
+            if instruction.operand1 and isinstance(
+                instruction.operand1, CFGNode):
+              instruction.operand1 = in_node
+            if instruction.operand2 and isinstance(
+                instruction.operand2, CFGNode):
+              instruction.operand2 = in_node
+
+    for candidate in candidate_removals:
+      self.ssa.ir.cfg.remove(candidate)
+
   def replace_phis(self):
     """All the phi-functions should be replaced in the end.
     """
@@ -169,6 +234,9 @@ class Optimize(object):
     """
     self.cse_cp(self.ssa.cfg[0], {}, {})
     self.replace_phis()
+
+    # This should be done in the very end, otherwise may lead to bugs
+    self.remove_dead_code()
 
   def __str__(self):
     """Prints the SSA stored for the program
