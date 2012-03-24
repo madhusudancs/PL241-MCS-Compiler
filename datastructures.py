@@ -553,10 +553,6 @@ class CFG(list):
 
     self.vcg_output.append(node_str)
     for out_edge in node.out_edges:
-      if ((node, out_edge) in self.edge_processed or
-          (out_edge, node) in self.edge_processed):
-        continue
-      self.edge_processed[(node, out_edge)] = True
       self.vcg_output.append(
           'edge: {sourcename: "%s" targetname: "%s" }' % (
               id(node), id(out_edge)))
@@ -570,7 +566,6 @@ class CFG(list):
       title: Title of the graph
       ssa: The SSA object needed to generate this graph.
     """
-    self.edge_processed = {}
     self.vcg_output = []
     for node in self:
       self.generate_virtual_reg_graph_for_vcg(node, ssa)
