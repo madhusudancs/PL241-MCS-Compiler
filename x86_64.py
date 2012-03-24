@@ -372,8 +372,10 @@ class JumpInstruction(Instruction):
           'Target of branch instruction is not integer. The value given is '
           '%s.' % self.target)
 
-    self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
-                               self.OPCODE_TABLE['rel32']['OPCODE'])
+    # NOTE: The opcode is assumed to be given in the byte ordered format
+    # required by the architecture, so render in big-endian to preserve
+    # ordering.
+    self.binary += struct.pack('>H', self.OPCODE_TABLE['rel32']['OPCODE'])
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
 
@@ -426,8 +428,9 @@ class CALL(JumpInstruction):
           'Target of branch instruction is not integer. The value given is '
           '%s.' % self.target)
 
-    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                               self.OPCODE_TABLE['rel32']['OPCODE'])
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', self.OPCODE_TABLE['rel32']['OPCODE'])
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
 
@@ -487,8 +490,9 @@ class IDIV(Instruction):
       if rex:
         self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
+      # Opcode entries are properly byte ordered, so preserve the order
+      # using big-endian
+      self.binary += struct.pack('>B', opcode_entry['OPCODE'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                  modregrm)
     elif isinstance(self.source, Memory):
@@ -515,8 +519,9 @@ class IDIV(Instruction):
       if rex:
         self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
+      # Opcode entries are properly byte ordered, so preserve the order
+      # using big-endian
+      self.binary += struct.pack('>B', opcode_entry['OPCODE'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                  modregrm)
       self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
@@ -567,8 +572,9 @@ class IMUL(Instruction):
       if rex:
         self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
+      # Opcode entries are properly byte ordered, so preserve the order
+      # using big-endian
+      self.binary += struct.pack('>B', opcode_entry['OPCODE'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                  modregrm)
       self.binary += struct.pack('%si' % BYTE_ORDERING_FMT,
@@ -591,8 +597,9 @@ class IMUL(Instruction):
       if rex:
         self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-      self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
+      # Opcode entries are properly byte ordered, so preserve the order
+      # using big-endian
+      self.binary += struct.pack('>H', opcode_entry['OPCODE'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                  modregrm)
 
@@ -624,8 +631,9 @@ class IMUL(Instruction):
       if rex:
         self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-      self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
+      # Opcode entries are properly byte ordered, so preserve the order
+      # using big-endian
+      self.binary += struct.pack('>H', opcode_entry['OPCODE'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                  modregrm)
       self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
@@ -736,8 +744,9 @@ class JMP(JumpInstruction):
           'Target of branch instruction is not integer. The value given is '
           '%s.' % self.target)
 
-    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                               self.OPCODE_TABLE['rel32']['OPCODE'])
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', self.OPCODE_TABLE['rel32']['OPCODE'])
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, self.target)
 
@@ -820,7 +829,9 @@ class POP(Instruction):
       rex = self.rex_byte(base=opcode_entry['REX'], B=reg['REX'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, opcode)
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode)
 
 
 class PUSH(Instruction):
@@ -856,7 +867,9 @@ class PUSH(Instruction):
       rex = self.rex_byte(base=opcode_entry['REX'], B=reg['REX'])
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
 
-    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, opcode)
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode)
 
 
 class RET(Instruction):
