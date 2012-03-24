@@ -816,7 +816,7 @@ class SYMTAB(object):
       self.bind = 0x0
     if not self.type:
       self.type = 0x0
-    info = (self.bind << 4 + (self.type & 0xF))
+    info = (self.bind << 4 | (self.type & 0xF))
     return self.__class__.elf64_byte(info)
 
   @property
