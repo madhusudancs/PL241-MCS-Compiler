@@ -570,7 +570,7 @@ class CodeGenerator(object):
     # Application Binary Interface (ABI).
     if operands:
       # 0 is the Register color for %rax.
-      if not (isinstance(operands[0], Register) and operands[0].color == 0):
+      if operands[0]:
         # Create a dummy register for %rax.
         rax = Register()
         rax.color = 0
