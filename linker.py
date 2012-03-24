@@ -20,6 +20,9 @@
 """
 
 
+from precompiled import entry
+
+
 class Linker(object):
   """Links all functions together and supplies the symbols for symbol table.
   """
@@ -54,20 +57,23 @@ class Linker(object):
   def build(self):
     """Build the binary string for the entire code.
     """
-    self.binary = ''.join([f.binary for f in self.functions])
-    for f in self.functions:
-      print "Function name: ", f.ir.function_name
-      print
-      for i in f.instructions:
-        for char in i.binary:
-          print '%02x' % (ord(char),),
-        print
-
+    self.binary = ''.join(
+        [self.start_call.binary] + [f.binary for f in self.functions])
 
   def link(self):
     """Links all the functions together by linking the calls.
     """
+    self.start_call = entry()
+    start_size = len(self.start_call.binary)
+    self.function_offset += start_size
+
     self.compute_offsets()
+
+    next_offset = start_size
+    main_offset = self.function_offset_map['main']['offset']
+    jump_offset = main_offset - next_offset
+    self.start_call.set_target(jump_offset)
+
     for function in self.functions:
       for instruction, target_function_name in function.calls_to_link:
         target_offset = self.function_offset_map[target_function_name]
