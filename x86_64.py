@@ -148,155 +148,191 @@ class Instruction(object):
     """
     return ((base) | (R << 2) | (X << 1) | (B))
 
+  def reg64_reg64(self):
+    """Encodes the instruction for register to register instructions.
+    """
+    source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
+    dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
+
+    opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
+
+    mod = 0b11
+    reg = dest_reg['REG']
+    rm = source_reg['REG']
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+    rex = self.rex_byte(base=opcode_entry['REX'],
+                        R=dest_reg['REX'],
+                        B=source_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
+
+  def reg64_rm64(self):
+    """Encodes the instruction for memory to register instructions.
+    """
+    source_mem = self.source
+    dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
+
+    opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
+    mod = 0b10
+    reg = dest_reg['REG']
+    if isinstance(source_mem.offset, Register):
+      source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+      rm = source_reg['REG']
+      offset = 0
+    else:
+      source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+      rm = source_reg['REG']
+      offset = -source_mem.offset if source_mem.offset else \
+          (source_mem.offset if source_mem.offset else 0) * MEMORY_WIDTH
+
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+    rex = self.rex_byte(base=opcode_entry['REX'],
+                        R=dest_reg['REX'],
+                        B=source_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+
+  def rm64_reg64(self):
+    """Encodes the instruction for register to memory instructions.
+    """
+    source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
+    dest_mem = self.destination
+
+    opcode_entry = self.OPCODE_TABLE[('rm64', 'reg64')]
+    mod = 0b10
+    reg = source_reg['REG']
+
+    if isinstance(dest_mem.offset, Register):
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+      rm = dest_reg['REG']
+      offset = 0
+    else:
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+      rm = dest_reg['REG']
+      offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+    rex = self.rex_byte(base=opcode_entry['REX'],
+                        R=source_reg['REX'],
+                        B=dest_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+
+  def reg64_imm32(self):
+    """Encodes the instruction for immediate to register instructions.
+    """
+    source_imm = self.source.value
+    dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
+
+    opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
+
+    mod = 0b11
+    reg = opcode_entry['OPCODE_EXT']
+    rm = dest_reg['REG']
+
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+    rex = self.rex_byte(base=opcode_entry['REX'],
+                        R=dest_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, source_imm)
+
+  def rm64_imm32(self):
+    """Encodes the instruction for immediate to memory instructions.
+    """
+    source_imm = self.source.value
+    dest_mem = self.destination
+
+    opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
+
+    mod = 0b01
+
+    if isinstance(dest_mem.offset, Register):
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+      rm = dest_reg['REG']
+      offset = 0
+    else:
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+      rm = dest_reg['REG']
+      offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+    modregrm = self.mod_reg_rm_byte(mod, 000, rm)
+
+    rex = self.rex_byte(base=opcode_entry['REX'],
+                        B=dest_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, source_imm)
+
   def build(self):
     """Builds the instruction bytes.
     """
     self.binary = ''
     if (isinstance(self.destination, Register) and
         isinstance(self.source, Register)):
-      source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
-
-      opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
-
-      mod = 0b11
-      reg = dest_reg['REG']
-      rm = source_reg['REG']
-      modregrm = self.mod_reg_rm_byte(mod, reg, rm)
-      rex = self.rex_byte(base=opcode_entry['REX'],
-                          R=dest_reg['REX'],
-                          B=source_reg['REX'])
-
-      if rex:
-        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
-
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 modregrm)
+      self.reg64_reg64()
 
     elif (isinstance(self.destination, Register) and
         isinstance(self.source, Memory)):
-      source_mem = self.source
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
-
-      opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
-      mod = 0b10
-      reg = dest_reg['REG']
-      if isinstance(source_mem.offset, Register):
-        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
-        rm = source_reg['REG']
-        offset = 0
-      else:
-        source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-        rm = source_reg['REG']
-        offset = -source_mem.offset if source_mem.offset else \
-            (source_mem.offset if source_mem.offset else 0) * MEMORY_WIDTH
-
-      modregrm = self.mod_reg_rm_byte(mod, reg, rm)
-      rex = self.rex_byte(base=opcode_entry['REX'],
-                          R=dest_reg['REX'],
-                          B=source_reg['REX'])
-
-      if rex:
-        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
-
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 modregrm)
-      self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+      self.reg64_rm64()
 
     elif (isinstance(self.destination, Memory) and
         isinstance(self.source, Register)):
-      source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
-      dest_mem = self.destination
-
-      opcode_entry = self.OPCODE_TABLE[('rm64', 'reg64')]
-      mod = 0b10
-      reg = source_reg['REG']
-
-      if isinstance(dest_mem.offset, Register):
-        dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
-        rm = dest_reg['REG']
-        offset = 0
-      else:
-        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-        rm = dest_reg['REG']
-        offset = -dest_mem.offset if dest_mem.offset != None else 0
-
-      modregrm = self.mod_reg_rm_byte(mod, reg, rm)
-      rex = self.rex_byte(base=opcode_entry['REX'],
-                          R=source_reg['REX'],
-                          B=dest_reg['REX'])
-
-      if rex:
-        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
-
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 modregrm)
-      self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
-
+      self.rm64_reg64()
 
     # This case is very important since the destination register is encoded
     # into opcode. See the binary generation for OPCODE
     elif (isinstance(self.destination, Register) and
         isinstance(self.source, Immediate)):
-      source_imm = self.source.value
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
-
-      opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
-
-      rex = self.rex_byte(base=opcode_entry['REX'],
-                          R=dest_reg['REX'])
-
-      if rex:
-        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
-
-      self.binary += struct.pack(
-          '%sB' % BYTE_ORDERING_FMT,
-          opcode_entry['OPCODE'] + dest_reg['REG'])
-
-      self.binary += struct.pack('%sq' % BYTE_ORDERING_FMT, source_imm)
+      self.reg64_imm32()
 
     elif (isinstance(self.destination, Memory) and
         isinstance(self.source, Immediate)):
-      source_imm = self.source.value
-      dest_mem = self.destination
-
-      opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
-
-      mod = 0b01
-
-      if isinstance(dest_mem.offset, Register):
-        dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
-        rm = dest_reg['REG']
-        offset = 0
-      else:
-        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-        rm = dest_reg['REG']
-        offset = -dest_mem.offset if dest_mem.offset != None else 0
-
-      modregrm = self.mod_reg_rm_byte(mod, 000, rm)
-
-      rex = self.rex_byte(base=opcode_entry['REX'],
-                          B=dest_reg['REX'])
-
-      if rex:
-        self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
-
-
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 modregrm)
-
-      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
-                                 opcode_entry['OPCODE'])
-
-      self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
-
-      self.binary += struct.pack('%sq' % BYTE_ORDERING_FMT, source_imm)
+      self.rm64_imm32()
     else:
       raise NotImplementedError('The operands for the instruction could not '
           'be encoded. Destination: %s Source: %s' % (
