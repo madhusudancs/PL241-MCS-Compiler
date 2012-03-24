@@ -393,7 +393,7 @@ class ADD(Instruction):
   OPCODE_TABLE = {
       ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x03 },
       ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x01 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81, 'OPCODE_EXT': 0x0 }
       }
 
   def __init__(self, destination, source):
@@ -787,7 +787,8 @@ class MOV(Instruction):
   OPCODE_TABLE = {
       ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x8B },
       ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x89 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0xC7 } # For initializations
+      # For initializations
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0xC7, 'OPCODE_EXT': 0x0 }
       }
 
   def __init__(self, destination, source):
@@ -901,7 +902,7 @@ class SUB(Instruction):
   OPCODE_TABLE = {
       ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
       ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81, 'OPCODE_EXT': 0x5 }
       }
 
   def __init__(self, destination, source):
