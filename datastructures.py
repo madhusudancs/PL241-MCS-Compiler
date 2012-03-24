@@ -333,6 +333,11 @@ class CFGNode(Node):
         'value': self.value,
         }
 
+  def plain_str(self):
+    """Plain string representations to be used within a VCG node.
+    """
+    return "'CFGNode: %s'" % (self.value,)
+
 
 class CFG(list):
   """Stores the Control Flow Graph for the given source.
