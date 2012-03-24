@@ -60,9 +60,12 @@ class Linker(object):
     """Computes the offsets for the functions once they are put together.
     """
     for function in self.functions:
-      self.function_offset_map[function.ir.function_name] = \
-          self.function_offset
-      self.function_offset += len(function.binary)
+      size = len(function.binary)
+      self.function_offset_map[function.ir.function_name] = {
+          'offset': self.function_offset,
+          'size': size
+          }
+      self.function_offset += size
 
   def build(self):
     """Build the binary string for the entire code.
