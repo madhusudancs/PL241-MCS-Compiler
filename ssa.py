@@ -83,7 +83,7 @@ class SSA(object):
     # Dictionary of SSA instruction labels that were removed during
     # optimization. Should generate the machine code by not generating
     # the code for these instructions.
-    self.optimized_removal = {}
+    self.optimized_removal = set([])
 
   def populate_labels(self):
     """Populates the begin labels for each CFG Node.
