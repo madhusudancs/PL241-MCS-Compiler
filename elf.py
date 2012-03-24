@@ -84,7 +84,7 @@ class ELFMetaclass(type):
       data: The data that should be formatted.
     """
     format_str = '%sB' % cls.byte_ordering_fmt
-    return struct.pack(format_str, chr(data))
+    return struct.pack(format_str, data)
 
   def elf64_half(cls, data):
     """Returns the packed binary whose size is half as specified by ELF64.
