@@ -796,6 +796,45 @@ class MOV(Instruction):
     """
     super(MOV, self).__init__(destination, source)
 
+  def rm64_imm32(self):
+    """Encodes the instruction for immediate to memory instructions.
+    """
+    source_imm = self.source.value
+    dest_mem = self.destination
+
+    opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
+
+    mod = 0b00
+    reg = 0b000
+
+    if isinstance(dest_mem.offset, Register):
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+      rm = dest_reg['REG']
+      offset = 0
+    else:
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+      rm = dest_reg['REG']
+      offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+
+    rex = self.rex_byte(base=opcode_entry['REX'],
+                        B=dest_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
+
+    self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, source_imm)
+
 
 class POP(Instruction):
   """Implements the POP instruction.
