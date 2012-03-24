@@ -27,6 +27,7 @@ import os
 import sys
 
 from codegen import CodeGenerator
+from elf import ELF
 from ir import IntermediateRepresentation
 from linker import Linker
 from optimizations import Optimize
@@ -305,7 +306,19 @@ def bootstrap():
   linker = Linker(generated_functions)
   linker.link()
 
-  return linker
+  linked_file = open('%s.linked.binary' % filename, 'w')
+  linked_file.write(str(linker))
+  linked_file.close()
+
+  elf = ELF(filename, linker)
+  elf.build()
+
+  executable_file = open('%s' % filename, 'w')
+  executable_file.write(str(elf))
+  executable_file.close()
+
+  return elf
+
 
 if __name__ == '__main__':
-  linker = bootstrap()
+  elf = bootstrap()
