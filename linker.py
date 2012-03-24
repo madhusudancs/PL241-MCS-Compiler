@@ -39,8 +39,18 @@ class Linker(object):
     # start byte offset.
     self.function_offset_map = {
         # Hard code them to 0 for now.
-        'OutputNum': 0,
-        'InputNum': 0
+        'OutputNum': {
+            'offset': 0,
+            'size': 0
+            },
+        'InputNum': {
+            'offset': 0,
+            'size': 0
+            },
+        'OutputNewLine': {
+            'offset': 0,
+            'size': 0
+            },
         }
 
     # Sums the offsets of the functions as they get added
