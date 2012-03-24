@@ -1382,6 +1382,12 @@ class RegisterAllocator(object):
     phi_operands = {}
 
     for phi_function in node.phi_functions.values():
+      # The result of this phi instruction is never used, so no move
+      # instructions.
+      if (self.is_register(phi_function['LHS']) and
+          phi_function['LHS'].color == None):
+        continue
+
       # We should not add phi instruction to the resulting instructions.
       phi_operands[phi_function['LHS']] = True
 
