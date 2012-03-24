@@ -99,3 +99,16 @@ class Linker(object):
         instruction.set_target(jump_offset)
 
     self.build()
+
+  def __str__(self):
+    """
+    """
+    linked_binary = '\n'
+    for f in self.functions:
+      linked_binary += "\nFunction name: %s\n" % (f.ir.function_name)
+      for i in f.instructions:
+        for char in i.binary:
+          linked_binary += '%02x ' % (ord(char))
+        linked_binary += '%30s\n' % i.__class__.__name__
+
+    return linked_binary
