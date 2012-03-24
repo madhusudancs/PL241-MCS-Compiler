@@ -778,6 +778,7 @@ class CodeGenerator(object):
              instruction.assigned_operand1, instruction.assigned_operand2,
              *instruction.assigned_operands)
 
+    self.link_jump_targets()
     self.build()
 
 
