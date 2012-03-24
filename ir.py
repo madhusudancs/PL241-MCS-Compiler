@@ -307,11 +307,19 @@ class Instruction(object):
     """
     ir = '%4d: %5s' % (self.label, self.instruction)
     if self.operand1 != None:
-      ir = ir + '%50s' % ('(%d)' % (self.operand1) if \
-          isinstance(self.operand1, int) else self.operand1)
+      if isinstance(self.operand1, int):
+        ir = ir + '%50s' % ('(%d)' % self.operand1)
+      elif isinstance(self.operand1, CFGNode):
+        ir = ir + '%50s' % (self.operand1.plain_str())
+      else:
+        ir = ir + '%50s' % (self.operand1)
     if self.operand2 != None:
-      ir = ir + '%50s' % ( '(%d)' % (self.operand2) if \
-          isinstance(self.operand2, int) else self.operand2)
+      if isinstance(self.operand2, int):
+        ir = ir + '%50s' % ('(%d)' % self.operand2)
+      elif isinstance(self.operand2, CFGNode):
+        ir = ir + '%50s' % (self.operand2.plain_str())
+      else:
+        ir = ir + '%50s' % (self.operand2)
 
     for operand in self.operands:
       ir = ir + '%50s' % ('(%d)' % (operand) if \
@@ -397,6 +405,10 @@ class IntermediateRepresentation(object):
     self.start_node_map = {}
     self.end_node_map = {}
 
+    # Dictionary containing the keys as the CFG nodes that are pointed by
+    # instructions.
+    self.nodes_pointed_instructions = collections.defaultdict(list)
+
   def instruction(self, operator, *operands):
     """Builds the instruction for the given arguments.
 
@@ -452,6 +464,28 @@ class IntermediateRepresentation(object):
 
     epilogue_instruction = self.instruction('.end_')
     self.ir[epilogue_instruction].function_name = self.function_name
+
+  def rewrite_branch_targets(self):
+    """Rewrites all the branch targets from labels to the CFG nodes.
+
+    This relies on the fact that every basic block beginning should be some
+    branch target. Doing this gives us some advantage with branch targets
+    since removing instructions during optimizations changes the ordering
+    and resolving phi instructions after register allocation introduces more
+    instructions which all break the ordering in self.ir.ir and branch targets
+    may not remain the same. So it is just easier to use the fact about
+    basic block nodes in the CFG to store branch targets.
+    """
+    for instruction in self.ir:
+      if instruction.instruction == 'bra':
+        node = self.start_node_map[instruction.operand1]
+        instruction.operand1 = node
+        self.nodes_pointed_instructions[node].append(instruction)
+      elif instruction.instruction in ['beq', 'bne', 'blt',
+                                       'ble', 'bgt', 'bge']:
+        node = self.start_node_map[instruction.operand2]
+        instruction.operand2 = node
+        self.nodes_pointed_instructions[node].append(instruction)
 
   def identify_basic_blocks(self):
     """Identifies the basic block for the IR.
@@ -554,6 +588,8 @@ class IntermediateRepresentation(object):
     cfg_nodes = nodes.values()
 
     self.cfg = CFG(cfg_nodes)
+
+    self.rewrite_branch_targets()
 
     return self.cfg
 
