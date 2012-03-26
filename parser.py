@@ -288,7 +288,7 @@ class Parser(object):
       self.symbol_table[self.__current_scope] = {}
 
   def __parse(self):
-    """Parses the tokens by delegating to appropriate functions and builds tree.
+    """Parses tokens by delegating to appropriate functions and builds tree.
     """
     self.__token_stream = TokenStream(self.src)
 
