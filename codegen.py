@@ -96,6 +96,45 @@ from x86_64 import XCHG
 LOGGER = logging.getLogger(__name__)
 
 
+def allocate_global_memory(self, global_symbol_table):
+  """Allocate memory for global datastructures.
+
+  Args:
+    global_symbol_table: Dictionary containing the global symbol table whose
+        keys are symbol names and values are symbol table data like memory
+        object for this symbol and type.
+  """
+  memory_offset = 0
+  for symbol, symtab_entry in global_symbol_table.iteritems():
+    if symtab_entry.get('type') == 'function_name':
+      # These symbols are function names, don't do anything for them here.
+      continue
+    elif symtab_entry.get('dimensions', None) != None:
+      # This entry is an array
+      if 'memory' not in symtab_entry:
+        symtab_entry['memory'] = Memory()
+
+      symtab_entry['memory'].offset = memory_offset
+      total_size = 1
+      for dimension in symtab_entry['dimensions']:
+        total_size *= dimension
+
+      symtab_entry['memory'].size = total_size * MEMORY_WIDTH
+      symtab_entry['memory'].base = 'rip'
+
+      memory_offset += total_size * MEMORY_WIDTH
+    else:
+      # This entry is a regular integer.
+      if 'memory' not in symtab_entry:
+        symtab_entry['memory'] = Memory()
+
+      symtab_entry['memory'].offset = memory_offset
+      symtab_entry['memory'].size = MEMORY_WIDTH
+      symtab_entry['memory'].base = 'rip'
+
+      memory_offset += MEMORY_WIDTH
+
+
 class CodeGenerator(object):
   """Generates the code for the given SSA object.
   """
