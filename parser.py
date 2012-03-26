@@ -651,6 +651,8 @@ class Parser(object):
     func_name = self.__parse_abstract_ident(parent, add=True,
                                             ident_type='function_name')
 
+    self.symbol_table[GLOBAL_SCOPE_NAME][func_name]['type'] = 'function_name'
+
     # This function's name is still in the previous scope so that it can be
     # called from the function outside this own function. Once we are done
     # with it update the scope for this function
