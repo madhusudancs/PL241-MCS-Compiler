@@ -65,6 +65,7 @@ from parser import LanguageSyntaxError
 from parser import Parser
 from regalloc import Register
 from regalloc import RegisterAllocator
+from regalloc import RegisterAllocationFailedException
 
 # Architecture specific imports
 from x86_64 import ADD
@@ -128,8 +129,8 @@ class CodeGenerator(object):
     self.live_intervals = {}
 
     # Dictionary containing a mapping from the instruction label to the
-    # set of registers live at that instruction.
-    self.instruction_live_registers = collections.defaultdict(set)
+    # set of register colors live at that instruction.
+    self.instruction_live_registers = collections.defaultdict(dict)
 
     # A dictionary containing a mapping from the IR instructions' labels
     # to another dictionary which contains the actual instruction and the
@@ -230,39 +231,61 @@ class CodeGenerator(object):
               live[operand] = True
             else:
               intervals[operand][0] = node.instructions[0].label
+      elif instruction.instruction == 'move':
+        if self.is_register(instruction.assigned_operand2):
+          if instruction.assigned_operand2 not in live:
+            # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
+            # optimizations! :-P
+            # After all the interval calculations if instructions range remains
+            # the same, don't use that register at all. That instruction
+            # itself need not be used for generating binaries.
+            intervals[instruction.assigned_operand2] = [instruction.label,
+                                                        instruction.label]
+            # NOTE: pop is not added because it doesn't even exist
+          else:
+            intervals[instruction.assigned_operand2][0] = instruction.label
+            live.pop(instruction.assigned_operand2)
 
-        continue
+        # We need to process the input operands if and only if they don't
+        # really exist, if they already exist, it means that they are used
+        # else where after this basic block and hence should stay alive.
+        # Only the last use (or the first sighting since we are coming from
+        # reverse now should get an lifetime end set.)
+        operand1 = instruction.assigned_operand1
+        if self.is_register(operand1) and operand1 not in live:
+          live[operand1] = True
+          intervals[operand1] = [node.instructions[0].label, instruction.label]
+      else:
+        if self.is_register(instruction.assigned_result):
+          if instruction.assigned_result not in live:
+            # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
+            # optimizations! :-P
+            intervals[instruction.assigned_result] = [instruction.label,
+                                                      instruction.label]
+            # NOTE: pop is not added because it doesn't even exist
+          else:
+            intervals[instruction.assigned_result][0] = instruction.label
+            live.pop(instruction.assigned_result)
 
-      if self.is_register(instruction.assigned_result):
-        if instruction.assigned_result not in live:
-          # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
-          # optimizations! :-P
-          intervals[instruction.assigned_result] = [instruction.label,
-                                                    instruction.label]
-          # NOTE: pop is not added because it doesn't even exist
-        else:
-          intervals[instruction.assigned_result][0] = instruction.label
-          live.pop(instruction.assigned_result)
+        # We need to process the input operands if and only if they don't
+        # really exist, if they already exist, it means that they are used
+        # else where after this basic block and hence should stay alive.
+        # Only the last use (or the first sighting since we are coming from
+        # reverse now should get an lifetime end set.)
+        operand1 = instruction.assigned_operand1
+        if self.is_register(operand1) and operand1 not in live:
+          live[operand1] = True
+          intervals[operand1] = [node.instructions[0].label, instruction.label]
 
-      # We need to process the input operands if and only if they don't
-      # really exist, if they already exist, it means that they are used
-      # else where after this basic block and hence should stay alive.
-      # Only the last use (or the first sighting since we are coming from
-      # reverse now should get an lifetime end set.)
-      operand1 = instruction.assigned_operand1
-      if self.is_register(operand1) and operand1 not in live:
-        live[operand1] = True
-        intervals[operand1] = [node.instructions[0].label, instruction.label]
+        operand2 = instruction.assigned_operand2
+        if self.is_register(operand2) and operand2 not in live:
+          live[operand2] = True
+          intervals[operand2] = [node.instructions[0].label, instruction.label]
 
-      operand2 = instruction.assigned_operand2
-      if self.is_register(operand2) and operand2 not in live:
-        live[operand2] = True
-        intervals[operand2] = [node.instructions[0].label, instruction.label]
-
-      for operand in instruction.assigned_operands:
-        if self.is_register(operand) and operand not in live:
-          intervals[operand] = [node.instructions[0].label, instruction.label]
-          live[operand] = True
+        for operand in instruction.assigned_operands:
+          if self.is_register(operand) and operand not in live:
+            intervals[operand] = [node.instructions[0].label, instruction.label]
+            live[operand] = True
 
 
     # Every operand that is live at the loop header and is not a phi-operand
@@ -325,8 +348,21 @@ class CodeGenerator(object):
     self.analyze_basic_block_liveness(self.ir.cfg[0])
 
     for register, liveness in self.live_intervals.iteritems():
-      for label in range(liveness[0], liveness[1] + 1):
-        self.instruction_live_registers[label].add(register.color)
+      # Note the register is live upto the instruction that is before its
+      # last usage, since it will anyway be killed in this instruction, so
+      # for the range, we don't add liveness[1] + 1
+      for label in range(liveness[0], liveness[1]):
+        if register.color in self.instruction_live_registers[label]:
+          raise RegisterAllocationFailedException(
+              'Register Allocation has failed, color %d assigned more than '
+              'once at the instruction %d point. The virtual registers '
+              'involved are %s and %s.' % (
+              register.color, label, register,
+              self.instruction_live_registers[label][register.color]
+              ))
+        else:
+          self.instruction_live_registers[label][register.color] = \
+              register
 
   def is_register(self, register):
     """Checks if the register has been assigned a real machine register color.
