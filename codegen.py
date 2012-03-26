@@ -767,11 +767,6 @@ class CodeGenerator(object):
     """
     self.memory_offset = 0
 
-    # There is no prologue for main, so just return
-    if func_name == 'main':
-      return
-
-
     # Allocate memory for both the defined variables and the formal parameters.
     # Symbol table will have entry for all of them.
     for symtab_entry in self.ir.local_symbol_table.values():
