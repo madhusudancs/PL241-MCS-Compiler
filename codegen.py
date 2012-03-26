@@ -586,13 +586,9 @@ class CodeGenerator(object):
       memory = Memory(base=operands[0], offset=0)
     elif isinstance(operands[0], Memory):
       memory = operands[0]
-      if memory.offset:
-        offset = memory.offset
-      else:
-        offset = memory.offset * MEMORY_WIDTH
-        memory.offset = offset
-
-      self.memory_offset -= offset
+      if memory.offset == None:
+        memory.offset = self.memory_offset
+        self.memory_offset += MEMORY_WIDTH
 
     mov = MOV(register, memory)
     self.add_instruction(label, mov)
@@ -662,7 +658,8 @@ class CodeGenerator(object):
 
       if isinstance(operands[1], Register):
         memory = Memory()
-        memory.offset = operands[1]
+        memory.base = operands[1]
+        memory.offset = 0
       elif isinstance(operands[1], Memory):
         memory = operands[1]
         memory.offset = self.memory_offset
@@ -709,7 +706,8 @@ class CodeGenerator(object):
       register = operands[0]
       if isinstance(operands[1], Register):
         memory = Memory()
-        memory.offset = operands[1]
+        memory.base = operands[1]
+        memory.offset = 0
       elif isinstance(operands[1], Memory):
         memory = operands[1]
         memory.offset = self.memory_offset
