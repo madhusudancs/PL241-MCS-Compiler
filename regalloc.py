@@ -569,11 +569,14 @@ class RegisterAllocator(object):
       if instruction.instruction == '.begin_':
         for operand in instruction.operands:
           if self.is_register(operand):
-            if operand not in live:
-              intervals[operand] = [node.value[0], instruction.label]
-              live[operand] = True
-            else:
+            if operand in live:
               intervals[operand][0] = node.value[0]
+
+            # Else, since we are traversing in the reverse order, begin
+            # instruction of the function is the last function we encounter,
+            # so, if this register is not live anywhere, it is Dead-on-Arrival
+            # so don't bother about doing anything for it, just pass
+
 
         continue
 
@@ -581,9 +584,9 @@ class RegisterAllocator(object):
         if instruction.result not in live:
           # Dead-on-Arrival. I love Dead-on-Arrival stuff, more
           # optimizations! :-P
-          intervals[instruction.result] = [instruction.label,
-                                           instruction.label]
           # NOTE: pop is not added because it doesn't even exist
+          # So don't bother about doing anything.
+          continue
         else:
           intervals[instruction.result][0] = instruction.label
           live.pop(instruction.result)
