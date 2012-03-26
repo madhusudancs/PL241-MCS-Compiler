@@ -291,6 +291,10 @@ class CFGNode(Node):
     # SSA.
     self.instructions = []
 
+    # This attribute if set to a value is the node which is the loop footer
+    # for this node which is the loop header. If it is set to None, this node
+    # is not a loop header.
+    self.loop_header = None
 
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
@@ -422,11 +426,60 @@ class CFG(list):
     """Computes the dominance frotiers for the control flow graph.
     """
     self.compute_dominators()
+    self.detect_loops()
+
     for tree in self.dom_trees:
       df = DominanceFrontier(tree)
       df.compute_dominance_frontier()
 
     return self.dom_trees
+
+  def dfs_loop_detect_dom_tree(self, root, candidate_footer):
+    """Performs a DFS Traversal of the dominator tree to detect loops.
+    """
+    # If the sub-tree's root's children has the candidate footer, already
+    # return. This is more efficiently implemented in Python than we can
+    # do by looping over children individually and checking if the child
+    # object and candidate_footer objects are same. In cases where there
+    # candidate footer has no dominator in the given sub-tree, this algorithm
+    # will be slightly slower since it iterates over the list twice, but
+    # the complexity is still O(N) since they are just 2 O(N) operations.
+    if candidate_footer in root.dom_children:
+      return True
+
+    for child in root.dom_children:
+      detected = self.dfs_loop_detect_dom_tree(child, candidate_footer)
+      if detected:
+        return True
+
+    return False
+
+  def dfs_loop_detect(self, node):
+    """Performs a depth first search of a tree recursively for loop detection.
+
+    Args:
+      node: The node of the Control Flow Graph which we are performing a
+          DFS on.
+    """
+    for child in node.out_edges:
+      if child in self.visited:
+        if child in node.out_edges:
+          # Check if child dominates node, if so child should be the
+          # loop header.
+          if self.dfs_loop_detect_dom_tree(child, node):
+            child.loop_header = node
+        continue
+
+      self.visited.add(child)
+      self.dfs_loop_detect(child)
+
+  def detect_loops(self):
+    """Implements the loop detection algorithm using dominator tree.
+
+    IMPORTANT: This algorithm assumes that the CFG is reducible.
+    """
+    self.visited = set([])
+    self.dfs_loop_detect(self[0])
 
   def generate_graph_for_vcg(self, node, ir=None, optimized={}):
     """Generate this node and all the outward edges from this node.
