@@ -668,7 +668,7 @@ class CodeGenerator(object):
 
       # Take the set difference
       free_registers = (REGISTERS_COLOR_SET -
-          self.instruction_live_registers[label])
+          set(self.instruction_live_registers[label].keys()))
       if free_registers:
         # Create a dummy register for this color
         register = Register()
