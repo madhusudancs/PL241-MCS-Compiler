@@ -461,7 +461,7 @@ class IDIV(Instruction):
   """
 
   OPCODE_TABLE = {
-      ('rm64'): { 'REX': 0x48, 'OPCODE': 0xF7 },
+      ('rm64'): { 'REX': 0x48, 'OPCODE': 0xF7, 'OPCODE_EXT': 0x7 },
       }
 
   def __init__(self, source):
@@ -481,7 +481,7 @@ class IDIV(Instruction):
 
       # FIXME: May be buggy because reg may be 0xb111 instead of 0
       mod = 0b11
-      reg = 0b0
+      reg = opcode_entry['OPCODE_EXT']
       rm = src_reg['REG']
       modregrm = self.mod_reg_rm_byte(mod, reg, rm)
       rex = self.rex_byte(base=opcode_entry['REX'],
@@ -500,9 +500,8 @@ class IDIV(Instruction):
 
       opcode_entry = self.OPCODE_TABLE['rm64']
 
-      # FIXME: May be buggy because reg may be 0xb111 instead of 0
       mod = 0b10
-      reg = 0b0
+      reg = opcode_entry['OPCODE_EXT']
       if isinstance(source_mem.offset, Register):
         source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
         rm = source_reg['REG']
