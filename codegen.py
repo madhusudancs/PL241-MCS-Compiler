@@ -174,8 +174,6 @@ class CodeGenerator(object):
     """
     for child in node.out_edges:
       if self.visited.get(child, False):
-        if node in child.out_edges:
-          self.loop_pair[child] = node
         continue
 
       child.live_in = {}
@@ -271,9 +269,10 @@ class CodeGenerator(object):
     # or a phi-result should live from the beginning of the block to the end.
     # This is a guard to not spill these registers before other registers
     # whose next use is farther outside the loop.
-    if node in self.loop_pair:
+    if node.loop_header:
       for operand in live:
-        loop_footer = self.loop_pair[node]
+        # Loop header attribute points to the loop footer.
+        loop_footer = node.loop_header
         # Lives till the end of the loop footer block.
         intervals[operand][1] = loop_footer.instructions[-1].label
 
@@ -295,7 +294,6 @@ class CodeGenerator(object):
     """Performs the live range analysis again on allocated registers.
     """
     old_to_new_labels = {}
-    self.loop_pair = {}
 
     # Preprocessing step to assign new labels, also make the inverted map
     # from labels to instructions available for branch instructions.

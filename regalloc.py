@@ -293,10 +293,6 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
-    # Dictionary of loop header nodes as the keys and the values are the
-    # loop footer nodes.
-    self.loop_pair = {}
-
     # Dictionary containing the live ranges for each register
     self.live_ranges = {}
 
@@ -506,8 +502,6 @@ class RegisterAllocator(object):
     """
     for child in node.out_edges:
       if self.visited.get(child, False):
-        if node in child.out_edges:
-          self.loop_pair[child] = node
         continue
 
       self.visited[child] = True
@@ -637,11 +631,13 @@ class RegisterAllocator(object):
     # or a phi-result should live from the beginning of the block to the end.
     # This is a guard to not spill these registers before other registers
     # whose next use is farther outside the loop.
-    if node in self.loop_pair:
+    if node.loop_header:
       for operand in live:
         if operand not in phi_operands:
-          loop_footer = self.loop_pair[node]
-          # Lives till the end of the loop footer block.
+          # node's loop_header property points to loop footer.
+          loop_footer = node.loop_header
+          # Lives till the end of the loop footer block. Just make it to live
+          # out of the block too by adding 1
           intervals[operand][1] = loop_footer.value[1]
 
     node.live_in = live
@@ -1451,8 +1447,8 @@ class RegisterAllocator(object):
 
       self.deconstruct_basic_block(child)
 
-    if node in self.loop_pair:
-      loop_footer = self.loop_pair[node]
+    if node.loop_header:
+      loop_footer = node.loop_header
       loop_last_instruction = self.ssa.ir.ir[loop_footer.value[1]]
       while loop_last_instruction in self.ssa.optimized_removal:
         loop_last_instruction -= 1
