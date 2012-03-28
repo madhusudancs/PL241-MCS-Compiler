@@ -41,21 +41,6 @@ from argparse import ArgumentParser
 LOGGER = logging.getLogger(__name__)
 
 
-# Hard-coded data start memory virtual address and physical address
-# FIXME: Think of a way to make it dynamic.
-DATA_VADDR        = 0x600000
-DATA_PADDR        = 0x600000
-
-# Hard-coded program start memory virtual address and physical address
-# FIXME: Think of a way to make it dynamic.
-PROGRAM_VADDR     = 0x400000
-PROGRAM_PADDR     = 0x400000
-
-# Hard-coded section alignment value.
-# FIXME: Think of a way to make it dynamic.
-SECTION_ALIGNMENT = 0x200000
-
-
 class ELFMetaclass(type):
   """The metaclass abstracting all the datastructures required across ELF.
   """
@@ -938,6 +923,20 @@ class ELF(object):
 
   __metaclass__ = ELFMetaclass
 
+  # Hard-coded data start memory virtual address and physical address
+  # FIXME: Think of a way to make it dynamic.
+  DATA_VADDR        = 0x600000
+  DATA_PADDR        = 0x600000
+
+  # Hard-coded program start memory virtual address and physical address
+  # FIXME: Think of a way to make it dynamic.
+  PROGRAM_VADDR     = 0x400000
+  PROGRAM_PADDR     = 0x400000
+
+  # Hard-coded section alignment value.
+  # FIXME: Think of a way to make it dynamic.
+  SECTION_ALIGNMENT = 0x200000
+
   def __init__(self, filename, linker, elf_class=64, endianness='little',
                architecture='x86_64'):
     """Constructs the ELF object required to generate ELF binaries.
@@ -970,6 +969,54 @@ class ELF(object):
     else:
       raise TypeError('Invalid byte-order type "%s".' % endianness)
 
+    # All the intermediate objects built
+
+    # ELF Header object
+    self.elf_header = None
+
+    # Section header string table related objects.
+    self.shstrtaboff = None
+    self.shstrtab = None
+    self.shstrtabsize = None
+
+    # String table related objects.
+    self.strtaboff = None
+    self.strtab = None
+    self.strtabsize = None
+
+    # Symbol table related objects.
+    self.symtaboff = None
+    self.null_sym_entry = None
+    self.symtab_start_entry = None
+    self.function_symtab_entries = None
+    self.symtab_locals = None
+    self.symtabnum = None
+    self.symtabsize = None
+
+    # Program header table related objects.
+    self.phoff = None
+    self.ph_load_header = None
+    self.phnum = None
+    self.phentsize = None
+    self.phsize = None
+    self.phpaddingsize = None
+
+    # Instructions offsets related objects
+    self.instructions_size = None
+    self.instructionsoff = None
+    self.instructionsvoff = None
+    self.instructionspaddingsize = None
+
+    # Section header related objects.
+    self.sh_null_header = None
+    self.sh_text_header = None
+    self.sh_shstrtab_header = None
+    self.sh_strtab_header = None
+    self.sh_symtab_header = None
+    self.shnum = None
+    self.shentsize = None
+    self.shsize = None
+    self.shpaddingsize = None
 
   def padding(self, num_bytes):
     """Returns the padding string.
@@ -979,73 +1026,59 @@ class ELF(object):
     """
     return self.__class__.elf64_byte(0x00) * num_bytes
 
-  def build(self):
-    """Builds the binary file for the given input.
-
-    NOTE: This function is way too long than any normal human beings can
-    handle. But at the same time ELF is way too complicated and stupidly
-    stupid than any normal human beings can handle. I don't understand why
-    there should be so much interlinking there. Because of all these interlinks
-    required between different headers and tables, this function remains as
-    long as it is now because exchanging that interlinking information among
-    different functions/methods become a bigger pain and hampers readability
-    more. That approach was tried and given up.
+  def build_elf_header(self):
+    """Builds the initial elf header object.
     """
-    instructions_size = len(self.linker.binary)
+    self.elf_header = ELFHeader()
 
-    elf_header = ELFHeader()
-
-
-
-
-
+  def build_shstrtab(self):
+    """Builds the section header string table containing the section names.
+    """
     # Start of Section String Table building.
 
     # Hard coded to the end of ELF header for now.
-    shstrtaboff = elf_header.ELF_STD_SIZE
+    self.shstrtaboff = self.elf_header.ELF_STD_SIZE
 
-    shstrtab = STRTAB()
-    shstrtab.append('.shstrtab')
-    shstrtab.append('.strtab')
-    shstrtab.append('.symtab')
-    shstrtab.append('.text')
+    self.shstrtab = STRTAB()
+    self.shstrtab.append('.shstrtab')
+    self.shstrtab.append('.strtab')
+    self.shstrtab.append('.symtab')
+    self.shstrtab.append('.text')
 
-    shstrtabsize = len(shstrtab)
+    self.shstrtabsize = len(self.shstrtab)
 
-
-
-
-
+  def build_strtab(self):
+    """Builds the string table.
+    """
     # Start of Instructions String Table building.
-    strtaboff = shstrtaboff + shstrtabsize
+    self.strtaboff = self.shstrtaboff + self.shstrtabsize
 
-    strtab = STRTAB()
-    strtab.append('_start')
+    self.strtab = STRTAB()
+    self.strtab.append('_start')
     for function_name in self.linker.function_offset_map:
-      strtab.append('%s' % function_name)
+      self.strtab.append('%s' % function_name)
 
-    strtabsize = len(strtab)
+    self.strtabsize = len(self.strtab)
 
-
-
-
-
+  def build_symtab(self):
+    """Builds the symbol table.
+    """
     # Start of Instructions String Table building.
-    symtaboff = strtaboff + strtabsize
+    self.symtaboff = self.strtaboff + self.strtabsize
 
-    null_sym_entry = SYMTAB()
-    null_sym_entry.build()
+    self.null_sym_entry = SYMTAB()
+    self.null_sym_entry.build()
 
     # Defines the starting point of the program
     # Value which is the memory offset needs to be recalculated again.
-    symtab_start_entry = SYMTAB(name=strtab['_start'],
-                                bind=SYMTAB.BIND.STB_GLOBAL,
-                                info_type=SYMTAB.TYPE.STT_FUNC, other=0x0,
-                                shndx=0x1, value=0x0,
-                                size=0x0)
-    symtab_start_entry.build()
+    self.symtab_start_entry = SYMTAB(name=self.strtab['_start'],
+                                     bind=SYMTAB.BIND.STB_GLOBAL,
+                                     info_type=SYMTAB.TYPE.STT_FUNC, other=0x0,
+                                     shndx=0x1, value=0x0,
+                                     size=0x0)
+    self.symtab_start_entry.build()
 
-    function_symtab_entries = []
+    self.function_symtab_entries = []
     # NOTE: For shndx the index into the section header table, we always
     # put .text section as the second entry, which has the index 1, this
     # is the convention followed. So we just set shndx to 1.
@@ -1053,168 +1086,189 @@ class ELF(object):
     # NOTE: The value entry will be reset again when we calculate the
     # instructionsoffset
     for function_name, entry in self.linker.function_offset_map.iteritems():
-      sym_entry = SYMTAB(name=strtab[function_name],
+      sym_entry = SYMTAB(name=self.strtab[function_name],
                          bind=SYMTAB.BIND.STB_GLOBAL,
                          info_type=SYMTAB.TYPE.STT_FUNC, other=0x0,
                          shndx=0x1, value=entry['offset'],
                          size=entry['size'])
       sym_entry.build()
-      function_symtab_entries.append(sym_entry)
+      self.function_symtab_entries.append(sym_entry)
 
-    symtab_locals = 0
-    symtabnum = SYMTAB.counter
-    symtabsize = len(null_sym_entry) * symtabnum
+    self.symtab_locals = 0
+    self.symtabnum = SYMTAB.counter
+    self.symtabsize = len(self.null_sym_entry) * self.symtabnum
 
-
-
-
-
+  def build_program_headers(self):
+    """Builds the program headers.
+    """
     # Start of program header building.
-    phoff = symtaboff + symtabsize
+    self.phoff = self.symtaboff + self.symtabsize
 
     # Virtual address, physical address and alignments are hard-coded for now.
     # FIXME: Virtual address, physical address and alignment should be made
     # dynamic if necessary.
-    ph_load_header = ProgramHeader(
-        ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0, vaddr=PROGRAM_VADDR,
-        paddr=PROGRAM_PADDR, filesz=instructions_size, memsz=instructions_size,
+    self.ph_load_header = ProgramHeader(
+        ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0,
+        vaddr=self.PROGRAM_VADDR, paddr=self.PROGRAM_PADDR,
+        filesz=self.instructions_size, memsz=self.instructions_size,
         flags=ProgramHeader.FLAGS.PF_X + ProgramHeader.FLAGS.PF_R,
-        align=SECTION_ALIGNMENT)
+        align=self.SECTION_ALIGNMENT)
 
-    ph_load_header.build()
+    self.ph_load_header.build()
 
-    phnum = ProgramHeader.counter
-    phentsize = len(ph_load_header)
+    self.phnum = ProgramHeader.counter
+    self.phentsize = len(self.ph_load_header)
 
-    phsize = (phnum * phentsize)
+    self.phsize = (self.phnum * self.phentsize)
 
     # A phheader padding is added to align to 16 bytes.
-    phpaddingsize = 0x10 - (phsize % 0x10) if (phsize % 0x10) else 0x0
+    self.phpaddingsize = 0x10 - (self.phsize % 0x10) if \
+        (self.phsize % 0x10) else 0x0
 
-
-
-
-
+  def compute_instructions_offset(self):
+    """Computes the offsets for the instructions starting point.
+    """
     # Start of instructions
     # The program starts at virtual address followed by the program headers
-    instructionsoff = phoff + phsize + phpaddingsize
+    self.instructionsoff = self.phoff + self.phsize + self.phpaddingsize
 
-    instructionsvoff = instructionsoff + ph_load_header.vaddr
+    self.instructionsvoff = self.instructionsoff + self.ph_load_header.vaddr
 
-    # A phheader padding is added to align to 16 bytes.
-    instructionspaddingsize = 0x10 - (instructions_size % 0x10) if (
-        instructions_size % 0x10) else 0x0
-
-
-
-
-
+  def build_section_headers(self):
+    """Builds the section headers.
+    """
     # Start of section headers building
-    sh_null_header = SectionHeader()
-    sh_null_header.build()
+    self.sh_null_header = SectionHeader()
+    self.sh_null_header.build()
 
 
     # Address alignment is hard-coded for now since ELF64 wants 16 bytes
     # alignment.
     # FIXME: Make the address alignment dynamic.
-    sh_text_header = SectionHeader(
-        name=shstrtab['.text'], sh_type=SectionHeader.TYPE.SHT_PROGBITS,
-        addr=instructionsvoff, offset=instructionsoff, size=instructions_size,
+    self.sh_text_header = SectionHeader(
+        name=self.shstrtab['.text'], sh_type=SectionHeader.TYPE.SHT_PROGBITS,
+        addr=self.instructionsvoff, offset=self.instructionsoff,
+        size=self.instructions_size,
         flags=(SectionHeader.FLAGS.SHF_ALLOC + \
             SectionHeader.FLAGS.SHF_EXECINSTR),
         link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x10, entsize=0x0)
 
-    sh_text_header.build()
+    self.sh_text_header.build()
 
     # Since this is byte aligned, since it is a string, the address alignment
     # of 1 is fixed always.
-    sh_shstrtab_header = SectionHeader(
-        name=shstrtab['.shstrtab'], sh_type=SectionHeader.TYPE.SHT_STRTAB,
-        addr=0x0, offset=shstrtaboff, size=shstrtabsize,
+    self.sh_shstrtab_header = SectionHeader(
+        name=self.shstrtab['.shstrtab'], sh_type=SectionHeader.TYPE.SHT_STRTAB,
+        addr=0x0, offset=self.shstrtaboff, size=self.shstrtabsize,
         link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x1, entsize=0x0)
 
-    sh_shstrtab_header.build()
+    self.sh_shstrtab_header.build()
 
     # Since this is byte aligned, since it is a string, the address alignment
     # of 1 is fixed always.
-    sh_strtab_header = SectionHeader(
-        name=shstrtab['.strtab'], sh_type=SectionHeader.TYPE.SHT_STRTAB,
-        addr=0x0, offset=strtaboff, size=strtabsize,
+    self.sh_strtab_header = SectionHeader(
+        name=self.shstrtab['.strtab'], sh_type=SectionHeader.TYPE.SHT_STRTAB,
+        addr=0x0, offset=self.strtaboff, size=self.strtabsize,
         link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x1, entsize=0x0)
 
-    sh_strtab_header.build()
+    self.sh_strtab_header.build()
 
     # Since this is byte aligned, since it is a string, the address alignment
     # of 1 is fixed always.
-    sh_symtab_header = SectionHeader(
-        name=shstrtab['.symtab'], sh_type=SectionHeader.TYPE.SHT_SYMTAB,
-        addr=0x0, offset=symtaboff, size=symtabsize,
-        link=0x3, info=symtab_locals + 1, addralign=0x8,
-        entsize=len(null_sym_entry))
+    self.sh_symtab_header = SectionHeader(
+        name=self.shstrtab['.symtab'], sh_type=SectionHeader.TYPE.SHT_SYMTAB,
+        addr=0x0, offset=self.symtaboff, size=self.symtabsize,
+        link=0x3, info=self.symtab_locals + 1, addralign=0x8,
+        entsize=len(self.null_sym_entry))
 
-    sh_symtab_header.build()
+    self.sh_symtab_header.build()
 
-    shnum = SectionHeader.counter
-    shentsize = len(sh_null_header)
+    self.shnum = SectionHeader.counter
+    self.shentsize = len(self.sh_null_header)
 
-    shsize = (shnum * shentsize)
+    self.shsize = (self.shnum * self.shentsize)
 
     # A shheader padding is added to align to 64 bytes.
-    shpaddingsize = 0x10 - (shsize % 0x10) if (shsize % 0x10) else 0x0
+    self.shpaddingsize = 0x10 - (self.shsize % 0x10) if \
+        (self.shsize % 0x10) else 0x0
 
+  def build_upto_instructions_offset(self):
+    """Builds upto computing the instructions offset for linking globals.
+    """
+    self.build_elf_header()
 
+    self.build_shstrtab()
 
+    self.build_strtab()
 
+    self.build_symtab()
+
+    self.build_program_headers()
+
+    self.compute_instructions_offset()
+
+  def build(self):
+    """Builds the final binary file by interlinking the headers.
+
+    When this function is called, it is assumed that
+    self.build_upto_instructions_offset() is already called from elsewhere
+    and hence begins by calling the method that builds section headers.
+    """
+    self.instructions_size = len(self.linker.binary)
+
+    # A phheader padding is added to align to 16 bytes.
+    self.instructionspaddingsize = 0x10 - (self.instructions_size % 0x10) if (
+        self.instructions_size % 0x10) else 0x0
+
+    self.build_section_headers()
 
     # Interlinking updates
 
     # Update the value attribute of symbol table entries for start and
     # function names and rebuild
-    symtab_start_entry.value += instructionsvoff
-    symtab_start_entry.build()
+    self.symtab_start_entry.value += self.instructionsvoff
+    self.symtab_start_entry.build()
 
-    for entry in function_symtab_entries:
-      entry.value += instructionsvoff
+    for entry in self.function_symtab_entries:
+      entry.value += self.instructionsvoff
       entry.build()
 
     # Complete populate the ELF header.
-    elf_header.phentsize = phentsize
-    elf_header.phnum = phnum
+    self.elf_header.phentsize = self.phentsize
+    self.elf_header.phnum = self.phnum
 
     # Program Header offset hard-coded to end of the elf header.
-    elf_header.phoff = phoff
+    self.elf_header.phoff = self.phoff
 
     # Entry point to the program.
-    elf_header.entry = instructionsvoff
+    self.elf_header.entry = self.instructionsvoff
 
     # Section Header offset.
-    elf_header.shoff = instructionsoff + instructions_size + \
-        instructionspaddingsize
+    self.elf_header.shoff = self.instructionsoff + self.instructions_size + \
+        self.instructionspaddingsize
 
-    elf_header.shentsize = shentsize
-    elf_header.shnum = shnum
+    self.elf_header.shentsize = self.shentsize
+    self.elf_header.shnum = self.shnum
 
     # This is hard-coded for now since we will only have limited sections for
     # now.
     # FIXME: Should be made dynamic when we start adding sections dynamically.
-    elf_header.shstrndx = 0x2
-
-
-
+    self.elf_header.shstrndx = 0x2
 
 
     # Final binary dumping.
     self.binary = ''.join([
-        str(elf_header.build()),
-        str(shstrtab),
-        str(strtab),
-        str(null_sym_entry), str(symtab_start_entry),
-        ''.join([str(e) for e in function_symtab_entries]),
-        str(ph_load_header), self.padding(phpaddingsize),
-        str(self.linker.binary), self.padding(instructionspaddingsize),
-        str(sh_null_header), str(sh_text_header), str(sh_shstrtab_header),
-        str(sh_strtab_header), str(sh_symtab_header),
-        self.padding(shpaddingsize),
+        str(self.elf_header.build()),
+        str(self.shstrtab),
+        str(self.strtab),
+        str(self.null_sym_entry), str(self.symtab_start_entry),
+        ''.join([str(e) for e in self.function_symtab_entries]),
+        str(self.ph_load_header), self.padding(self.phpaddingsize),
+        str(self.linker.binary), self.padding(self.instructionspaddingsize),
+        str(self.sh_null_header), str(self.sh_text_header),
+        str(self.sh_shstrtab_header), str(self.sh_strtab_header),
+        str(self.sh_symtab_header),
+        self.padding(self.shpaddingsize),
         ])
 
   def __str__(self):
