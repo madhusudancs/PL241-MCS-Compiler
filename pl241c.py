@@ -26,6 +26,7 @@ import argparse
 import os
 import sys
 
+from codegen import allocate_global_memory
 from codegen import CodeGenerator
 from elf import ELF
 from ir import IntermediateRepresentation
@@ -296,6 +297,8 @@ def bootstrap():
     reg_assigned_file.close()
 
 
+  allocate_global_memory(global_symbol_table)
+
   generated_functions = []
   for function_name in compilation_stages:
     cg = CodeGenerator(compilation_stages[function_name]['ir'])
@@ -303,15 +306,27 @@ def bootstrap():
     generated_functions.append(cg)
     compilation_stages[function_name]['cg'] = cg
 
+  # There is a cyclic dependency between the ELF builder the linker to resolve
+  # the addresses of globals for each instruction. So we break this cyclic
+  # dependency by first linking and building the ELF header as far as we
+  # can i.e. upto linking functions and build ELF upto instructions offset
+  # and then call the linker again with the ELF object to continue with globals
+  # linking and finally call the ELF's final binary builder.
   linker = Linker(generated_functions)
-  linker.link()
+  linker.link_functions()
+
+  elf = ELF(filename, linker)
+  elf.build_upto_instructions_offset()
+
+  linker.link_globals(elf)
+
+  elf.build()
 
   linked_file = open('%s.linked.binary' % filename, 'w')
   linked_file.write(str(linker))
   linked_file.close()
 
-  elf = ELF(filename, linker)
-  elf.build()
+
 
   executable_file = open('%s' % filename, 'w')
   executable_file.write(str(elf))
