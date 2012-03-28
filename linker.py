@@ -70,10 +70,12 @@ class Linker(object):
   def build(self):
     """Build the binary string for the entire code.
     """
+    # We need to rebuild all the individual function binaries because
+    # we rebuilt the call instructions.
     self.binary = ''.join(
-        [self.start_call.binary] + [f.binary for f in self.functions])
+        [self.start_call.binary] + [f.build() for f in self.functions])
 
-  def link(self):
+  def link_functions(self):
     """Links all the functions together by linking the calls.
     """
     self.start_call = entry()
@@ -98,6 +100,24 @@ class Linker(object):
         jump_offset = target_offset - (function_offset + next_offset)
         instruction.set_target(jump_offset)
 
+  def link_globals(self, elf):
+    """Links together all the global usages addresses using the ELF object.
+
+    Args:
+      elf: The elf object used for global address calculation.
+    """
+    for function in self.functions:
+      for instruction, memory in function.globals_to_process:
+        target_offset = elf.DATA_VADDR + memory.offset
+        function_offset = self.function_offset_map[
+            function.ir.function_name]['offset']
+        next_offset = function.instruction_offsets_map[
+            instruction]['end_offset']
+        global_offset = target_offset - (
+            elf.instructionsvoff + function_offset + next_offset)
+        instruction.set_displacement(global_offset)
+
+    # Rebuild all the functions again.
     self.build()
 
   def __str__(self):
