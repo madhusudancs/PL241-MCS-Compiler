@@ -71,7 +71,8 @@ REGISTER_COLOR_TO_CODE_MAP = {
     12:     { 'REX': 0b1, 'REG': 0b110 },   # r14
     13:     { 'REX': 0b1, 'REG': 0b111 },   # r15
     'rsp':  { 'REX': 0b0, 'REG': 0b100 },   # rsp
-    'rbp':  { 'REX': 0b0, 'REG': 0b101 }    # rbp
+    'rbp':  { 'REX': 0b0, 'REG': 0b101 },   # rbp
+    'rip':  { 'REX': 0b0, 'REG': 0b101 },   # rip
     }
 
 
@@ -182,10 +183,17 @@ class Instruction(object):
     opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
     mod = 0b10
     reg = dest_reg['REG']
-    if isinstance(source_mem.offset, Register):
-      source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+    if isinstance(source_mem.base, Register):
+      source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
       rm = source_reg['REG']
       offset = 0
+    elif source_mem.base == 'rip':
+      # mod is 00 for RIP-relative addressing
+      mod = 0b00
+      # For %rip register
+      source_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+      rm = source_reg['REG']
+      offset = self.displacement if self.displacement else source_mem.offset
     else:
       source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
       rm = source_reg['REG']
@@ -217,10 +225,17 @@ class Instruction(object):
     mod = 0b10
     reg = source_reg['REG']
 
-    if isinstance(dest_mem.offset, Register):
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+    if isinstance(dest_mem.base, Register):
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.base.color]
       rm = dest_reg['REG']
       offset = 0
+    elif dest_mem.base == 'rip':
+      # mod is 00 for RIP-relative addressing
+      mod = 0b00
+      # For %rip register
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+      rm = dest_reg['REG']
+      offset = self.displacement if self.displacement else dest_mem.offset
     else:
       dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
       rm = dest_reg['REG']
@@ -279,10 +294,17 @@ class Instruction(object):
 
     mod = 0b01
 
-    if isinstance(dest_mem.offset, Register):
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+    if isinstance(dest_mem.base, Register):
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.base.color]
       rm = dest_reg['REG']
       offset = 0
+    elif dest_mem.base == 'rip':
+      # mod is 00 for RIP-relative addressing
+      mod = 0b00
+      # For %rip register
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+      rm = dest_reg['REG']
+      offset = self.displacement if self.displacement else dest_mem.offset
     else:
       dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
       rm = dest_reg['REG']
@@ -502,10 +524,17 @@ class IDIV(Instruction):
 
       mod = 0b10
       reg = opcode_entry['OPCODE_EXT']
-      if isinstance(source_mem.offset, Register):
-        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+      if isinstance(source_mem.base, Register):
+        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
         rm = source_reg['REG']
         offset = 0
+      elif source_mem.base == 'rip':
+        # mod is 00 for RIP-relative addressing
+        mod = 0b00
+        # For %rip register
+        source_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+        rm = source_reg['REG']
+        offset = self.displacement if self.displacement else source_mem.offset
       else:
         source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
         rm = source_reg['REG']
@@ -612,10 +641,17 @@ class IMUL(Instruction):
       mod = 0b10
       reg = dest_reg['REG']
 
-      if isinstance(source_mem.offset, Register):
-        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+      if isinstance(source_mem.base, Register):
+        source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
         rm = source_reg['REG']
         offset = 0
+      elif source_mem.base == 'rip':
+        # mod is 00 for RIP-relative addressing
+        mod = 0b00
+        # For %rip register
+        source_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+        rm = source_reg['REG']
+        offset = self.displacement if self.displacement else source_mem.offset
       else:
         source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
         rm = source_reg['REG']
@@ -804,12 +840,19 @@ class MOV(Instruction):
     opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
 
     mod = 0b00
-    reg = 0b000
+    reg = opcode_entry['OPCODE_EXT']
 
-    if isinstance(dest_mem.offset, Register):
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+    if isinstance(dest_mem.base, Register):
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.base.color]
       rm = dest_reg['REG']
       offset = 0
+    elif dest_mem.base == 'rip':
+      # mod is 00 for RIP-relative addressing
+      mod = 0b00
+      # For %rip register
+      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+      rm = dest_reg['REG']
+      offset = self.displacement if self.displacement else dest_mem.offset
     else:
       dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
       rm = dest_reg['REG']
