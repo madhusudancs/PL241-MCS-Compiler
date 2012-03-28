@@ -184,6 +184,10 @@ class CodeGenerator(object):
     # for which the target code is yet to be processed.
     self.targets_to_process = []
 
+    # A two-tuple containing the instruction and its memory object to process
+    # to which this call should be linked
+    self.globals_to_process = []
+
     # A two-tuple containing the instruction and its function name
     # to which this call should be linked
     self.calls_to_link = []
@@ -423,6 +427,23 @@ class CodeGenerator(object):
         'start_offset': start_offset,
         'end_offset': self.instruction_offset
         }
+
+    destination = instruction.destination
+    source = instruction.source
+
+    if isinstance(destination, Memory) and destination.base == 'rip':
+      self.globals_to_process.append((instruction, destination))
+    elif (isinstance(destination, Register) and
+        isinstance(destination.color, Memory) and
+        destination.color.base == 'rip'):
+      self.globals_to_process.append((instruction, destination.color))
+
+    if isinstance(source, Memory) and source.base == 'rip':
+      self.globals_to_process.append((instruction, source))
+    elif (isinstance(source, Register) and
+        isinstance(source.color, Memory) and
+        source.color.base == 'rip'):
+      self.globals_to_process.append((instruction, source.color))
 
   def handle_add(self, label, result, *operands):
     """Handles the add instruction of IR.
