@@ -360,6 +360,13 @@ class Instruction(object):
           'be encoded. Destination: %s Source: %s' % (
               self.destination, self.source))
 
+
+  def set_displacement(self, displacement):
+    """Sets the new displacement offset and rebuilds the instruction binary.
+    """
+    self.displacement = displacement
+    self.build()
+
   def __len__(self):
     """Returns the length of the binary bytes for the instruction.
     """
