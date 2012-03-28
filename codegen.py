@@ -96,7 +96,7 @@ from x86_64 import XCHG
 LOGGER = logging.getLogger(__name__)
 
 
-def allocate_global_memory(self, global_symbol_table):
+def allocate_global_memory(global_symbol_table):
   """Allocate memory for global datastructures.
 
   Args:
