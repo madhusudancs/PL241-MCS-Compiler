@@ -845,6 +845,8 @@ class CodeGenerator(object):
         for instruction in self.instructions]
     self.binary = ''.join(instruction_binaries)
 
+    return self.binary
+
   def generate(self):
     """Bootstraps the code generation for the SSA object.
     """
