@@ -1182,8 +1182,7 @@ class RegisterAllocator(object):
     self.allocate_virtual_registers(start_node)
 
     self.liveness(start_node)
-    # FIXME: We do not have to pass the second argument if we compile
-    # each function independently.
+
     ifg = self.build_interference_graph()
     is_allocated = self.sat_solve(ifg)
     if is_allocated:
