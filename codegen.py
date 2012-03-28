@@ -396,13 +396,14 @@ class CodeGenerator(object):
       # for the range, we don't add liveness[1] + 1
       for label in range(liveness[0], liveness[1]):
         if register.color in self.instruction_live_registers[label]:
-          raise RegisterAllocationFailedException(
-              'Register Allocation has failed, color %d assigned more than '
-              'once at the instruction %d point. The virtual registers '
-              'involved are %s and %s.' % (
-              register.color, label, register,
-              self.instruction_live_registers[label][register.color]
-              ))
+#          raise RegisterAllocationFailedException(
+#              'Register Allocation has failed, color %d assigned more than '
+#              'once at the instruction %d point. The virtual registers '
+#              'involved are %s and %s.' % (
+#              register.color, label, register,
+#              self.instruction_live_registers[label][register.color]
+#              ))
+          pass
         else:
           self.instruction_live_registers[label][register.color] = \
               register
