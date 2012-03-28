@@ -586,7 +586,11 @@ class RegisterAllocator(object):
           # optimizations! :-P
           # NOTE: pop is not added because it doesn't even exist
           # So don't bother about doing anything.
-          continue
+          if instruction.instruction != 'call':
+            continue
+          else:
+            # For call instruction process its other operands.
+            pass
         else:
           intervals[instruction.result][0] = instruction.label
           live.pop(instruction.result)
