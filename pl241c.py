@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 
 """The main compiler file that bootstraps the whole compiler.
 """

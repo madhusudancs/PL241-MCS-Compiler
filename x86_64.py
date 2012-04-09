@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 
 """This module contains the x86_64 specific classes and definitions.
 """
@@ -1028,7 +1028,7 @@ def bootstrap():
     ch.setLevel(logging.DEBUG)
     LOGGER.addHandler(ch)
 
-  
+
   elf = ELF(filename)
   elf.build()
 

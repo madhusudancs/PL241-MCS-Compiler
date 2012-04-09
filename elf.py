@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 
 """This file contains all the definitions that ELF specifies.
 
@@ -1296,7 +1296,7 @@ def bootstrap():
     ch.setLevel(logging.DEBUG)
     LOGGER.addHandler(ch)
 
-  
+
   if args.output and isinstance(args.output, str):
     filename = args.output
   else:
