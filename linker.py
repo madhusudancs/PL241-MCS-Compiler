@@ -100,6 +100,9 @@ class Linker(object):
         jump_offset = target_offset - (function_offset + next_offset)
         instruction.set_target(jump_offset)
 
+    # We need to build the instructions twice, we have no other option.
+    self.build()
+
   def link_globals(self, elf):
     """Links together all the global usages addresses using the ELF object.
 
@@ -117,7 +120,7 @@ class Linker(object):
             elf.instructionsvoff + function_offset + next_offset)
         instruction.set_displacement(global_offset)
 
-    # Rebuild all the functions again.
+    # Rebuild all the instructions again.
     self.build()
 
   def __str__(self):
