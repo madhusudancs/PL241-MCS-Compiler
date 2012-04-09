@@ -134,6 +134,8 @@ def allocate_global_memory(global_symbol_table):
 
       memory_offset += MEMORY_WIDTH
 
+  return memory_offset
+
 
 class CodeGenerator(object):
   """Generates the code for the given SSA object.

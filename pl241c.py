@@ -297,7 +297,7 @@ def bootstrap():
     reg_assigned_file.close()
 
 
-  allocate_global_memory(global_symbol_table)
+  global_memory_size = allocate_global_memory(global_symbol_table)
 
   generated_functions = []
   for function_name in compilation_stages:
