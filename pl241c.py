@@ -315,7 +315,7 @@ def bootstrap():
   linker = Linker(generated_functions)
   linker.link_functions()
 
-  elf = ELF(filename, linker)
+  elf = ELF(filename, linker, global_memory_size)
   elf.build_upto_instructions_offset()
 
   linker.link_globals(elf)

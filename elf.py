@@ -937,12 +937,20 @@ class ELF(object):
   # FIXME: Think of a way to make it dynamic.
   SECTION_ALIGNMENT = 0x200000
 
-  def __init__(self, filename, linker, elf_class=64, endianness='little',
-               architecture='x86_64'):
+  STRTAB_SHNDX = 0x4
+
+  ELF_HEADER_SHSTRNDX = 0x3
+
+  def __init__(self, filename, linker, global_memory_size, elf_class=64,
+               endianness='little', architecture='x86_64'):
     """Constructs the ELF object required to generate ELF binaries.
 
     Args:
       filename: The name of the binary file the ELF should be written to.
+      linker: The linker object
+      global_memory_size: The size of the global memory required. The whole
+          global memory is assumed to be uninitialized and hence will be loaded
+          in the .bss segment.
       elf_class: The class of the ELF file, can be 32 or 64.
       endianness: The byte ordering. Can be little or big
       architecture: The architecture for which this binary should be generated.
@@ -955,6 +963,7 @@ class ELF(object):
     """
     self.filename = filename
     self.linker = linker
+    self.global_memory_size = global_memory_size
     self.elf_class = elf_class
     self.endianness = endianness
     self.architecture = architecture
@@ -996,6 +1005,7 @@ class ELF(object):
     # Program header table related objects.
     self.phoff = None
     self.ph_load_header = None
+    self.ph_bss_header = None
     self.phnum = None
     self.phentsize = None
     self.phsize = None
@@ -1010,6 +1020,7 @@ class ELF(object):
     # Section header related objects.
     self.sh_null_header = None
     self.sh_text_header = None
+    self.sh_bss_header = None
     self.sh_shstrtab_header = None
     self.sh_strtab_header = None
     self.sh_symtab_header = None
@@ -1044,6 +1055,8 @@ class ELF(object):
     self.shstrtab.append('.strtab')
     self.shstrtab.append('.symtab')
     self.shstrtab.append('.text')
+    if self.global_memory_size:
+      self.shstrtab.append('.bss')
 
     self.shstrtabsize = len(self.shstrtab)
 
@@ -1111,10 +1124,20 @@ class ELF(object):
         ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0,
         vaddr=self.PROGRAM_VADDR, paddr=self.PROGRAM_PADDR,
         filesz=self.instructions_size, memsz=self.instructions_size,
-        flags=ProgramHeader.FLAGS.PF_X + ProgramHeader.FLAGS.PF_R,
+        flags=ProgramHeader.FLAGS.PF_X | ProgramHeader.FLAGS.PF_R,
         align=self.SECTION_ALIGNMENT)
 
     self.ph_load_header.build()
+
+    if self.global_memory_size:
+      self.ph_bss_header = ProgramHeader(
+        ph_type=ProgramHeader.TYPE.PT_LOAD, offset=0x0,
+        vaddr=self.DATA_VADDR, paddr=self.DATA_PADDR,
+        filesz=0x0, memsz=self.global_memory_size,
+        flags=ProgramHeader.FLAGS.PF_R | ProgramHeader.FLAGS.PF_W,
+        align=self.SECTION_ALIGNMENT)
+
+      self.ph_bss_header.build()
 
     self.phnum = ProgramHeader.counter
     self.phentsize = len(self.ph_load_header)
@@ -1149,11 +1172,25 @@ class ELF(object):
         name=self.shstrtab['.text'], sh_type=SectionHeader.TYPE.SHT_PROGBITS,
         addr=self.instructionsvoff, offset=self.instructionsoff,
         size=self.instructions_size,
-        flags=(SectionHeader.FLAGS.SHF_ALLOC + \
+        flags=(SectionHeader.FLAGS.SHF_ALLOC | \
             SectionHeader.FLAGS.SHF_EXECINSTR),
         link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x10, entsize=0x0)
 
     self.sh_text_header.build()
+
+    if self.global_memory_size:
+      # Address alignment is hard-coded for now since ELF64 wants 16 bytes
+      # alignment.
+      # FIXME: Make the address alignment dynamic.
+      self.sh_bss_header = SectionHeader(
+          name=self.shstrtab['.bss'], sh_type=SectionHeader.TYPE.SHT_NOBITS,
+          addr=self.DATA_VADDR, offset=0x0,
+          size=self.global_memory_size,
+          flags=(SectionHeader.FLAGS.SHF_ALLOC | \
+              SectionHeader.FLAGS.SHF_WRITE),
+          link=SectionHeader.SHN_UNDEF, info=0x0, addralign=0x10, entsize=0x0)
+
+      self.sh_bss_header.build()
 
     # Since this is byte aligned, since it is a string, the address alignment
     # of 1 is fixed always.
@@ -1178,7 +1215,7 @@ class ELF(object):
     self.sh_symtab_header = SectionHeader(
         name=self.shstrtab['.symtab'], sh_type=SectionHeader.TYPE.SHT_SYMTAB,
         addr=0x0, offset=self.symtaboff, size=self.symtabsize,
-        link=0x3, info=self.symtab_locals + 1, addralign=0x8,
+        link=self.STRTAB_SHNDX, info=self.symtab_locals + 1, addralign=0x8,
         entsize=len(self.null_sym_entry))
 
     self.sh_symtab_header.build()
@@ -1195,6 +1232,8 @@ class ELF(object):
   def build_upto_instructions_offset(self):
     """Builds upto computing the instructions offset for linking globals.
     """
+    self.instructions_size = len(self.linker.binary)
+
     self.build_elf_header()
 
     self.build_shstrtab()
@@ -1214,9 +1253,7 @@ class ELF(object):
     self.build_upto_instructions_offset() is already called from elsewhere
     and hence begins by calling the method that builds section headers.
     """
-    self.instructions_size = len(self.linker.binary)
-
-    # A phheader padding is added to align to 16 bytes.
+    # An instructions padding is added to align to 16 bytes.
     self.instructionspaddingsize = 0x10 - (self.instructions_size % 0x10) if (
         self.instructions_size % 0x10) else 0x0
 
@@ -1253,7 +1290,7 @@ class ELF(object):
     # This is hard-coded for now since we will only have limited sections for
     # now.
     # FIXME: Should be made dynamic when we start adding sections dynamically.
-    self.elf_header.shstrndx = 0x2
+    self.elf_header.shstrndx = self.ELF_HEADER_SHSTRNDX
 
 
     # Final binary dumping.
@@ -1263,9 +1300,12 @@ class ELF(object):
         str(self.strtab),
         str(self.null_sym_entry), str(self.symtab_start_entry),
         ''.join([str(e) for e in self.function_symtab_entries]),
-        str(self.ph_load_header), self.padding(self.phpaddingsize),
+        str(self.ph_load_header),
+        str(self.ph_bss_header) if self.ph_bss_header else '',
+        self.padding(self.phpaddingsize),
         str(self.linker.binary), self.padding(self.instructionspaddingsize),
         str(self.sh_null_header), str(self.sh_text_header),
+        str(self.sh_bss_header) if self.sh_bss_header else '',
         str(self.sh_shstrtab_header), str(self.sh_strtab_header),
         str(self.sh_symtab_header),
         self.padding(self.shpaddingsize),
