@@ -672,18 +672,18 @@ class CodeGenerator(object):
   def handle_store(self, label, result, *operands):
     """Handles the store instruction of IR.
     """
+    if isinstance(operands[1], Register):
+      memory = Memory()
+      memory.base = operands[2]
+      memory.offset = operands[1]
+    elif isinstance(operands[1], Memory):
+      memory = operands[1]
+      memory.offset = self.memory_offset
+
+      self.memory_offset += MEMORY_WIDTH
+
     if isinstance(operands[0], Memory) or (isinstance(operands[0], Register)
         and isinstance(operands[0].color, Memory)):
-
-      if isinstance(operands[1], Register):
-        memory = Memory()
-        memory.base = operands[1]
-        memory.offset = 0
-      elif isinstance(operands[1], Memory):
-        memory = operands[1]
-        memory.offset = self.memory_offset
-
-        self.memory_offset += MEMORY_WIDTH
 
       # Take the set difference
       free_registers = (REGISTERS_COLOR_SET -
@@ -723,15 +723,6 @@ class CodeGenerator(object):
         self.add_instruction(label, pop)
     else:
       register = operands[0]
-      if isinstance(operands[1], Register):
-        memory = Memory()
-        memory.base = operands[1]
-        memory.offset = 0
-      elif isinstance(operands[1], Memory):
-        memory = operands[1]
-        memory.offset = self.memory_offset
-
-        self.memory_offset += MEMORY_WIDTH
 
       mov = MOV(memory, register)
       self.add_instruction(label, mov)
