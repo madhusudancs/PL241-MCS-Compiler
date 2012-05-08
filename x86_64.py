@@ -232,29 +232,47 @@ class Instruction(object):
     dest_mem = self.destination
 
     opcode_entry = self.OPCODE_TABLE[('rm64', 'reg64')]
-    mod = 0b10
     reg = source_reg['REG']
 
-    if isinstance(dest_mem.base, Register):
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.base.color]
-      rm = dest_reg['REG']
-      offset = self.displacement if self.displacement else dest_mem.offset
-    elif dest_mem.base == 'rip':
-      # mod is 00 for RIP-relative addressing
-      mod = 0b00
-      # For %rip register
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
-      rm = dest_reg['REG']
-      offset = self.displacement if self.displacement else dest_mem.offset
-    else:
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-      rm = dest_reg['REG']
-      offset = -dest_mem.offset if dest_mem.offset != None else 0
+    sib = None
 
-    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
-    rex = self.rex_byte(base=opcode_entry['REX'],
+    if isinstance(dest_mem.base, Memory):
+      # SIB encoding must be used in this case.
+      if dest_mem.base.base == 'rip':
+        mod = 0b00
+      else:
+        mod = 0b10
+
+      rm = 0b100
+
+      index_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+
+      sib = self.sib_byte(scale=0b11, index=index_reg['REG'], base=0b101)
+
+      offset = self.displacement if self.displacement else dest_mem.base.offset
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          R=source_reg['REX'],
+                          X=index_reg['REX'])
+    else:
+      if dest_mem.base == 'rip':
+        # mod is 00 for RIP-relative addressing
+        mod = 0b00
+        # For %rip register
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+        rm = dest_reg['REG']
+        offset = self.displacement if self.displacement else dest_mem.offset
+      else:
+        mod = 0b10
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = dest_reg['REG']
+        offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
                         R=source_reg['REX'],
                         B=dest_reg['REX'])
+
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
@@ -264,6 +282,9 @@ class Instruction(object):
     self.binary += struct.pack('>B', opcode_entry['OPCODE'])
     self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                modregrm)
+    if sib:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, sib)
+
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
 
   def reg64_imm32(self):
