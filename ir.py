@@ -687,11 +687,13 @@ class IntermediateRepresentation(object):
   def keyword_let(self, root):
     """Process the let statement.
     """
-    lvalue, array = self.designator(root.children[0], lvalue=True)
+    lvalue, array_offset = self.designator(root.children[0], lvalue=True)
     rvalue = self.expression(root.children[2])
 
-    if array:
-      return self.instruction('store', rvalue, lvalue)
+    if array_offset:
+      result = self.instruction('store', rvalue, array_offset)
+      self.ir[result].operands = [lvalue]
+      return result
     else:
       return self.instruction('move', rvalue, lvalue)
 
@@ -733,7 +735,7 @@ class IntermediateRepresentation(object):
     """
     result = self.dfs(root.children[0])
     if len(root.children) <= 1:
-      return (result, False) if lvalue else result
+      return (result, None) if lvalue else result
 
     # Else this must be an array.
 
@@ -751,17 +753,16 @@ class IntermediateRepresentation(object):
     expression_result = self.expression(root.children[1])
     for i, offset in enumerate(root.children[2:]):
       temp_result = self.instruction('*', expression_result,
-                                     Immediate(dimensions[i + 1]))
+                                     Immediate(dimensions[i + 1] * 4))
       offset_result = self.expression(offset)
       expression_result = self.instruction('+', offset_result,
                                            temp_result)
 
     offset_result = self.instruction('*', expression_result, Immediate(4))
-    result = self.instruction('adda', offset_result, result)
     if lvalue:
-      return result, True
+      return result, offset_result
 
-    result = self.instruction('load', result)
+    result = self.instruction('load', offset_result, result)
     return result
 
   def factor(self, root):
