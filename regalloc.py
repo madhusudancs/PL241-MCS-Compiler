@@ -412,6 +412,8 @@ class RegisterAllocator(object):
             new_register = self.register_for_operand(operand)
             new_register.set_use(instruction)
             new_operands.append(new_register)
+          elif self.is_memory(operand):
+            new_operands.append(operand)
 
         instruction.operands = new_operands
 
