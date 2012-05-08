@@ -149,6 +149,16 @@ class Instruction(object):
     """
     return ((base) | (R << 2) | (X << 1) | (B))
 
+  def sib_byte(self, scale=0b00, index=0b000, base=0b000):
+    """Returns the byte containing the scale, index and base values.
+
+    Args:
+      scale: The scale part of the SIB encoding
+      index: The index register corresponding to the SIB encoding.
+      base: The base register corresponding to the SIB encoding.
+    """
+    return ((scale << 6) | (index << 3) | (base))
+
   def reg64_reg64(self):
     """Encodes the instruction for register to register instructions.
     """
