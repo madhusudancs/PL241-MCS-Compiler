@@ -125,6 +125,15 @@ def is_variable_or_label(operand):
   return False
 
 
+def is_memory(operand):
+  """Checks if a given operand is a memory object.
+
+  Args:
+    operand: The operand that must be checked if it is a memory object.
+  """
+  return operand and isinstance(operand, Memory)
+
+
 class Memory(object):
   """Represents a memory operand in a generic way.
 
@@ -278,6 +287,15 @@ class Instruction(object):
           it is a variable or a label of another instruction not.
     """
     return is_variable_or_label(operand)
+
+  def is_memory(self, operand):
+    """Returns True if the operand is a memory object.
+
+    Args:
+      operand: The operand to an instruction which must be checked for whether
+          it is a memory object or not.
+    """
+    return is_memory(operand)
 
   def __contains__(self, operand):
     """Checks if the given operand belongs to the instruction.
