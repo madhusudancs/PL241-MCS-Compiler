@@ -1,4 +1,4 @@
-# Copyright 2012 Madhusudan C.S. 
+# Copyright 2012 Madhusudan C.S.
 #
 # This file parser.py is part of PL241-MCS compiler.
 #
