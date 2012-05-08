@@ -52,8 +52,6 @@ defintions.
 
 import collections
 import logging
-import subprocess
-import sys
 
 from argparse import ArgumentParser
 
@@ -61,11 +59,9 @@ from ir import Immediate
 from ir import IntermediateRepresentation
 from ir import Memory
 from optimizations import Optimize
-from parser import LanguageSyntaxError
 from parser import Parser
 from regalloc import Register
 from regalloc import RegisterAllocator
-from regalloc import RegisterAllocationFailedException
 
 # Architecture specific imports
 from x86_64 import ADD
@@ -73,7 +69,6 @@ from x86_64 import CALL
 from x86_64 import CMP
 from x86_64 import IDIV
 from x86_64 import IMUL
-from x86_64 import Instruction
 from x86_64 import JE
 from x86_64 import JG
 from x86_64 import JGE
@@ -583,10 +578,10 @@ class CodeGenerator(object):
     rdx.memory = Memory()
 
     operands = (rax, rax.memory)
-    store_rax = self.handle_store(label, None, *operands)
+    self.handle_store(label, None, *operands)
 
     operands = (rdx, rdx.memory)
-    store_rdx = self.handle_store(label, None, *operands)
+    self.handle_store(label, None, *operands)
 
     mov = MOV(rax, operands[0])
     self.add_instruction(label, mov)
@@ -597,8 +592,8 @@ class CodeGenerator(object):
     mov_result = MOV(result, rax)
     self.add_instruction(label, mov_result)
 
-    load_rax = self.handle_load(label, rax, rax.memory)
-    load_rdx = self.handle_load(label, rdx, rdx.memory)
+    self.handle_load(label, rax, rax.memory)
+    self.handle_load(label, rdx, rdx.memory)
 
   def handle_load(self, label, result, *operands):
     """Handles the load instruction of IR.

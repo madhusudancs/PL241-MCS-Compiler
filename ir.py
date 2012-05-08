@@ -69,7 +69,6 @@ Conventions followed:
 
 
 import collections
-import copy
 import logging
 import sys
 
@@ -562,7 +561,6 @@ class IntermediateRepresentation(object):
     """
     self.identify_basic_blocks()
 
-    i = 1
     nodes = collections.OrderedDict()
 
     for leader, leader_dict in self.basic_blocks.iteritems():

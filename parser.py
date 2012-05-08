@@ -50,7 +50,6 @@ import re
 import sys
 
 from argparse import ArgumentParser
-from copy import deepcopy
 
 from datastructures import Node
 

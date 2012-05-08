@@ -41,7 +41,6 @@ from ir import Instruction
 from ir import IntermediateRepresentation
 from ir import Memory
 from optimizations import Optimize
-from parser import GLOBAL_SCOPE_NAME
 from parser import LanguageSyntaxError
 from parser import Parser
 from ssa import SSA
@@ -312,8 +311,6 @@ class RegisterAllocator(object):
       operand: The operand that this register belongs to.
       register: The register which should have a corresponding memory location.
     """
-    function_name = self.ssa.ir.function_name
-
     # We will not allocate memory for non-variable registers, i.e. the result
     # of the instructions right now. This is because most of them may not
     # need a memory. We will allocate memory to them as they are needed, in

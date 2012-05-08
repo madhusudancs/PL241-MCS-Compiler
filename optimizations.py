@@ -26,7 +26,6 @@ from argparse import ArgumentParser
 
 from datastructures import CFGNode
 from ir import Immediate
-from ir import Instruction
 from ir import IntermediateRepresentation
 from parser import LanguageSyntaxError
 from parser import Parser
