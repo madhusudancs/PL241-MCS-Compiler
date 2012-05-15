@@ -604,7 +604,7 @@ class IDIV(Instruction):
       # FIXME: May be buggy because reg may be 0xb111 instead of 0
       mod = 0b11
       reg = opcode_entry['OPCODE_EXT']
-      rm = src_reg['REG']
+      rm = source_reg['REG']
       modregrm = self.mod_reg_rm_byte(mod, reg, rm)
       rex = self.rex_byte(base=opcode_entry['REX'],
                           B=source_reg['REX'])
@@ -691,7 +691,7 @@ class IMUL(Instruction):
 
       mod = 0b11
       reg = dest_reg['REG']
-      rm = src_reg['REG']
+      rm = source_reg['REG']
       modregrm = self.mod_reg_rm_byte(mod, reg, rm)
       rex = self.rex_byte(base=opcode_entry['REX'],
                           R=dest_reg['REX'],
