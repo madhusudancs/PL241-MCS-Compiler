@@ -1092,8 +1092,10 @@ class RET(Instruction):
     """
     self.binary = ''
 
-    self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
-                               self.OPCODE_TABLE['nooperand']['OPCODE'])
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', self.OPCODE_TABLE['nooperand']['OPCODE'])
+
 
 class SYSCALL(Instruction):
   """Implements the SYSCALL instruction.
