@@ -191,29 +191,48 @@ class Instruction(object):
     dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
 
     opcode_entry = self.OPCODE_TABLE[('reg64', 'rm64')]
-    mod = 0b10
     reg = dest_reg['REG']
-    if isinstance(source_mem.base, Register):
-      source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
-      rm = source_reg['REG']
-      offset = self.displacement if self.displacement else source_mem.offset
-    elif source_mem.base == 'rip':
-      # mod is 00 for RIP-relative addressing
-      mod = 0b00
-      # For %rip register
-      source_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
-      rm = source_reg['REG']
-      offset = self.displacement if self.displacement else source_mem.offset
+
+    sib = None
+
+    if isinstance(source_mem.base, Memory):
+      # SIB encoding must be used in this case.
+      if source_mem.base.base == 'rip':
+        mod = 0b00
+      else:
+        mod = 0b10
+
+      rm = 0b100
+
+      index_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.offset.color]
+
+      sib = self.sib_byte(scale=0b11, index=index_reg['REG'], base=0b101)
+
+      offset = self.displacement if self.displacement else source_mem.base.offset
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          R=dest_reg['REX'],
+                          X=index_reg['REX'])
     else:
-      source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-      rm = source_reg['REG']
-      offset = -source_mem.offset if source_mem.offset else \
-          (source_mem.offset if source_mem.offset else 0) * MEMORY_WIDTH
+      if source_mem.base == 'rip':
+        # mod is 00 for RIP-relative addressing
+        mod = 0b00
+        # For %rip register
+        source_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+        rm = source_reg['REG']
+        offset = self.displacement if self.displacement else source_mem.offset
+      else:
+        mod = 0b10
+        source_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = source_reg['REG']
+        offset = -source_mem.offset if source_mem.offset else \
+            (source_mem.offset if source_mem.offset else 0) * MEMORY_WIDTH
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          R=dest_reg['REX'],
+                          B=source_reg['REX'])
 
     modregrm = self.mod_reg_rm_byte(mod, reg, rm)
-    rex = self.rex_byte(base=opcode_entry['REX'],
-                        R=dest_reg['REX'],
-                        B=source_reg['REX'])
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
@@ -223,6 +242,10 @@ class Instruction(object):
     self.binary += struct.pack('>B', opcode_entry['OPCODE'])
     self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                modregrm)
+
+    if sib:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, sib)
+
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
 
   def rm64_reg64(self):
@@ -301,7 +324,7 @@ class Instruction(object):
 
     modregrm = self.mod_reg_rm_byte(mod, reg, rm)
     rex = self.rex_byte(base=opcode_entry['REX'],
-                        R=dest_reg['REX'])
+                        B=dest_reg['REX'])
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
@@ -323,28 +346,42 @@ class Instruction(object):
 
     opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
 
-    mod = 0b01
+    sib = None
 
-    if isinstance(dest_mem.base, Register):
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.base.color]
-      rm = dest_reg['REG']
-      offset = self.displacement if self.displacement else dest_mem.offset
-    elif dest_mem.base == 'rip':
-      # mod is 00 for RIP-relative addressing
-      mod = 0b00
-      # For %rip register
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
-      rm = dest_reg['REG']
-      offset = self.displacement if self.displacement else dest_mem.offset
+    if isinstance(dest_mem.base, Memory):
+      # SIB encoding must be used in this case.
+      if dest_mem.base.base == 'rip':
+        mod = 0b00
+      else:
+        mod = 0b10
+
+      rm = 0b100
+
+      index_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+
+      sib = self.sib_byte(scale=0b11, index=index_reg['REG'], base=0b101)
+
+      offset = self.displacement if self.displacement else dest_mem.base.offset
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          X=index_reg['REX'])
     else:
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-      rm = dest_reg['REG']
-      offset = -dest_mem.offset if dest_mem.offset != None else 0
+      if dest_mem.base == 'rip':
+        # mod is 00 for RIP-relative addressing
+        mod = 0b00
+        # For %rip register
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+        rm = dest_reg['REG']
+        offset = self.displacement if self.displacement else dest_mem.offset
+      else:
+        mod = 0b01
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = dest_reg['REG']
+        offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+      rex = self.rex_byte(base=opcode_entry['REX'], B=dest_reg['REX'])
 
     modregrm = self.mod_reg_rm_byte(mod, 000, rm)
-
-    rex = self.rex_byte(base=opcode_entry['REX'],
-                        B=dest_reg['REX'])
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
@@ -356,6 +393,9 @@ class Instruction(object):
 
     self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                modregrm)
+
+    if sib:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, sib)
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
 
@@ -877,29 +917,46 @@ class MOV(Instruction):
 
     opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
 
-    mod = 0b00
     reg = opcode_entry['OPCODE_EXT']
 
-    if isinstance(dest_mem.base, Register):
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.base.color]
-      rm = dest_reg['REG']
-      offset = self.displacement if self.displacement else dest_mem.offset
-    elif dest_mem.base == 'rip':
-      # mod is 00 for RIP-relative addressing
-      mod = 0b00
-      # For %rip register
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
-      rm = dest_reg['REG']
-      offset = self.displacement if self.displacement else dest_mem.offset
+    sib = None
+
+    if isinstance(dest_mem.base, Memory):
+      # SIB encoding must be used in this case.
+      if dest_mem.base.base == 'rip':
+        mod = 0b00
+      else:
+        mod = 0b10
+
+      rm = 0b100
+
+      index_reg = REGISTER_COLOR_TO_CODE_MAP[dest_mem.offset.color]
+
+      sib = self.sib_byte(scale=0b11, index=index_reg['REG'], base=0b101)
+
+      offset = self.displacement if self.displacement else dest_mem.base.offset
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          X=index_reg['REX'])
     else:
-      dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
-      rm = dest_reg['REG']
-      offset = -dest_mem.offset if dest_mem.offset != None else 0
+      if dest_mem.base == 'rip':
+        # mod is 00 for RIP-relative addressing
+        mod = 0b00
+        # For %rip register
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rip']
+        rm = dest_reg['REG']
+        offset = self.displacement if self.displacement else dest_mem.offset
+      else:
+        mod = 0b00
+        dest_reg = REGISTER_COLOR_TO_CODE_MAP['rbp']
+        rm = dest_reg['REG']
+        offset = -dest_mem.offset if dest_mem.offset != None else 0
+
+      rex = self.rex_byte(base=opcode_entry['REX'],
+                          B=dest_reg['REX'])
 
     modregrm = self.mod_reg_rm_byte(mod, reg, rm)
 
-    rex = self.rex_byte(base=opcode_entry['REX'],
-                        B=dest_reg['REX'])
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
@@ -910,6 +967,9 @@ class MOV(Instruction):
 
     self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                modregrm)
+
+    if sib:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, sib)
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
 
