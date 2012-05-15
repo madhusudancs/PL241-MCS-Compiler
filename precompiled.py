@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with PL241-MCS compiler. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 
 """This file contains the precompiled code.
 """
@@ -31,80 +31,81 @@ def entry():
 
 
 def input_num():
-  "48 BF 00 00 00 00 00 00 00 00"
+  "\x48\xBF\x00\x00\x00\x00\x00\x00\x00\x00"
 
-  "48 8B F4"
+  "\x48\x8B\xF4"
 
-  "48 BA 0A 00 00 00 00 00 00 00"
+  "\x48\xBA\x0A\x00\x00\x00\x00\x00\x00\x00"
 
-  "48 B8 00 00 00 00 00 00 00 00"
-  "0F 05"
-  "48 33 C0"
-  "48 BB 00 00 00 00 00 00 00 00"
+  "\x48\xB8\x00\x00\x00\x00\x00\x00\x00\x00"
+  "\x0F\x05"
+  "\x48\x33\xC0"
+  "\x48\xBB\x00\x00\x00\x00\x00\x00\x00\x00"
 
-  "48 8B F4"
-  "48 8B 0E"
+  "\x48\x8B\xF4"
+  "\x48\x8B\x0E"
 
-  "48 81 F9 0A 00 00 00"
-  "0F 84 37 00 00 00"
+  "\x48\x81\xF9\x0A\x00\x00\x00"
+  "\x0F\x84\x37\x00\x00\x00"
 
-  "48 81 FB 0A 00 00 00"
-  "0F 8F 2A 00 00 00"
-  "48 81 E9 30 00 00 00"
-  "48 81 E1 FF 00 00 00"
-  "48 8B D0"
-  "48 C1 E0 03"
-  "48 D1 E2"
-  "48 03 C2"
-  "48 03 C1"
+  "\x48\x81\xFB\x0A\x00\x00\x00"
+  "\x0F\x8F\x2A\x00\x00\x00"
+  "\x48\x81\xE9\x30\x00\x00\x00"
+  "\x48\x81\xE1\xFF\x00\x00\x00"
+  "\x48\x8B\xD0"
+  "\x48\xC1\xE0\x03"
+  "\x48\xD1\xE2"
+  "\x48\x03\xC2"
+  "\x48\x03\xC1"
 
-  "48 FF C6"
-  "48 FF C3"
-  "E9 B9 FF FF FF"
-  "C3"
+  "\x48\xFF\xC6"
+  "\x48\xFF\xC3"
+  "\xE9\xB9\xFF\xFF\xFF"
+  "\xC3"
 
 
 
 def output_num():
 
-  "48 33 D2"
+  "\x48\x33\xD2"
 
-  "48 B9 00 00 00 00 00 00 00 00"
-  "48 8B C7"
-  "48 BB 0A 00 00 00 00 00 00 00"
-  "48 F7 F3"
-  "48 81 C2 30 00 00 00"
-  "52"
+  "\x48\xB9\x00\x00\x00\x00\x00\x00\x00\x00"
+  "\x48\x8B\xC7"
+  "\x48\xBB\x0A\x00\x00\x00\x00\x00\x00\x00"
+  "\x48\xF7\xF3"
+  "\x48\x81\xC2\x30\x00\x00\x00"
+  "\x52"
 
-  "48 FF C1"
-  "48 81 F8 00 00 00 00"
-  "0F 85 E2 FF FF FF"
+  "\x48\xFF\xC1"
+  "\x48\x81\xF8\x00\x00\x00\x00"
+  "\x0F\x85\xE2\xFF\xFF\xFF"
 
-  "48 81 F9 00 00 00 00"
-  "0F 8E 2C 00 00 00"
+  "\x48\x81\xF9\x00\x00\x00\x00"
+  "\x0F\x8E\x2C\x00\x00\x00"
 
-  "48 BA 01 00 00 00 00 00 00 00"
+  "\x48\xBA\x01\x00\x00\x00\x00\x00\x00\x00"
 
-  "48 8B F4"
-  "48 BF 01 00 00 00 00 00 00 00"
+  "\x48\x8B\xF4"
+  "\x48\xBF\x01\x00\x00\x00\x00\x00\x00\x00"
 
-  "48 B8 01 00 00 00 00 00 00 00"
-  "0F 05"
-  "48 FF C9"
+  "\x48\xB8\x01\x00\x00\x00\x00\x00\x00\x00"
+  "\x0F\x05"
+  "\x48\xFF\xC9"
 
-  "5B"
-  "E9 C7 FF FF FF"
-  "C3"
+  "\x5B"
+  "\xE9\xC7\xFF\xFF\xFF"
+  "\xC3"
 
 
 def output_newline():
 
-  "48 C7 04 24 0A 00 00 00"
-  "48 BF 01 00 00 00 00 00 00 00"
-  "48 8B F4"
+  "\x48\xC7\x04\x24\x0A\x00\x00\x00"
+  "\x48\xBF\x01\x00\x00\x00\x00\x00\x00\x00"
+  "\x48\x8B\xF4"
 
-  "48 BA 01 00 00 00 00 00 00 00"
+  "\x48\xBA\x01\x00\x00\x00\x00\x00\x00\x00"
 
-  "48 B8 01 00 00 00 00 00 00 00"
-  "0F 05"
-  "c3"
+  "\x48\xB8\x01\x00\x00\x00\x00\x00\x00\x00"
+  "\x0F\x05"
+  "\xc3"
+
