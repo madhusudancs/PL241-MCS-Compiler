@@ -20,14 +20,35 @@
 """
 
 
+from ir import Immediate
+from regalloc import Register
+
+# Architecture specific imports
 from x86_64 import CALL
+from x86_64 import MOV
+from x86_64 import SYSCALL
 
 
 def entry():
   """Returns the precompiled code for starting the code.
   """
   call = CALL()
-  return call
+
+  # Move exit status to %rdi
+  rdi = Register()
+  rdi.color = 5
+  mov_status = MOV(rdi, Immediate(0))
+
+  # Move exit SYSCALL descriptor number to %rax
+  rax = Register()
+  rax.color = 0
+  mov_sycall = MOV(rax, Immediate(60))
+
+  # Make syscall
+  syscall = SYSCALL()
+
+  return (len(call) + len(mov_status) + len(mov_sycall)
+          + len(syscall), [call, mov_status, mov_sycall, syscall])
 
 
 def input_num():

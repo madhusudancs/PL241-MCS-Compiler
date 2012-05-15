@@ -62,21 +62,21 @@ class Linker(object):
     # We need to rebuild all the individual function binaries because
     # we rebuilt the call instructions.
     self.binary = ''.join(
-        [self.start_call.binary] + [f.build() for f in self.functions])
+        [e.binary for e in self.entry] + [f.build() for f in self.functions] +
+        self.additional_functions)
 
   def link_functions(self):
     """Links all the functions together by linking the calls.
     """
-    self.start_call = entry()
-    start_size = len(self.start_call.binary)
-    self.function_offset += start_size
+    entry_size, self.entry = entry()
+    self.function_offset += entry_size
 
     self.compute_offsets()
 
-    next_offset = start_size
+    next_offset = len(self.entry[0])
     main_offset = self.function_offset_map['main']['offset']
     jump_offset = main_offset - next_offset
-    self.start_call.set_target(jump_offset)
+    self.entry[0].set_target(jump_offset)
 
     self.additional_functions = []
 
