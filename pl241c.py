@@ -330,6 +330,10 @@ def bootstrap():
 
   executable_file = open('%s' % filename, 'w')
   executable_file.write(str(elf))
+
+  # Make the file executable.
+  os.fchmod(executable_file.fileno(), 0755)
+
   executable_file.close()
 
   return elf
