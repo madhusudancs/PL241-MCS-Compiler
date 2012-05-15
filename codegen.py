@@ -185,6 +185,10 @@ class CodeGenerator(object):
     # to which this call should be linked
     self.globals_to_process = []
 
+    # A two-tuple containing the instruction and its SIB base memory object to
+    # process.
+    self.global_sibs_to_process = []
+
     # A two-tuple containing the instruction and its function name
     # to which this call should be linked
     self.calls_to_link = []
@@ -433,7 +437,7 @@ class CodeGenerator(object):
       self.globals_to_process.append((instruction, destination))
     if (isinstance(destination, Memory) and isinstance(destination.base, Memory)
         and (destination.base.base == 'rip')):
-      self.globals_to_process.append((instruction, destination.base))
+      self.global_sibs_to_process.append((instruction, destination.base))
     elif (isinstance(destination, Register) and
         isinstance(destination.color, Memory) and
         destination.color.base == 'rip'):
@@ -603,9 +607,12 @@ class CodeGenerator(object):
     """
     register = result
 
-    if isinstance(operands[0], Register):
+    if isinstance(operands[0], Immediate) and isinstance(operands[1], Memory):
+      memory = operands[1]
+      memory.offset=operands[0].value
+    elif isinstance(operands[0], Register):
       # This happens only in case of arrays
-      memory = Memory(base=operands[0], offset=0)
+      memory = Memory(base=operands[1], offset=operands[0])
     elif isinstance(operands[0], Memory):
       memory = operands[0]
       if memory.offset == None:
@@ -635,17 +642,17 @@ class CodeGenerator(object):
       self.add_instruction(label, mov)
 
       imul = IMUL(result, result, operands[1])
-    elif isinstance(operands[0], Immediate):
-      mov = MOV(result, operands[0])
-      self.add_instruction(label, mov)
-
-      imul = IMUL(result, operands[1])
-      self.add_instruction(label, imul)
     elif isinstance(operands[1], Immediate):
       mov = MOV(result, operands[1])
       self.add_instruction(label, mov)
 
       imul = IMUL(result, operands[0])
+      self.add_instruction(label, imul)
+    else:
+      mov = MOV(result, operands[0])
+      self.add_instruction(label, mov)
+
+      imul = IMUL(result, operands[1])
       self.add_instruction(label, imul)
 
   def handle_read(self, label, result, *operands):
@@ -675,7 +682,10 @@ class CodeGenerator(object):
   def handle_store(self, label, result, *operands):
     """Handles the store instruction of IR.
     """
-    if isinstance(operands[1], Register):
+    if isinstance(operands[1], Immediate) and isinstance(operands[2], Memory):
+      memory = operands[2]
+      memory.offset = operands[1].value
+    elif isinstance(operands[1], Register):
       memory = Memory()
       memory.base = operands[2]
       memory.offset = operands[1]
@@ -769,11 +779,6 @@ class CodeGenerator(object):
     rsp.color = 'rsp'
     mov = MOV(rbp, rsp)
     self.add_instruction(0, mov)
-
-    if self.memory_offset:
-      # Allocate memory for locals
-      sub = SUB(rsp, Immediate(self.memory_offset))
-      self.add_instruction(0, sub)
 
   def handle_prologue(self, func_name, *operands):
     """Handles the prologue of the function definition in IR.
