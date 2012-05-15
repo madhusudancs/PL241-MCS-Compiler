@@ -551,6 +551,28 @@ class CMP(Instruction):
     super(CMP, self).__init__(destination, source)
 
 
+class HLT(Instruction):
+  """Implements the HLT instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0xF4 },
+      }
+
+  def __init__(self):
+    """Constructs the HLT instruction.
+    """
+    super(HLT, self).__init__(destination=None, source=None)
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
+                               self.OPCODE_TABLE['nooperand']['OPCODE'])
+
+
 class IDIV(Instruction):
   """Implements the IDIV instruction.
 
@@ -1073,6 +1095,28 @@ class RET(Instruction):
     self.binary += struct.pack('%sH' % BYTE_ORDERING_FMT,
                                self.OPCODE_TABLE['nooperand']['OPCODE'])
 
+class SYSCALL(Instruction):
+  """Implements the SYSCALL instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0x0F05 },
+      }
+
+  def __init__(self):
+    """Constructs the SYSCALL instruction.
+    """
+    super(SYSCALL, self).__init__(destination=None, source=None)
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>H', self.OPCODE_TABLE['nooperand']['OPCODE'])
+
 
 class SUB(Instruction):
   """Implements the SUB instruction.
@@ -1103,6 +1147,20 @@ class XCHG(Instruction):
     """Constructs the XCHG instruction.
     """
     super(XCHG, self).__init__(destination, source)
+
+
+class XOR(Instruction):
+  """Implements the XOR instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x33 },
+      }
+
+  def __init__(self, destination, source):
+    """Constructs the XOR instruction.
+    """
+    super(XOR, self).__init__(destination, source)
 
 
 def bootstrap():
