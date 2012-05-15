@@ -85,7 +85,7 @@ from x86_64 import REGISTERS_COLOR_SET
 from x86_64 import RET
 from x86_64 import SUB
 from x86_64 import XCHG
-
+from x86_64 import XOR
 
 # Module level logger object
 LOGGER = logging.getLogger(__name__)
@@ -574,33 +574,83 @@ class CodeGenerator(object):
   def handle_div(self, label, result, *operands):
     """Handles the div instruction of IR.
     """
+    restore_rax = True
+    restore_rdx = True
+
+    # This will be true only if the second operand is immediate.
+    restore_r15 = False
+
     # Create dummy register objects for RAX and RDX and force color them to
     # ensure they take RAX and RDX values. So we can spill these two registers.
     # Also create memory object to where they get spilled.
+    if self.is_register(result):
+      if result.color == 0:
+        restore_rax = False
+      elif result.color == 3:
+        restore_rdx = False
+
+    # We may want %rax register to move the first dividend to %rax if it is
+    # not already in %rax, so create a dummy %rax register in any case.
     rax = Register()
     rax.color = 0     # Color of RAX
-    rax.memory = Memory()
+
+    # We want to clear the contents of %rdx no matter what, so create a dummy
+    # register for it.
     rdx = Register()
-    rdx.color = 2     # Color of RDX
-    rdx.memory = Memory()
+    rdx.color = 3     # Color of RDX
 
-    operands = (rax, rax.memory)
-    self.handle_store(label, None, *operands)
+    # Store %rax and %rdx in memory if they have to be restored
+    if restore_rax:
+      rax.memory = Memory()
 
-    operands = (rdx, rdx.memory)
-    self.handle_store(label, None, *operands)
+      rax_operands = (rax, rax.memory)
+      self.handle_store(label, None, *rax_operands)
 
-    mov = MOV(rax, operands[0])
-    self.add_instruction(label, mov)
+    if restore_rdx:
+      rdx.memory = Memory()
 
-    idiv = IDIV(operands[1])
+      rdx_operands = (rdx, rdx.memory)
+      self.handle_store(label, None, *rdx_operands)
+
+    if not (self.is_register(operands[0]) and operands[0].color == 0):
+      mov = MOV(rax, operands[0])
+      self.add_instruction(label, mov)
+
+    # Clear %rdx, because x86_64 DIV instruction uses both %rax and %rdx as
+    # the divisor
+    xor = XOR(rdx, rdx)
+    self.add_instruction(label, xor)
+
+    if isinstance(operands[1], Immediate):
+      # Create a dummy register object for %r15 for moving the operand to it.
+      r15 = Register()
+      r15.color = 13
+
+      if not(self.is_register(result) and result.color == 13):
+        restore_r15 = True
+        r15.memory = Memory()
+        r15_operands = (r15, r15.memory)
+        self.handle_store(label, None, *r15_operands)
+
+      mov = MOV(r15, operands[1])
+      self.add_instruction(label, mov)
+
+      idiv = IDIV(r15)
+    else:
+      idiv = IDIV(operands[1])
+
     self.add_instruction(label, idiv)
 
-    mov_result = MOV(result, rax)
-    self.add_instruction(label, mov_result)
+    mov = MOV(result, rax)
+    self.add_instruction(label, mov)
 
-    self.handle_load(label, rax, rax.memory)
-    self.handle_load(label, rdx, rdx.memory)
+    if restore_rax:
+      self.handle_load(label, rax, rax.memory)
+    if restore_rdx:
+      self.handle_load(label, rdx, rdx.memory)
+    if restore_r15:
+      self.handle_load(label, r15, r15.memory)
+
 
   def handle_load(self, label, result, *operands):
     """Handles the load instruction of IR.
