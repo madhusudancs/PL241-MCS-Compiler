@@ -21,6 +21,9 @@
 
 
 from precompiled import entry
+from precompiled import input_num
+from precompiled import output_newline
+from precompiled import output_num
 
 
 class Linker(object):
@@ -37,21 +40,7 @@ class Linker(object):
 
     # A dictionary containing a mapping from the function name to the function
     # start byte offset.
-    self.function_offset_map = {
-        # Hard code them to 0 for now.
-        'OutputNum': {
-            'offset': 0,
-            'size': 0
-            },
-        'InputNum': {
-            'offset': 0,
-            'size': 0
-            },
-        'OutputNewLine': {
-            'offset': 0,
-            'size': 0
-            },
-        }
+    self.function_offset_map = {}
 
     # Sums the offsets of the functions as they get added
     self.function_offset = 0
@@ -89,8 +78,28 @@ class Linker(object):
     jump_offset = main_offset - next_offset
     self.start_call.set_target(jump_offset)
 
+    self.additional_functions = []
+
     for function in self.functions:
       for instruction, target_function_name in function.calls_to_link:
+
+        if (target_function_name in ['InputNum', 'OutputNewLine', 'OutputNum']
+            and target_function_name not in self.function_offset_map):
+          if target_function_name == 'InputNum':
+            func = input_num
+          elif target_function_name == 'OutputNum':
+            func = output_num
+          elif target_function_name == 'OutputNewLine':
+            func = output_newline
+
+          func_binary = func()
+          self.additional_functions.append(func_binary)
+          self.function_offset_map[target_function_name] = {
+              'offset': self.function_offset,
+              'size': len(func_binary)
+              }
+          self.function_offset += len(func_binary)
+
         target_offset = self.function_offset_map[
             target_function_name]['offset']
         function_offset = self.function_offset_map[
