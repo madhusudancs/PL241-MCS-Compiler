@@ -542,7 +542,7 @@ class CMP(Instruction):
   OPCODE_TABLE = {
       ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x3B },
       ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x39 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81 }
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81, 'OPCODE_EXT': 0x7 }
       }
 
   def __init__(self, destination, source):
@@ -1057,7 +1057,7 @@ class RET(Instruction):
   """
 
   OPCODE_TABLE = {
-      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0xCB },
+      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0xC3 },
       }
 
   def __init__(self):
