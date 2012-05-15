@@ -119,6 +119,10 @@ class Linker(object):
       elf: The elf object used for global address calculation.
     """
     for function in self.functions:
+      for instruction, memory in function.global_sibs_to_process:
+        global_offset = elf.DATA_VADDR + memory.offset
+        instruction.set_displacement(global_offset)
+
       for instruction, memory in function.globals_to_process:
         target_offset = elf.DATA_VADDR + memory.offset
         function_offset = self.function_offset_map[
