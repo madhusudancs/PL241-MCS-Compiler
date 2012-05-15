@@ -769,16 +769,15 @@ class IntermediateRepresentation(object):
     expression_result = self.expression(root.children[1])
     for i, offset in enumerate(root.children[2:]):
       temp_result = self.instruction('*', expression_result,
-                                     Immediate(dimensions[i + 1] * 4))
+                                     Immediate(dimensions[i + 1]))
       offset_result = self.expression(offset)
       expression_result = self.instruction('+', offset_result,
                                            temp_result)
 
-    offset_result = self.instruction('*', expression_result, Immediate(4))
     if lvalue:
-      return result, offset_result
+      return result, expression_result
 
-    result = self.instruction('load', offset_result, result)
+    result = self.instruction('load', expression_result, result)
     return result
 
   def factor(self, root):
