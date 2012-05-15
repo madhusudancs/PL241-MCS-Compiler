@@ -99,7 +99,8 @@ class Optimize(object):
 
       # Leave the prologue and epilogue instructions alone
       if (instruction.instruction == '.begin_' or
-          instruction.instruction == '.end_'):
+          instruction.instruction == '.end_' or
+          instruction.instruction == 'call'):
         continue
 
       # Constant folding
