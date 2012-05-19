@@ -56,6 +56,8 @@ def input_num():
 
   mov_readaddr = "\x48\x8B\xF4"                                  # mov %rsp, %rsi
 
+  sub_address = "\x48\x81\xEE\x08\x00\x00\x00"                   # sub $0x8, %rsi
+
   mov_numbytes = "\x48\xBA\x0A\x00\x00\x00\x00\x00\x00\x00"      # mov 0xa, %rdx
 
   mov_syscallnum = "\x48\xB8\x00\x00\x00\x00\x00\x00\x00\x00"    # mov 0x0, %rax
@@ -70,6 +72,8 @@ def input_num():
 
   mov_readaddr = "\x48\x8B\xF4"                                  # mov %rsp, %rsi
 
+  # sub_address again for the same reason as before, we want to start after
+  # the stack address byte.
 
 
   # rnext:
@@ -182,6 +186,8 @@ def output_newline():
   mov_fd = "\x48\xBF\x01\x00\x00\x00\x00\x00\x00\x00"           # mov $0x1, %rdi
 
   mov_address = "\x48\x8B\xF4"                                  # mov %rsp, %rsi
+
+  sub_address = "\x48\x81\xEE\x08\x00\x00\x00"                  # sub $0x8, %rsi
 
   mov_numbytes = "\x48\xBA\x01\x00\x00\x00\x00\x00\x00\x00"     # mov $0x1, %rdx
 
