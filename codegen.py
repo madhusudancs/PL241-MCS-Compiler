@@ -962,7 +962,8 @@ class CodeGenerator(object):
         break
       elif mnemonic == 'call':
         self.handle_call(instruction.function_name, instruction.label,
-                         *instruction.operands)
+                         instruction.assigned_result,
+                         *instruction.assigned_operands)
       else:
         func = getattr(self, 'handle_%s' % mnemonic)
         func(instruction.label, instruction.assigned_result,
