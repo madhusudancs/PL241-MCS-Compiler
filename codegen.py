@@ -838,16 +838,6 @@ class CodeGenerator(object):
       mov = MOV(memory, register)
       self.add_instruction(label, mov)
 
-  def handle_write(self, label, result, *operands):
-    """Handles the write instruction of IR.
-    """
-    pass
-
-  def handle_wln(self, label, result, *operands):
-    """Handles the wln instruction of IR.
-    """
-    pass
-
   def handle_sub(self, label, result, *operands):
     """Handles the sub instruction of IR.
     """
