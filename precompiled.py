@@ -84,11 +84,11 @@ def input_num():
 
   cmp_tenbytes = "\x48\x81\xF9\x0A\x00\x00\x00"                  # cmp 0xa, %rcx
 
-  je_end = "\x0F\x84\x37\x00\x00\x00"                            # je  return
+  je_end = "\x0F\x84\x2F\x00\x00\x00"                            # je  return
 
   cmp_countten = "\x48\x81\xFB\x0A\x00\x00\x00"                  # cmp 0xa, %rbx
 
-  jg_end = "\x0F\x8F\x2A\x00\x00\x00"                            # jg  return
+  jg_end = "\x0F\x8F\x22\x00\x00\x00"                            # jg  return
 
   sub_ascii = "\x48\x81\xE9\x30\x00\x00\x00"                     # sub 0x30, %rcx
 
@@ -106,7 +106,7 @@ def input_num():
 
   increment = "\x48\xFF\xC3"                                     # inc %rbx
 
-  jmp_loop = "\xE9\xB9\xFF\xFF\xFF"                              # jmp rnext
+  jmp_loop = "\xE9\xBA\xFF\xFF\xFF"                              # jmp rnext
 
   ret = "\xC3"                                                   # return: retq
 
