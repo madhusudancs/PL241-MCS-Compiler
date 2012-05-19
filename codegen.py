@@ -447,6 +447,9 @@ class CodeGenerator(object):
 
     if isinstance(source, Memory) and source.base == 'rip':
       self.globals_to_process.append((instruction, source))
+    elif (isinstance(source, Memory) and isinstance(source.base, Memory)
+        and (source.base.base == 'rip')):
+      self.global_sibs_to_process.append((instruction, source.base))
     elif (isinstance(source, Register) and
         isinstance(source.color, Memory) and
         source.color.base == 'rip'):
