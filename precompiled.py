@@ -181,7 +181,7 @@ def output_num():
 
 def output_newline():
 
-  mov_newline = "\x48\xC7\x04\x24\x0A\x00\x00\x00"              # mov $0xa, 0(%rsp)
+  mov_newline = "\x48\xC7\x84\x24\xF8\xFF\xFF\xFF\x0A\x00\x00\x00"  # mov $0xa, -8(%rsp)
 
   mov_fd = "\x48\xBF\x01\x00\x00\x00\x00\x00\x00\x00"           # mov $0x1, %rdi
 
