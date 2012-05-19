@@ -697,27 +697,6 @@ class CodeGenerator(object):
     if restore_r15:
       self.handle_load(label, r15, r15.memory)
 
-
-  def handle_load(self, label, result, *operands):
-    """Handles the load instruction of IR.
-    """
-    register = result
-
-    if isinstance(operands[0], Immediate) and isinstance(operands[1], Memory):
-      memory = operands[1]
-      memory.offset=operands[0].value
-    elif isinstance(operands[0], Register):
-      # This happens only in case of arrays
-      memory = Memory(base=operands[1], offset=operands[0])
-    elif isinstance(operands[0], Memory):
-      memory = operands[0]
-      if memory.offset == None:
-        memory.offset = self.memory_offset
-        self.memory_offset += MEMORY_WIDTH
-
-    mov = MOV(register, memory)
-    self.add_instruction(label, mov)
-
   def handle_move(self, label, result, *operands):
     """Handles the move instruction of IR.
     """
@@ -775,6 +754,27 @@ class CodeGenerator(object):
     jmp = JMP()
     self.add_instruction(label, jmp)
     self.returns_to_process.append(jmp)
+
+  def handle_load(self, label, result, *operands):
+    """Handles the load instruction of IR.
+    """
+    register = result
+
+    if isinstance(operands[0], Immediate) and isinstance(operands[1], Memory):
+      memory = Memory(
+          base=operands[1].base,
+          offset=operands[1].offset + (operands[0].value * MEMORY_WIDTH))
+    elif isinstance(operands[0], Register):
+      # This happens only in case of arrays
+      memory = Memory(base=operands[1], offset=operands[0])
+    elif isinstance(operands[0], Memory):
+      memory = operands[0]
+      if memory.offset == None:
+        memory.offset = self.memory_offset
+        self.memory_offset += MEMORY_WIDTH
+
+    mov = MOV(register, memory)
+    self.add_instruction(label, mov)
 
   def handle_store(self, label, result, *operands):
     """Handles the store instruction of IR.
