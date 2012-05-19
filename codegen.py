@@ -88,6 +88,7 @@ from x86_64 import SUB
 from x86_64 import XCHG
 from x86_64 import XOR
 
+
 # Module level logger object
 LOGGER = logging.getLogger(__name__)
 
@@ -195,8 +196,7 @@ class CodeGenerator(object):
     # to which this call should be linked
     self.calls_to_link = []
 
-    # A two tuple containing the instruction to process for function return
-    # targes
+    # List of instructions to process for function return targets
     self.returns_to_process = []
 
     # Memory offset of the current scope.
