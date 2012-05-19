@@ -437,7 +437,7 @@ class CodeGenerator(object):
 
     if isinstance(destination, Memory) and destination.base == 'rip':
       self.globals_to_process.append((instruction, destination))
-    if (isinstance(destination, Memory) and isinstance(destination.base, Memory)
+    elif (isinstance(destination, Memory) and isinstance(destination.base, Memory)
         and (destination.base.base == 'rip')):
       self.global_sibs_to_process.append((instruction, destination.base))
     elif (isinstance(destination, Register) and
