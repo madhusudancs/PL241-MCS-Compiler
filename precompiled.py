@@ -121,7 +121,7 @@ def input_num():
 def output_num():
   xor_rdx = "\x48\x33\xD2"                                      # xor  %rdx, %rdx
 
-  mov_countinit = "\x48\xB9\x00\x00\x00\x00\x00\x00\x00\x00"    # mov  0x0, %rcx
+  mov_countinit = "\x49\xB8\x00\x00\x00\x00\x00\x00\x00\x00"    # mov  0x0, %r8
 
 
 
@@ -140,7 +140,7 @@ def output_num():
 
   # xor_rdx                                                     # xor %rdx, %rdx
 
-  inc_count = "\x48\xFF\xC1"                                    # inc  %rcx
+  inc_count = "\x49\xFF\xC0"                                    # inc  %r8
 
   cmp_nomore = "\x48\x81\xF8\x00\x00\x00\x00"                   # cmp  0x0, %rax
 
@@ -150,7 +150,7 @@ def output_num():
 
   # popnext:
 
-  cmp_countend = "\x48\x81\xF9\x00\x00\x00\x00"                 # cmp  0x0, %rcx
+  cmp_countend = "\x49\x81\xF8\x00\x00\x00\x00"                 # cmp  0x0, %r8
 
   jle_ret = "\x0F\x8E\x2C\x00\x00\x00"                          # jle  return
 
@@ -164,7 +164,7 @@ def output_num():
 
   syscall = "\x0F\x05"                                          # syscall
 
-  dec_count = "\x48\xFF\xC9"                                    # dec  %rcx
+  dec_count = "\x49\xFF\xC8"                                    # dec  %r8
 
   pop_nextbyte = "\x5B"                                         # pop  %rbx
 
