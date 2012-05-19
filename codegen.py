@@ -102,7 +102,8 @@ def allocate_global_memory(global_symbol_table):
   """
   memory_offset = 0
   for symbol, symtab_entry in global_symbol_table.iteritems():
-    if symtab_entry.get('type') == 'function_name':
+    if symtab_entry.get('type') == 'function_name' or (
+        symbol in ['InputNum', 'OutputNum', 'OutputNewLine']):
       # These symbols are function names, don't do anything for them here.
       continue
     elif symtab_entry.get('dimensions', None) != None:
