@@ -67,6 +67,7 @@ from regalloc import RegisterAllocator
 from x86_64 import ADD
 from x86_64 import CALL
 from x86_64 import CMP
+from x86_64 import FUNCTION_ARGUMENTS_COLORS
 from x86_64 import IDIV
 from x86_64 import IMUL
 from x86_64 import JE
@@ -532,7 +533,7 @@ class CodeGenerator(object):
       pushed_registers.append(register)
 
     # Arguments are passed through %rdi, %rsi, %rdx, %rcx, %r8, %r9
-    for argument, register_color in zip(operands, [5, 4, 3, 2, 6, 7]):
+    for argument, register_color in zip(operands, FUNCTION_ARGUMENTS_COLORS):
       if not (isinstance(argument, Register) and
           argument.color == register_color):
         # Create a dummy register for %rax.
