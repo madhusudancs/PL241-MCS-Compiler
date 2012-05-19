@@ -111,11 +111,11 @@ def input_num():
   ret = "\xC3"                                                   # return: retq
 
   # The return value is in %rax according to the Linux AMD64 ABI
-  return ''.join([mov_fd, mov_readaddr, mov_numbytes, mov_syscallnum, syscall,
-                  xor, mov_rbx, mov_readaddr, mov_byte, cmp_tenbytes, je_end,
-                  cmp_countten, jg_end, sub_ascii, and_clear, mov_copy,
-                  shl_three, shl_one, add_copy, add_digit, inc_tonextbyte,
-                  increment, jmp_loop, ret])
+  return ''.join([mov_fd, mov_readaddr, sub_address, mov_numbytes,
+                  mov_syscallnum, syscall, xor, mov_rbx, mov_readaddr,
+                  sub_address, mov_byte, and_clear, cmp_tenbytes, je_end,
+                  cmp_countten, jg_end, sub_ascii, mov_copy, shl_three, shl_one,
+                  add_copy, add_digit, inc_tonextbyte, increment, jmp_loop, ret])
 
 
 def output_num():
@@ -197,5 +197,5 @@ def output_newline():
 
   ret = "\xc3"                                                  # return
 
-  return ''.join([mov_newline, mov_fd, mov_address, mov_numbytes,
+  return ''.join([mov_newline, mov_fd, mov_address, sub_address, mov_numbytes,
                   mov_syscallnum, syscall, ret])
