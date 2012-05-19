@@ -530,10 +530,21 @@ class CodeGenerator(object):
     self.add_instruction(label, jmp)
     self.targets_to_process.append((jmp, operands[0]))
 
-  def handle_call(self, function_name, label, *operands):
+  def handle_call(self, function_name, label, result, *operands):
     """Handles the call instruction of IR.
     """
     pushed_registers = []
+    if 0 in self.instruction_live_registers[label]:
+      self.instruction_live_registers[label].pop(0)
+      if not self.is_register(result) or result.color != 0:
+        # Create a dummy register
+        register = Register()
+        register.color = 0
+        push = PUSH(register)
+        self.add_instruction(label, push)
+        pushed_registers.append(register)
+
+
     for register_color in self.instruction_live_registers[label]:
       # Create a dummy register
       register = Register()
@@ -565,9 +576,33 @@ class CodeGenerator(object):
     self.calls_to_link.append((call, function_name))
 
     # Popping should be in the reverse order
+    pop_rax_later = False
     for register in pushed_registers[-1::-1]:
+      # Don't pop %rax yet, if result exists, we need to mov %rax to
+      # actual result register and then pop
+      if register.color == 0:
+        pop_rax_later = True
+        continue
+
       pop = POP(register)
       self.add_instruction(label, pop)
+
+    # NOTE: The following move is done after popping all the values because
+    # popping overwrites the values otherwise.
+    # If the result of the call instruction is to be passed on to some other
+    # register than %rax, we need to insert a move for it.
+    if self.is_register(result) and result.color != 0:
+      rax = Register()
+      rax.color = 0
+
+      mov = MOV(result, rax)
+      self.add_instruction(label, mov)
+
+      if pop_rax_later:
+        register = Register()
+        register.color = 0
+        pop = POP(register)
+        self.add_instruction(label, pop)
 
   def handle_cmp(self, label, result, *operands):
     """Handles the cmp instruction of IR.
