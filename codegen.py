@@ -920,6 +920,14 @@ class CodeGenerator(object):
     ret = RET()
     self.add_instruction(len(self.ir.ir) - 1, ret)
 
+    for instruction in self.returns_to_process:
+       target_instruction = pop
+       target_start_offset = self.instruction_offsets_map[
+           target_instruction]['start_offset']
+       next_offset = self.instruction_offsets_map[instruction]['end_offset']
+       jump_offset = target_start_offset - next_offset
+       instruction.set_target(jump_offset)
+
   def link_jump_targets(self):
     """Link together all the jump targets
     """
