@@ -458,10 +458,16 @@ class CodeGenerator(object):
   def handle_add(self, label, result, *operands):
     """Handles the add instruction of IR.
     """
-    mov = MOV(result, operands[0])
-    self.add_instruction(label, mov)
+    if self.is_register(operands[0]) and (result.color == operands[0].color):
+      operand = operands[1]
+    elif self.is_register(operands[1]) and (result.color == operands[1].color):
+      operand = operands[0]
+    else:
+      mov = MOV(result, operands[0])
+      self.add_instruction(label, mov)
+      operand = operands[1]
 
-    add = ADD(result, operands[1])
+    add = ADD(result, operand)
     self.add_instruction(label, add)
 
   def handle_adda(self, label, result, *operands):
@@ -698,22 +704,23 @@ class CodeGenerator(object):
 
       imul = IMUL(result, result, operands[1])
     elif isinstance(operands[1], Immediate):
-      mov = MOV(result, operands[1])
-      self.add_instruction(label, mov)
-
-      imul = IMUL(result, operands[0])
+      imul = IMUL(result, operands[0], operands[1])
+      self.add_instruction(label, imul)
+    elif isinstance(operands[0], Immediate):
+      imul = IMUL(result, operands[1], operands[0])
       self.add_instruction(label, imul)
     else:
-      mov = MOV(result, operands[0])
-      self.add_instruction(label, mov)
+      if self.is_register(operands[0]) and (result.color == operands[0].color):
+        operand = operands[1]
+      elif self.is_register(operands[1]) and (result.color == operands[1].color):
+        operand = operands[0]
+      else:
+        mov = MOV(result, operands[0])
+        self.add_instruction(label, mov)
+        operand = operands[1]
 
-      imul = IMUL(result, operands[1])
+      imul = IMUL(result, operand)
       self.add_instruction(label, imul)
-
-  def handle_read(self, label, result, *operands):
-    """Handles the read instruction of IR.
-    """
-    pass
 
   def handle_ret(self, label, result, *operands):
     """Handles the read instruction of IR.
@@ -808,10 +815,19 @@ class CodeGenerator(object):
   def handle_sub(self, label, result, *operands):
     """Handles the sub instruction of IR.
     """
-    mov = MOV(result, operands[0])
-    self.add_instruction(label, mov)
+    if self.is_register(operands[0]) and (result.color == operands[0].color):
+      operand = operands[1]
+    elif self.is_register(operands[1]) and (result.color == operands[1].color):
+      xchg = XCHG(operands[0], operands[1])
+      self.add_instruction(label, xchg)
 
-    sub = SUB(result, operands[1])
+      operand = operands[0]
+    else:
+      mov = MOV(result, operands[0])
+      self.add_instruction(label, mov)
+      operand = operands[1]
+
+    sub = SUB(result, operand)
     self.add_instruction(label, sub)
 
   def handle_xchg(self, label, result, *operands):
