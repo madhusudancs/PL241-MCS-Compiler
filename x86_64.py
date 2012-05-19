@@ -81,6 +81,9 @@ REGISTER_COLOR_TO_CODE_MAP = {
 REGISTERS_COLOR_SET = set(range(0, 14))
 
 
+FUNCTION_ARGUMENTS_COLORS = [5, 4, 3, 2, 6, 7]
+
+
 class InvalidInstructionException(Exception):
   """Represents the exception when the instruction is invalid.
   """
