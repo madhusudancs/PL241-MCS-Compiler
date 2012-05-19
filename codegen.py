@@ -780,8 +780,9 @@ class CodeGenerator(object):
     """Handles the store instruction of IR.
     """
     if isinstance(operands[1], Immediate) and isinstance(operands[2], Memory):
-      memory = operands[2]
-      memory.offset = operands[1].value
+      memory = Memory(
+          base=operands[2].base,
+          offset=operands[2].offset + (operands[1].value * MEMORY_WIDTH))
     elif isinstance(operands[1], Register):
       memory = Memory()
       memory.base = operands[2]
