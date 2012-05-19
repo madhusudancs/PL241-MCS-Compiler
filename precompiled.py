@@ -80,6 +80,8 @@ def input_num():
 
   mov_byte = "\x48\x8B\x0E"                                      # mov (%rsi), %rcx
 
+  and_clear = "\x48\x81\xE1\xFF\x00\x00\x00"                     # and 0xff, %rcx
+
   cmp_tenbytes = "\x48\x81\xF9\x0A\x00\x00\x00"                  # cmp 0xa, %rcx
 
   je_end = "\x0F\x84\x37\x00\x00\x00"                            # je  return
@@ -89,8 +91,6 @@ def input_num():
   jg_end = "\x0F\x8F\x2A\x00\x00\x00"                            # jg  return
 
   sub_ascii = "\x48\x81\xE9\x30\x00\x00\x00"                     # sub 0x30, %rcx
-
-  and_clear = "\x48\x81\xE1\xFF\x00\x00\x00"                     # and 0xff, %rcx
 
   mov_copy = "\x48\x8B\xD0"                                      # mov %rax, %rdx
 
