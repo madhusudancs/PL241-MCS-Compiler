@@ -292,6 +292,9 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
+    # List of function parameters. This list is used for pre-coloring
+    self.function_parameters = []
+
     # Dictionary containing the live ranges for each register
     self.live_ranges = {}
 
@@ -374,6 +377,7 @@ class RegisterAllocator(object):
             new_operands.append(new_register)
 
         instruction.operands = new_operands
+        self.function_parameters = instruction.operands
       else:
         # The first operand of the branch instruction should still be a label.
         # We directly assign that off as the assigned operand since no register
@@ -1023,6 +1027,47 @@ class RegisterAllocator(object):
 
     return clauses
 
+  def precolor(self):
+    """Generate clauses for precolored registers like function parameters.
+
+    As per Linux AMD64 ABI function calling convention, function arguments
+    must be passed in %rdi, %rsi, %rdx, %rcx, %r8 and %r9 in that order and
+    the remaining arguments on the stack.So by forcing the function parameters
+    to be in those registers by precoloring, we reduce the number of moves
+    required.
+
+    NOTE: This can still be architecture independent because to ensure that
+    we use the architecture specific calling convention, we just need to
+    name the registers in such a way that function argument registers have
+    the same color as AMD64 function arguments registers.
+    """
+    # Imported here because of cyclic import issues.
+    from x86_64 import FUNCTION_ARGUMENTS_COLORS
+
+    max_reg_binary_len = len(bin(self.num_registers - 1)[2:])
+
+    clauses = []
+
+    for register, color in zip(
+        self.function_parameters, FUNCTION_ARGUMENTS_COLORS):
+      colorbits = bin(color)[2:]
+
+      num_leading_zeros = 0
+      while num_leading_zeros < (max_reg_binary_len - len(colorbits)):
+        cnf_var = self.get_cnf_var(register, num_leading_zeros)
+        clauses.append('-%s ' % (cnf_var))
+        num_leading_zeros += 1
+
+      for bit_position, bit in enumerate(colorbits):
+        cnf_var = self.get_cnf_var(register, bit_position + num_leading_zeros)
+
+        if bit == '0':
+          clauses.append('-%s ' % (cnf_var))
+        else:
+          clauses.append('%s ' % (cnf_var))
+
+    return clauses
+
   def reduce_to_sat(self, interference_graph):
     """Reduces the graph coloring problem to the boolean satisfiability.
 
@@ -1083,6 +1128,9 @@ class RegisterAllocator(object):
       elif node.register.uses():
         node_clauses = self.generate_edge_clauses(node_reg, None)
         clauses.extend(node_clauses)
+
+    precolored_clauses = self.precolor()
+    clauses.extend(precolored_clauses)
 
     return self.cnf_var_count, clauses
 
