@@ -105,7 +105,7 @@ class Instruction(object):
   """Abstracts the instructions in x86_64 architecture.
   """
 
-  def __init__(self, destination=None, source=None, offset=None):
+  def __init__(self, destination=None, source=None, offset=None, immediate=None):
     """Constructs the instruction object for x86_64.
 
     Args:
@@ -118,12 +118,12 @@ class Instruction(object):
     self.destination = destination
 
     self.offset = offset
+    self.immediate = immediate
 
     self.rex = None
     self.opcode = None
     self.modregrm = None
     self.displacement = None
-    self.immediate = None
 
     # The actual binary that is built for this instruction.
     self.binary = None
@@ -674,8 +674,7 @@ class IMUL(Instruction):
   def __init__(self, destination, source, immediate=None):
     """Constructs the IMUL instruction.
     """
-    self.immediate = immediate
-    super(IMUL, self).__init__(destination, source)
+    super(IMUL, self).__init__(destination, source, immediate=immediate)
 
   def build(self):
     """Builds the instruction bytes.
