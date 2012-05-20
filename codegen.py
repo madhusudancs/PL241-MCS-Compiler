@@ -598,11 +598,13 @@ class CodeGenerator(object):
       mov = MOV(result, rax)
       self.add_instruction(label, mov)
 
-      if pop_rax_later:
-        register = Register()
-        register.color = 0
-        pop = POP(register)
-        self.add_instruction(label, pop)
+    # We should pop_rax if we rax has been pushed to the stack, but we can only
+    # pop it after moving the result to the right location.
+    if pop_rax_later:
+      register = Register()
+      register.color = 0
+      pop = POP(register)
+      self.add_instruction(label, pop)
 
   def handle_cmp(self, label, result, *operands):
     """Handles the cmp instruction of IR.
