@@ -65,13 +65,22 @@ class Stack(list):
     """
     self.append(element)
 
-  def top(self):
+  def top(self, silent=False):
     """Returns the element at the top of the stack without removing it.
+
+    Args:
+      silent: When silent is True no exception is raised. We will want this in
+          certain cases when we need to check top exists in all the cases without
+          knowing if we ever pushed to the stack. See register allocator
+          virtual register allocation methods for example.
     """
     try:
       return self[-1]
     except IndexError:
-      raise StackUnderflowException
+      if silent:
+        return None
+      else:
+        raise StackUnderflowException
 
   def pop(self, *args, **kwargs):
     """Pops the element out of the top of stack.
