@@ -34,6 +34,7 @@ from argparse import ArgumentParser
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
 from datastructures import LiveIntervalsHeap
+from datastructures import Stack
 from ir import is_variable
 from ir import is_variable_or_label
 from ir import Immediate
@@ -342,28 +343,60 @@ class RegisterAllocator(object):
         symtab_entry['memory'] = memory
         return memory
 
-  def register_for_operand(self, operand):
+  def register_for_operand(self, operand, execution_frequency=None):
     """Finds an already existing register for the operand or creates a new one.
 
     Args:
       operand: The operand for which the register must be found.
     """
     if operand in self.variable_register_map:
-      return self.variable_register_map[operand]
+      register = self.variable_register_map[operand]
+      register.cost += execution_frequency
+      return register
     else:
       register = Register()
       self.variable_register_map[operand] = register
       self.assign_memory(operand, register)
+      register.cost = execution_frequency
       return register
 
-  def virtual_reg_basic_block(self, start_node, node):
+  def virtual_reg_basic_block(self, start_node, node,
+                              parent_node_execution_frequency=None):
     """Assign virtual registers to all the statements in a basic block.
 
     Args:
       start_node: The start node of the CFG
       node: The current node that is to be processed for assigning virtual
           registers.
+      parent_node_execution_frequency: The execution frequency of the parent
+          node.
     """
+    if node.loop_header:
+      # Determine which of the loop header's out_edges node are not part of
+      # the loop body
+      # To determine this we will start with the loop footer and traverse
+      # upwards through each node's in_edges. When we reach the loop header
+      # node the node other than the node we can from is outside the body
+      # of the loop.
+      up_node = node.loop_header
+      while node not in set(up_node.in_edges):
+        up_node = up_node.in_edges[0]
+
+      # Set the execution frequency of the non-loop node to the execution
+      # frequency of the loop header's parent since this node will be executed
+      # as many times as the parent of the loop body.
+      non_loop_node = (set(node.out_edges) - set([up_node])).pop()
+      non_loop_node.execution_frequency = parent_node_execution_frequency
+
+      self.footer_stack.push(non_loop_node)
+      node.execution_frequency = (
+          parent_node_execution_frequency * LOOP_EXECUTION_FREQUENCY_MULTIPLIER)
+    elif node.execution_frequency is None:
+      # Update the current node's execution frequency since we will want it later
+      # when we have to calculate the execution frequencies for phi operands whose
+      # virtual register assignment is done in the end.
+      node.execution_frequency = parent_node_execution_frequency
+
     if node.phi_functions:
       start_node.phi_nodes.append(node)
 
@@ -371,10 +404,9 @@ class RegisterAllocator(object):
         # The LHS of the phi function is actually the result the function
         # RHS are the operands.
         operand = phi_function['LHS']
-        new_register = self.register_for_operand(operand)
+        new_register = self.register_for_operand(operand, 0)
         new_register.set_def(self.ssa.ir.ir[node.value[0]])
         phi_function['LHS'] = new_register
-        self.variable_register_map[operand] = new_register
 
     for instruction in self.ssa.optimized(node.value[0], node.value[1] + 1):
       if instruction.instruction == '.end_':
@@ -383,7 +415,10 @@ class RegisterAllocator(object):
         new_operands = []
         for operand in instruction.operands:
           if instruction.is_variable_or_label(operand):
-            new_register = self.register_for_operand(operand)
+            # We need not calculate for the execution frequency within the
+            # function prologue since they are anyway in the registers that
+            # we are not going to allocate to them for function parameters.
+            new_register = self.register_for_operand(operand, 0)
             new_register.set_def(instruction)
             new_operands.append(new_register)
 
@@ -405,26 +440,27 @@ class RegisterAllocator(object):
           if self.is_register(cmp_instruction.result):
             if instruction.is_variable_or_label(instruction.operand1):
               instruction.operand1 = self.register_for_operand(
-                  instruction.operand1)
+                  instruction.operand1, node.execution_frequency)
               instruction.operand1.set_use(instruction)
           instruction.assigned_operand2 = instruction.operand2
           continue
 
         if instruction.is_variable_or_label(instruction.operand1):
           instruction.operand1 = self.register_for_operand(
-              instruction.operand1)
+              instruction.operand1, node.execution_frequency)
           instruction.operand1.set_use(instruction)
 
 
         if instruction.is_variable_or_label(instruction.operand2):
           instruction.operand2 = self.register_for_operand(
-              instruction.operand2)
+              instruction.operand2, node.execution_frequency)
           instruction.operand2.set_use(instruction)
 
         new_operands = []
         for operand in instruction.operands:
           if instruction.is_variable_or_label(operand):
-            new_register = self.register_for_operand(operand)
+            new_register = self.register_for_operand(
+                operand, node.execution_frequency)
             new_register.set_use(instruction)
             new_operands.append(new_register)
           else:
@@ -456,16 +492,22 @@ class RegisterAllocator(object):
         # Assign a register for the result of the instruction
         register = Register()
         register.set_def(instruction)
+        register.cost = node.execution_frequency
         self.variable_register_map[instruction.label] = register
         instruction.result = register
 
+    # Reverse order because of the representation we have chosen. When a loop
+    # header has a loop body node and a node which is outside the loop body,
+    # it puts the node outside the loop body at the front of the out_edges
+    # list so we reverse this order to ensure that non-loop node is processed
+    # in the end.
     for child in node.out_edges:
       if self.visited.get(child, False):
         continue
 
       self.visited[child] = True
 
-      self.virtual_reg_basic_block(start_node, child)
+      self.virtual_reg_basic_block(start_node, child, node.execution_frequency)
 
   def allocate_virtual_registers(self, start_node):
     """Allocate registers in virtual infinite space of registers.
@@ -474,8 +516,9 @@ class RegisterAllocator(object):
     some register for the result of the instructions in this phase.
     """
     self.visited = {}
+    self.footer_stack = Stack()
 
-    self.virtual_reg_basic_block(start_node, start_node)
+    self.virtual_reg_basic_block(start_node, start_node, 1)
 
     # Process all the phi-functions in the end of the function because
     # there are phi-functions especially in case of blocks whose operands
