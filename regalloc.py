@@ -144,6 +144,12 @@ class Register(object):
     # Note even though they are called colors they are just integral values.
     self.color = None
 
+    # The cost of spilling the register computed usin Chaitin's allocator type
+    # cost function using execution frequencies. When a register is created it
+    # must have a cost of 1, since a new register is created only when its
+    # first occurence is found.
+    self.cost = None
+
   def set_def(self, instruction):
     """Sets the instruction where this register is defined.
 
