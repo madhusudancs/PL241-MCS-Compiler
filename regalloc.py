@@ -529,15 +529,28 @@ class RegisterAllocator(object):
     # operand for the phi function is computed
     for phi_node in start_node.phi_nodes:
       for phi_function in phi_node.phi_functions.values():
+        lhs_exec_freq = 0
         for i, operand in enumerate(phi_function['RHS']):
           if is_variable_or_label(operand):
-            new_register = self.register_for_operand(operand)
+            # The execution frequency of a particular phi-operand is the
+            # execution frequency of the node it comes from. To arrive at
+            # this, we need to look at how SSA deconstruction happens. When
+            # SSA is deconstructed, phi-operands are moved to the phi-result
+            # at the end of the basic block from where they come. So it all
+            # makes sense to use that node's execution frequency.
+            exec_freq = phi_node.in_edges[i].execution_frequency
+            lhs_exec_freq += exec_freq
+
+            new_register = self.register_for_operand(
+                operand, exec_freq)
             use = self.ssa.ir.ir[phi_node.in_edges[i].value[1]]
             new_register.set_use(use)
             new_register.use_instructions.sort(
                 key=lambda i: i.label)
 
             phi_function['RHS'][i] = new_register
+
+        phi_function['LHS'].cost += lhs_exec_freq
 
   def analyze_basic_block_liveness(self, start_node, node):
     """Analyzes the liveness of the variables in the given basic block
