@@ -305,6 +305,12 @@ class CFGNode(Node):
     # is not a loop header.
     self.loop_header = None
 
+    # The execution frequency of this basic block node. This uses the Chaitin's
+    # allocator style execution frequencies. That is 1 per instruction and
+    # within the loops, it is 10 times the instruction if it were not inside
+    # the loop.
+    self.execution_frequency = None
+
   def append_in_edges(self, *in_edges):
     """Add the in-edges for this node and also update the out-edges.
 
