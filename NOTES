@@ -5,6 +5,23 @@
 
 * Loop detection algorithm in datastructures.py assumes that the CFG is reducible.
 
-* For InputNum please enter only 7 digits or less. The current implementation starts storing the bytes at %rsp-8
-  and upwards. So the 8th byte must be the newline character, if that is not the case, the return address
-  for the InputNum function is rewritten and we are lost!
+* For InputNum please enter only 20 digits or less. The current implementation starts storing the bytes at %rsp-21
+  and upwards. So the 21st byte must be the newline character, if that is not the case, the return address on the
+  stack for the InputNum function is rewritten and we are lost! That is lose the caller information of the InputNum
+  function to return back.
+
+
+SAT solver notes
+----------------
+
+* The cost function used is the Chaitin' allocator style cost function.
+
+* The execution frequency of a particular phi-operand is the execution frequency of the node it comes from. To
+  arrive at this, we need to look at how SSA deconstruction happens. When SSA is deconstructed, phi-operands
+  are moved to the phi-result at the end of the basic block from where they come. So it all makes sense to use
+  that node's execution frequency. This is the sole reason why we store the execution frequency of the node in
+  node itself. It is not required to store it in the node otherwise.
+
+* The execution frequency of the phi-result is the sum of the execution frequencies of the phi-operands because
+  of the same reason as above plus their remaining usage frequencies.
+
