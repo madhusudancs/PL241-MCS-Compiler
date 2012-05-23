@@ -50,6 +50,11 @@ from ssa import SSA
 LOGGER = logging.getLogger(__name__)
 
 
+# Whenever we are within the loop the execution frequency is these many times
+# more than for the same instruction outside the loop.
+LOOP_EXECUTION_FREQUENCY_MULTIPLIER = 10
+
+
 class SSABrokenException(Exception):
   """Represents the exception when SSA structure is broken.
   """
