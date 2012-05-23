@@ -56,7 +56,10 @@ def input_num():
 
   mov_readaddr = "\x48\x8B\xF4"                                  # mov %rsp, %rsi
 
-  sub_address = "\x48\x81\xEE\x08\x00\x00\x00"                   # sub $0x8, %rsi
+  # We make space for 0x15 = 21 bytes because largest 64-bit number consists
+  # of 20 digits, so we make space for these 20 digits and one more byte to
+  # store the newline character.
+  sub_address = "\x48\x81\xEE\x14\x00\x00\x00"                   # sub $0x15, %rsi
 
   mov_numbytes = "\x48\xBA\x0A\x00\x00\x00\x00\x00\x00\x00"      # mov 0xa, %rdx
 
