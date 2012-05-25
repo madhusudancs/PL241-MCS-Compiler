@@ -14,9 +14,9 @@
 RegisterAllocator/SAT solver notes
 ----------------------------------
 
-The details of the stratey for register allocation is as follows. This
+The details of the strategy for register allocation is as follows. This
 strategy makes some simplifying assumptions. This is to get the basic simple
-allocator working. As we progress we improve the alloctor. But for now the
+allocator working. As we progress we improve the allocator. But for now the
 simplifying assumptions are:
 
 1. One of the major simplifying assumption is that a variable that is spilled
@@ -29,19 +29,29 @@ simplifying assumptions are:
 
 3. The Live Range Analysis Algorithm has an inherent problem that I had
    realized a while back. While merging live ranges, conceptually I was
-   thinking on unions and used to merge live ranges using the lower of the two
-   live ranges as the start of the interval and the larger of the two value as
-   the end of the interval. I knew that this was clearly wrong because when
-   a live range ends in if-else blocks i.e. different branches of the Control
-   Flow Graph, we just take the instruction that gets executed last among
-   the two blocks. This is just so wrong. But I did not know any better way
-   to fix this. Now I know, this is the next second step. Take the sets of
+   thinking about unions but used to merge live ranges using the lower of the two
+   live ranges as the start of new live range and the larger of the two values as
+   the end of the new live range. I realized after a while that this was clearly
+   wrong because when a live range ends in if-else blocks i.e. different branches
+   of the Control Flow Graph, we just take the instruction that gets executed
+   the last among the two blocks. This is just so wrong. But I did not know any
+   better way to fix this. Now I know what would be better! Take the sets of
    instruction labels and compute their set unions! Stupid me! Why didn't I
-   think about this before!
+   think about this before! This will be my second step.
 
-4. Every time an allocation fails, we completely rebuild the cost function
-   priority queue, rebuild the whole graph. This is such a waste of time. We can
-   do much better than this. This is one of the next steps too.
+4. Every time an allocation fails, we completely re-build the cost function
+   priority queue and in turn re-build the whole graph. This is such a waste
+   of time. We can do much better than this. This is one of the next steps too.
+
+5. There is no implementation of re-materialization. This should be implemented
+   too.
+
+6. There is no reason to build the interference graph at all. But it is built as
+   a support, to make debugging easier for now. We can build the SAT instances
+   directly once we have the sufficient confidence that the allocator works.
+
+7. No Live Range Splitting is implemented. This is one of the things that must
+   be seriously considered.
 
 Here is how the allocator works for now.
 
