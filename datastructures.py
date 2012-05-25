@@ -987,8 +987,8 @@ class InterferenceNode(object):
 
     Args:
       register: The name of the register
-      instructions: A two tuple representing the range of the instructions
-          that the register covers.
+      instructions: A set representing the range of the instructions that the
+          register is live at.
     """
     self.register = register
     self.instructions = instructions
