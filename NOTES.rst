@@ -85,15 +85,15 @@ More about Spill Cost function
 1. The cost function used is the Chaitin' allocator style cost function.
 
 2. The execution frequency of a particular phi-operand is the execution frequency of the node it comes from. To
-  arrive at this, we need to look at how SSA deconstruction happens. When SSA is deconstructed, phi-operands
-  are moved to the phi-result at the end of the basic block from where they come. So it all makes sense to use
-  that node's execution frequency. This is the sole reason why we store the execution frequency of the node in
-  node itself. It is not required to store it in the node otherwise.
+   arrive at this, we need to look at how SSA deconstruction happens. When SSA is deconstructed, phi-operands
+   are moved to the phi-result at the end of the basic block from where they come. So it all makes sense to use
+   that node's execution frequency. This is the sole reason why we store the execution frequency of the node in
+   node itself. It is not required to store it in the node otherwise.
 
 3. The execution frequency of the phi-result is the sum of the execution frequencies of the phi-operands because
-  of the same reason as above plus their remaining usage frequencies.
+   of the same reason as above plus their remaining usage frequencies.
 
 4. Currently only spilling, no live range splitting
 
 5. Spilling is implemented as no load/store requirements to optimize for x86_64 architecture.
-  "Generalization kills optimization."
+   "Generalization kills optimization."
