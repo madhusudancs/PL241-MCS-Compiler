@@ -564,7 +564,7 @@ class RegisterAllocator(object):
         # dictionaries.
         if self.is_register(variable):
           live[variable] = True
-          intervals[variable] = list(node.value)
+          intervals[variable] = [node.value[0], node.value[1] + 1]
 
       for phi_function in successor.phi_functions.values():
         # Get the in-edges of the successor to determine which entry in the
@@ -581,7 +581,7 @@ class RegisterAllocator(object):
         operand = phi_function['RHS'][input_position]
         if self.is_register(operand):
           live[operand] = True
-          intervals[operand] = list(node.value)
+          intervals[operand] = [node.value[0], node.value[1] + 1]
 
     # start and end labels of the basic blocks in the SSA CFG which is the
     # other universe of regular IR's CFG.
@@ -680,15 +680,15 @@ class RegisterAllocator(object):
     node.live_include = include
 
     for operand in intervals:
+      range_start = intervals[operand][0] if intervals[operand][0] \
+          else node.value[0]
+      range_end = intervals[operand][1]
       if operand in start_node.live_intervals:
         # Merge the intervals
-        start_node.live_intervals[operand] = [
-            min(intervals[operand][0], start_node.live_intervals[operand][0]),
-            max(intervals[operand][1], start_node.live_intervals[operand][1]),
-            ]
+        start_node.live_intervals[operand].update(range(range_start, range_end))
       else:
         # Add a new interval
-        start_node.live_intervals[operand] = intervals[operand]
+        start_node.live_intervals[operand] = set(range(range_start, range_end))
 
   def liveness(self, start):
     """Computes the liveness range for each variable.
@@ -717,64 +717,49 @@ class RegisterAllocator(object):
         for operand in phi_function['RHS']:
           if operand in self.live_intervals:
             if (operand.definition().label > operand.uses()[-1].label):
-              self.live_intervals[operand][0] = operand.definition().label
+              self.live_intervals[operand].add(operand.definition().label)
 
   def populate_collisions(self):
-    """?Greedy?/?Dynamic Programming? algorithm to find the register collision.
+    """Populate collisions based on the live intervals dictionary.
 
-    Args:
-      index: The index in the list of registers sorted by start first registers
-          but in reverse order. The register that starts last is first in the
-          self.sort_by_start list
+    To populate collisions, we first build an inverted  map of the live
+    intervals dictionary and then from that we create the collision nodes.
     """
-    for register in self.live_intervals_heap:
-      # The register object sorted by start of the liveness interval.
-
-      # instructions is two-tuple containing the start and end of the
-      # liveness range for register obtained in the previous statement.
-      instructions = self.live_intervals_heap[register]
-
+    instructions_registers_map = collections.defaultdict(set)
+    for register in self.live_intervals:
       # Create a new interference node for the current register.
-      current_node = InterferenceNode(register, instructions)
+      self.register_nodes[register] = InterferenceNode(
+          register, self.live_intervals[register])
+      for instruction_label in self.live_intervals[register]:
+        instructions_registers_map[instruction_label].add(
+            self.register_nodes[register])
 
-      previous_node = self.register_nodes.get(
-          self.live_intervals_heap.previous(), None)
+    # Now process each instruction label and then add all the register nodes
+    # per instruction as the instructions that collide with each other.
+    # Actual populating of the collisions for each register node happens in
+    # in this loop.
+    for label, nodes in instructions_registers_map.iteritems():
+      for node in nodes:
+        node.append_edges(*nodes)
 
-      # Holds the list of colliding registers with this node.
-      collisions = []
-
-      # FIXME: May lead to bugs? Do we really have to check if the previous
-      # node or any of its previous node is actually spilled? If it is
-      # spilled it doesn't collide with the previous node right?
-      if previous_node:
-        if previous_node.instructions[1] > instructions[0]:
-          collisions.append(previous_node)
-
-        for previous_collision in previous_node.edges:
-          # Note we are deliberately leaving out the
-          # previous_end == current_start case because in such cases the
-          # previous register can be reused for the current register's
-          # definition.
-          if previous_collision.instructions[1] > instructions[0]:
-            collisions.append(previous_collision)
-
-      current_node.append_edges(*collisions)
-      self.register_nodes[register] = current_node
+    # As a post processing step remove node itself as an interfering node
+    # with self.
+    # IMPORTANT: This post processing step is required because, checking
+    # and removing the current node among the set of nodes or equivalently
+    # set difference is an O(n) operation. If we do this inside the nested
+    # loops in the actual processing step, we will have to do this O(n)
+    # operation for each register that live at each label. But removing that
+    # node as a post processing step brings it out by one loop and we have
+    # to do it only once per register.
+    for node in self.register_nodes.values():
+      node.edges.discard(node)
 
   def build_interference_graph(self):
     """Builds the interference graph for the given control flow subgraph.
-
-    Args:
-      live_intervals: Dictionary containing the live intervals for the
-          entire function.
-      phi_nodes: Contains all the phi nodes for the given function in the
-          program.
     """
     # We should reset this dictionary every time we build the interference
     # graph.
     self.register_nodes = {}
-
-    self.live_intervals_heap = LiveIntervalsHeap(self.live_intervals)
 
     self.populate_collisions()
 
