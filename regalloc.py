@@ -33,7 +33,6 @@ from argparse import ArgumentParser
 
 from datastructures import InterferenceGraph
 from datastructures import InterferenceNode
-from datastructures import LiveIntervalsHeap
 from datastructures import PriorityQueue
 from datastructures import Stack
 from ir import is_variable
