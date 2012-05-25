@@ -446,9 +446,15 @@ class RegisterAllocator(object):
         # Assign a register for the result of the instruction
         register = Register()
         register.set_def(instruction)
-        register.cost = node.execution_frequency
         self.variable_register_map[instruction.label] = register
         instruction.result = register
+
+        # The result of the load instruction has infinite cost of spilling
+        # since that memory location can as well be reloaded
+        if instruction.instruction == 'load':
+          register.cost = float('inf')
+        else:
+          register.cost = node.execution_frequency
 
     # Reverse order because of the representation we have chosen. When a loop
     # header has a loop body node and a node which is outside the loop body,
