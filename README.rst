@@ -52,14 +52,9 @@ pull requests!
 What is the status? Is this compiler complete?
 ----------------------------------------------
 
-I would say this is about 70% complete at this point. The source program is
-being parsed and translated to an Intermediate Representation (IR) and then
-transformed again to Static Single Assignment (SSA) form. A couple of very
-simple yet powerful optimizations: Common Sub-expression Elimination and
-Copy Propagation are implemented. A register allocator is implemented using
-a SAT solver. I will be fixing the deconstruction from registers assigned
-SSA form out of it and then doing the final code generation in the coming
-weeks.
+The compiler compiles the code to x86_64 binary. But the compiler in place is
+only a very basic version. There is so much more to do. If you are interested
+in contributing, please contact one of the authors.
 
 
 Which programming languages is this compiler written for?
@@ -105,45 +100,62 @@ This code has not been tested on Python 3.x.
 How to compile the code?
 ------------------------
 
-Since the compiler is only implemented upto allocating registers to program
-variable (without resolving SSA completely yet) till now, we can run the
-compiler by running the following command::
+The source program can be compiled by running the following command::
 
-$ python regalloc.py [options] <source-file-name>
+$ pl241c.py [options] <source-file-name>
 
 The options available at the moment are::
 
-  usage: regalloc.py [-h] [-d] [-g [VCG]] [--assigned [Assigned]]
-                     [--virtualreggraph [Virtual Registers Graph]]
-                     [--virtual [Allocate Virtual Register]]
-                     File Names [File Names ...]
+  usage: pl241c.py [-h] [-a] [--cfg] [--interferencevcg] [--optimized]
+                   [--optimizedvcg] [-p] [-r] [--regassigned] [-s] [--ssavcg]
+                   [-t] [--virtualreg] [--virtualregvcg]
+                   File Names [File Names ...]
 
   Compiler arguments.
 
   positional arguments:
-    File Names            name of the input files.
+    File Names          name of the input files.
 
   optional arguments:
-    -h, --help            show this help message and exit
-    -d, --debug           Enable debug logging to the console.
-    -g [VCG], --vcg [VCG]
-                          Generate the Visualization Compiler Graph of the
-                          interference graph.
-    --assigned [Assigned]
-                          Generate the instructions with registers and phi
-                          functions resolved.
-    --virtualreggraph [Virtual Registers Graph]
-                          Generate the Visualization Compiler Graph for the
-                          virtual registers allocated and liveness computed for
-                          the subgraphs.
-    --virtual [Allocate Virtual Register ]
-                          Allocate registers in the virtual space of infinite
-                          registers.
+    -h, --help          show this help message and exit
+    -a, --dumpall       Dump all the intermediate files and graphsgenerated.
+    --cfg               Generate the Visualization Compiler Graph output of the
+                        Control Flow Graph.
+    --interferencevcg   Generate the Visualization Compiler Graph of the
+                        interference graph.
+    --optimized         Generates the ouput of the optimizer.
+    --optimizedvcg      Generate the Visualization Compiler Graph output of the
+                        optimized SSA.
+    -p, --parsetreevcg  Generate the Visualization Compiler Graph output of the
+                        parse tree.
+    -r, --ir            Generate the Intermediate Representation.
+    --regassigned       Generate the instructions with registers and phi
+                        functions resolved.
+    -s, --ssa           Generate the Static Single Assignment.
+    --ssavcg            Generate the Visualization Compiler Graph output of the
+                        SSA form.
+    -t, --dom           Generate the Dominator Tree VCG output.
+    --virtualreg        Allocate registers in the virtual space of infinite
+                        registers.
+    --virtualregvcg     Generate the Visualization Compiler Graph for the
+                        virtual registers allocated and liveness computed for
+                        the subgraphs.
 
 
 For convenience, 3 test programs are supplied along with the source of which
 two of them intentionally include syntax errors. firsttest.pl241 is expected
-to generate SSA correctly.
+to generate binary.
+
+What are the things that this compiler does?
+--------------------------------------------
+
+The the source program is parsed and translated to an Intermediate Representation
+(IR) and then transformed again to Static Single Assignment (SSA) form. A few
+very simple yet powerful optimizations: Common Sub-expression Elimination,
+Copy Propagation and Constant Folding are implemented. A register allocator
+is implemented using an off-the-shelf SAT solver called GLUCOSE. Then the program
+is deconstructed out of SSA form and x86_64 machine code is generated from those
+instructions.
 
 
 What algorithms are implemented?
@@ -166,4 +178,4 @@ following implemented
   * Instruction scheduling
   * Various types of register allocation algorithms
 
-If you are interested in contributing, please send me the pull requests!
+If you are interested in contributing, send the pull requests!
