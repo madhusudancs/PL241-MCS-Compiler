@@ -271,7 +271,6 @@ class RegisterAllocator(object):
     # instructions including the spill/reload in the order.
     self.ssa_deconstructed_instructions = collections.defaultdict(list)
 
-
   def assign_memory(self, operand, register):
     """Assign the memory object to the register based on the symbol table.
 

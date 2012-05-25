@@ -739,7 +739,7 @@ class Dominator(object):
     #     'label': Required for path compression during link and eval.
     #
     # NOTE: The paper uses the variable name vertex for the list of vertices.
-    # We will avoid using this datastructure by using the OrderedDict 
+    # We will avoid using this datastructure by using the OrderedDict
     # datastructure from the collections module which is a dictionary with
     # the ordering for keys. The keys are ordered in the order in which they
     # were inserted into the dictionary.
