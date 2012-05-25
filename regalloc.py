@@ -371,7 +371,8 @@ class RegisterAllocator(object):
             # We need not calculate for the execution frequency within the
             # function prologue since they are anyway in the registers that
             # we are not going to allocate to them for function parameters.
-            new_register = self.register_for_operand(operand, 0)
+            new_register = self.register_for_operand(
+                operand, node.execution_frequency)
             new_register.set_def(instruction)
             new_operands.append(new_register)
 
