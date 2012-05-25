@@ -323,6 +323,9 @@ class Instruction(object):
     """Prints the current instructions in the IR.
     """
     ir = '%4d: %5s' % (self.label, self.instruction)
+    if self.instruction == '.begin_':
+      ir = ir + '%50s' % (self.function_name,)
+
     if self.operand1 != None:
       if isinstance(self.operand1, int):
         ir = ir + '%50s' % ('(%d)' % self.operand1)
