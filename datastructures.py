@@ -1163,3 +1163,36 @@ class LiveIntervalsHeap(dict):
       raise StopIteration
 
     return self.pop()
+
+
+class PriorityQueue(object):
+  """A priority queue implementation using Python's heapq datastructure.
+  """
+
+  def __init__(self, items, key):
+    """Initialize the priority queue with the heap.
+    """
+    self.key_func = key
+    self.keys_items_map = collections.defaultdict(list)
+
+    # This list holds the current heap of the priority queue.
+    self.heap_keys = []
+    for item in items:
+      item_key = self.key_func(item)
+      self.keys_items_map[item_key].append(item)
+      self.heap_keys.append(item_key)
+
+    heapq.heapify(self.heap_keys)
+
+  def push(self, item):
+    """Push an element into the Priority Queue.
+    """
+    item_key = self.key_func(item)
+    self.keys_items_map[item_key] = item
+    return heapq.heappush(self.heap_keys, item_key)
+
+  def pop(self):
+    """Pop the top element out of the Priority Queue.
+    """
+    item_key = heapq.heappop(self.heap_keys)
+    return self.keys_items_map[item_key].pop()
