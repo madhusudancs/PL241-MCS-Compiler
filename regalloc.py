@@ -679,9 +679,10 @@ class RegisterAllocator(object):
     node.live_include = include
 
     for operand in intervals:
-      range_start = intervals[operand][0] if intervals[operand][0] \
+      range_start = intervals[operand][0] if intervals[operand][0] is not None \
           else node.value[0]
-      range_end = intervals[operand][1]
+      range_end = intervals[operand][1] if intervals[operand][0] is not None \
+          else node.value[1] + 1
       if operand in start_node.live_intervals:
         # Merge the intervals
         start_node.live_intervals[operand].update(range(range_start, range_end))
