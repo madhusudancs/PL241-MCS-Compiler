@@ -28,6 +28,7 @@ import collections
 import logging
 import subprocess
 import sys
+import tempfile
 
 from argparse import ArgumentParser
 
@@ -1050,7 +1051,7 @@ class RegisterAllocator(object):
     # and then ending with 0
     # Example: v -1 -2 -3 4 5 -6 -7 -8 -9 -10 11 -12 -13 -14 15 -16 -17 -18 0
     # So exclude the first and the last entry.
-    assignments_str = cnf_assignment.split()[1:-1]
+    assignments_str = cnf_assignment.split()[1:]
 
     # Dictionary containing the register objects as keys and the values are
     # another dictionary where the keys are bit positions and the values
@@ -1102,9 +1103,15 @@ class RegisterAllocator(object):
 
     LOGGER.debug(cnf)
 
-    process = subprocess.Popen('glucose_static', stdin=subprocess.PIPE,
+    dimacs_file = tempfile.NamedTemporaryFile(delete=False)
+    dimacs_file.write(cnf)
+    dimacs_file.close()
+
+    process = subprocess.Popen(['akmaxsat', dimacs_file.name],
                                stdout=subprocess.PIPE)
     output = process.communicate(cnf)
+
+    dimacs_file.unlink(dimacs_file.name)
 
     LOGGER.debug(output[0])
 
@@ -1112,19 +1119,19 @@ class RegisterAllocator(object):
     # pen-ultimate line will contain the exact string "s SATISFIABLE" and
     # last line contains the assignment else the last line contains the
     # exact string "s UNSATISFIABLE"
-    lines = output[0].rsplit('\n', 3)
+    lines = output[0].rsplit('\n', 4)
 
-    if lines[-2] == 's UNSATISFIABLE':
+    if lines[-4] == 's OPTIMUM FOUND':
+      assignment = lines[-2]
+      self.generate_assignments(assignment)
+      LOGGER.debug('SAT Satisfiable! Allocation: %s' % (lines[-1]))
+      return True
+    elif lines[-2] == 's UNSATISFIABLE':
       # We cannot do this processing until we find all the interferences at
       # the definition point of the current register.
       # collisions = self.spill(current_node, collisions)
       LOGGER.debug('SAT Unsatisfiable')
       return False
-    elif lines[-3] == 's SATISFIABLE':
-      assignment = lines[-2]
-      self.generate_assignments(assignment)
-      LOGGER.debug('SAT Satisfiable! Allocation: %s' % (lines[-1]))
-      return True
 
   def allocate(self):
     """Allocate the registers to the program.
