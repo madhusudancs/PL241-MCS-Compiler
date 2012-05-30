@@ -57,6 +57,19 @@ LOGGER = logging.getLogger(__name__)
 LOOP_EXECUTION_FREQUENCY_MULTIPLIER = 10
 
 
+# A tentative color scheme where hard clauses are given a weight of 250.
+# Preferred edges or nodes that must be coalesced are given a weight of
+# 5 and certain that have color preference are given weights of 1.
+# These numbers were chosen at random and have no theoretical or empirical
+# evidence that these weights work well. But well, it is all about experiment
+# right? Perhaps, if these are proved to be bad, we can try out other weights?
+COLOR_SCHEME = {
+    'top': 250,
+    'coalesce': 5,
+    'colorpref': 1,
+}
+
+
 class SSABrokenException(Exception):
   """Represents the exception when SSA structure is broken.
   """
