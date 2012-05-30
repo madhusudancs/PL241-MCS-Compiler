@@ -997,6 +997,9 @@ class InterferenceNode(object):
     # it as class attributes
     self.edges = set([])
 
+    # Edges between the nodes which are preferred to have the same color.
+    self.preferred_edges = set([])
+
     self.vcg_output = None
 
   def append_edges(self, *edges):
@@ -1008,6 +1011,17 @@ class InterferenceNode(object):
     self.edges.update(edges)
     for edge in edges:
       edge.edges.add(self)
+
+  def add_preferred_edges(self, *edges):
+    """Adds preferred edges to this node.
+
+    Args:
+      edges: tuple/set of edges that must be added as preferred edges
+          to this node.
+    """
+    self.preferred_edges.update(edges)
+    for edge in edges:
+      edge.preferred_edges.add(self)
 
   def __str__(self):
     return 'node: { title: "%s" label: "%s: (%d..%d)" }' % (
