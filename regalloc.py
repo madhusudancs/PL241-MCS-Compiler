@@ -1002,6 +1002,43 @@ class RegisterAllocator(object):
 
     return clauses
 
+  def coalesce(self, register1, register2):
+    """Generate clauses for assigning same color to nodes with preferred edges.
+
+    Coalescing in SSA form after applying copy propagation is to just trying to
+    assign as many phi-operands as possible to the same physical register as
+    the phi-result. So we generate clauses for these pair of nodes which already
+    have been connected with preferred edges.
+
+    The reduction used is as follows:
+      For a pair of bits to be assigned to the same color, we should have:
+          Ci == Cj
+      =   (Ci ^ Cj)  V (~Ci ^ ~Cj)
+      =   [((Ci ^ Cj) V ~Ci) ^ ((Ci ^ Cj)  V ~Cj)]
+      =   (Ci V ~Ci) ^ (Cj V ~Ci) ^ (Ci V ~Cj) ^ (Cj V ~Cj)
+      =   (Cj V ~Ci) ^ (Ci V ~Cj)   [Since Ci V ~Ci = Cj V ~Cj = 1]
+
+    Args:
+      register1: One of the two ends of the preferred edge for which the clauses
+          should be generated.
+      register2: One of the two ends of the preferred edge for which the clauses
+          should be generated.
+    """
+    max_reg_binary_len = len(bin(self.num_registers - 1)[2:])
+
+    clauses = []
+
+    for bit_position in range(max_reg_binary_len):
+      # We generate 2 clauses per each pair of bits, see the reduction in
+      # the docstring of this method.
+      cnf_var1 = self.get_cnf_var(register1, bit_position)
+      cnf_var2 = self.get_cnf_var(register2, bit_position)
+      clause1 = '-%s %s ' % (cnf_var1, cnf_var2)
+      clause2 = '%s -%s ' % (cnf_var1, cnf_var2)
+      clauses.extend([clause1, clause2])
+
+    return clauses
+
   def reduce_to_sat(self, interference_graph):
     """Reduces the graph coloring problem to the boolean satisfiability.
 
