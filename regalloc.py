@@ -249,6 +249,10 @@ class RegisterAllocator(object):
     # the registers assigned in the virtual registers space.
     self.variable_register_map = {}
 
+    # A list of all the nodes in the Control Flow Graph which have
+    # phi-functions at the start of the node.
+    self.phi_nodes = []
+
     # Dictionary whose keys are registers and the values are the corresponding
     # nodes in the interference graph.
     self.register_nodes = {}
@@ -478,6 +482,8 @@ class RegisterAllocator(object):
     self.footer_stack = Stack()
 
     self.virtual_reg_basic_block(start_node, start_node, 1)
+
+    self.phi_nodes = start_node.phi_nodes
 
     # Process all the phi-functions in the end of the function because
     # there are phi-functions especially in case of blocks whose operands
