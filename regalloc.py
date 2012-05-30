@@ -1054,8 +1054,13 @@ class RegisterAllocator(object):
       interference_graph: The interference graph for which the SAT reduction
           should be performed.
     """
+    # FIXME: Change the dictionary to set, we don't want a dictionay here, all
+    # we need is a datastructure to check membership and set does the job well.
     # Dictionary holding the
     processed = {}
+
+    # Set holding
+    processed_preferred = set([])
 
     conflicting_registers = {}
 
@@ -1070,8 +1075,10 @@ class RegisterAllocator(object):
     self.cnf_register_map = {}
 
     self.cnf_var_count = 0
+    clause_count = 0
 
     clauses = []
+    preferred_clauses = []
 
     self.generate_node_bit_template()
 
@@ -1097,13 +1104,41 @@ class RegisterAllocator(object):
           # Generate edge specific clauses
           clauses.extend(self.generate_edge_clauses(node_reg, edge_reg))
       elif node.register.uses():
+        # If there is a node i.e. a register which doesn't conflict with any
+        # other live registers, we should at least generate clauses for it
+        # to still assign it a color.
         node_clauses = self.generate_edge_clauses(node_reg, None)
         clauses.extend(node_clauses)
 
-    precolored_clauses = self.precolor()
-    clauses.extend(precolored_clauses)
+      for edge in node.preferred_edges:
+        edge_reg = edge.register
+        if ((edge_reg, node_reg) in processed_preferred) or (
+            (node_reg, edge_reg) in processed_preferred):
+          continue
+        processed_preferred.add((node_reg, edge_reg))
 
-    return self.cnf_var_count, clauses
+        # Generate clauses for coalescing these two nodes.
+        preferred_clauses.extend(self.coalesce(node_reg, edge_reg))
+
+    clauses.extend(self.precolor())
+
+    clause_str = ''
+    if clauses:
+      join_str = '0\n%d ' % (COLOR_SCHEME['top'])
+      clause_str = '%d ' % (COLOR_SCHEME['top']) + join_str.join(clauses) + '0'
+      clause_count += len(clauses)
+
+    if preferred_clauses:
+      if clause_str:
+        clause_str += '\n'
+
+      join_str = '0\n%d ' % (COLOR_SCHEME['coalesce'])
+      clause_str += '%d ' % (COLOR_SCHEME['coalesce']) + \
+          join_str.join(preferred_clauses) + '0'
+
+      clause_count += len(preferred_clauses)
+
+    return self.cnf_var_count, clause_count, clause_str
 
   def generate_assignments(self, cnf_assignment):
     """Generates the assignments for the registers from the CNF form.
@@ -1162,10 +1197,10 @@ class RegisterAllocator(object):
       interference_graph: the interference graph for which the SAT should be
           obtained and solved.
     """
-    num_literals, clauses = self.reduce_to_sat(interference_graph)
+    num_literals, num_clauses, clauses = self.reduce_to_sat(interference_graph)
 
-    cnf = 'p cnf %d %d\n%s0' % (
-         num_literals, len(clauses), '0\n'.join(clauses))
+    cnf = 'p wcnf %d %d %d\n%s' % (
+         num_literals, num_clauses, COLOR_SCHEME['top'], clauses)
 
     LOGGER.debug(cnf)
 
