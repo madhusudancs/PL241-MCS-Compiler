@@ -1082,7 +1082,7 @@ class RegisterAllocator(object):
 
     self.generate_node_bit_template()
 
-    num_literals_per_reg = self.generate_edge_bit_template()
+    self.generate_edge_bit_template()
 
     for node in interference_graph:
       node_reg = node.register
