@@ -761,6 +761,16 @@ class RegisterAllocator(object):
     for node in self.register_nodes.values():
       node.edges.discard(node)
 
+    # As part of coalescing the nodes, the phi-result and the phi-operands
+    # must be attempted to be assigned to the same register as much as possible.
+    # So add a preferred edge between such nodes.
+    for phi_node in self.phi_nodes:
+      for phi_function in phi_node.phi_functions.values():
+        lhs_node = self.register_nodes[phi_function['LHS']]
+        for operand in phi_function['RHS']:
+          if operand in self.live_intervals:
+            self.register_nodes[operand].add_preferred_edges(lhs_node)
+
   def build_interference_graph(self):
     """Builds the interference graph for the given control flow subgraph.
     """
