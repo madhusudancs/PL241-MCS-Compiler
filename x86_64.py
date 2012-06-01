@@ -970,6 +970,29 @@ class LEA(Instruction):
     super(LEA, self).__init__(destination, source)
 
 
+class LEAVE(Instruction):
+  """Implements the LEAVE instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0xC9 },
+      }
+
+  def __init__(self):
+    """Constructs the LEAVE instruction.
+    """
+    super(LEAVE, self).__init__(destination=None, source=None)
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', self.OPCODE_TABLE['nooperand']['OPCODE'])
+
+
 class MOV(Instruction):
   """Implements the MOV instruction.
   """
@@ -1152,6 +1175,22 @@ class RET(Instruction):
     self.binary += struct.pack('>B', self.OPCODE_TABLE['nooperand']['OPCODE'])
 
 
+class SUB(Instruction):
+  """Implements the SUB instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
+      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
+      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81, 'OPCODE_EXT': 0x5 }
+      }
+
+  def __init__(self, destination, source):
+    """Constructs the SUB instruction.
+    """
+    super(SUB, self).__init__(destination, source)
+
+
 class SYSCALL(Instruction):
   """Implements the SYSCALL instruction.
   """
@@ -1173,22 +1212,6 @@ class SYSCALL(Instruction):
     # Opcode entries are properly byte ordered, so preserve the order
     # using big-endian
     self.binary += struct.pack('>H', self.OPCODE_TABLE['nooperand']['OPCODE'])
-
-
-class SUB(Instruction):
-  """Implements the SUB instruction.
-  """
-
-  OPCODE_TABLE = {
-      ('reg64', 'rm64'): { 'REX': 0x48, 'OPCODE': 0x2B },
-      ('rm64', 'reg64'): { 'REX': 0x48, 'OPCODE': 0x29 },
-      ('rm64', 'imm32'): { 'REX': 0x48, 'OPCODE': 0x81, 'OPCODE_EXT': 0x5 }
-      }
-
-  def __init__(self, destination, source):
-    """Constructs the SUB instruction.
-    """
-    super(SUB, self).__init__(destination, source)
 
 
 class XCHG(Instruction):
