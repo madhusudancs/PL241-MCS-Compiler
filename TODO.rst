@@ -6,22 +6,6 @@ The most important TODO item
 TODO
 ----
 
-Binary Generation
-~~~~~~~~~~~~~~~~~
-
-  * Function calling mecahnism should change. Whenever a function is entered, in
-    the prologue subtract the %rsp register to make enough space for the local
-    variables effectively creating a stack frame. This was done earlier, but was
-    removed because I did not understand well enough why functions were not
-    returning. Now I do. To remedy this problem see next TODO item.
-
-  * Once the %rsp register is subtracted, the stack is pointing to a different
-    location than %rbp register, Intel x86 gives LEAVE instruction which brings
-    back the %rsp register to %rbp and pops %rbp there by setting the state of
-    the stack to the state it was when the function entered. So encode LEAVE
-    instruction in the function epilogue.
-
-
 Items that I don't remember myself
 ----------------------------------
 
@@ -39,3 +23,22 @@ Bookmarks
 ---------
 
   * http://www.dwheeler.com/essays/high-assurance-floss.html for SAT solver.
+
+
+Done
+----
+
+Binary Generation
+~~~~~~~~~~~~~~~~~
+
+  * Function calling mecahnism should change. Whenever a function is entered, in
+    the prologue subtract the %rsp register to make enough space for the local
+    variables effectively creating a stack frame. This was done earlier, but was
+    removed because I did not understand well enough why functions were not
+    returning. Now I do. To remedy this problem see next TODO item.
+
+  * Once the %rsp register is subtracted, the stack is pointing to a different
+    location than %rbp register, Intel x86 gives LEAVE instruction which brings
+    back the %rsp register to %rbp and pops %rbp there by setting the state of
+    the stack to the state it was when the function entered. So encode LEAVE
+    instruction in the function epilogue.
