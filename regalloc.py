@@ -1348,6 +1348,10 @@ class RegisterAllocator(object):
   def deconstruct_ssa(self):
     """Deconstruct SSA form along with inserting instructions for spills.
     """
+    # Reset the instruction counter to the next instruction label that can
+    # be assigned to the new instructions for this function.
+    Instruction.label_counter = self.ssa.ir.last_instruction_label
+
     # Reset visited dictionary for another traversal.
     self.visited = {}
 

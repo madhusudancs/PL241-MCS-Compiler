@@ -429,6 +429,10 @@ class IntermediateRepresentation(object):
     # instructions.
     self.nodes_pointed_instructions = collections.defaultdict(list)
 
+    # The label past of the last instruction for any further assignments. We
+    # need to save this state for adding any further instructions.
+    self.last_instruction_label = None
+
   def instruction(self, operator, *operands):
     """Builds the instruction for the given arguments.
 
@@ -484,6 +488,8 @@ class IntermediateRepresentation(object):
 
     epilogue_instruction = self.instruction('.end_')
     self.ir[epilogue_instruction].function_name = self.function_name
+
+    self.last_instruction_label = Instruction.label_counter
 
   def rewrite_branch_targets(self):
     """Rewrites all the branch targets from labels to the CFG nodes.
