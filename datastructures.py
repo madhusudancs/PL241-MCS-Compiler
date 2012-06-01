@@ -149,6 +149,9 @@ class Node(object):
     """
     parent = self.parent
 
+    if parent.type == 'functions' and parent.value == 'function_definitions':
+      return
+
     if not parent:
       return
 
