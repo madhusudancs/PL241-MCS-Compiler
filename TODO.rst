@@ -5,6 +5,12 @@ The most important TODO item
 
 TODO
 ----
+  * Nested loops where the loop 1 level deep starts just inside the loop
+    outer loop at level 0 is totally broken when resolving phis during SSA
+    deconstruction. This may be broken for nested if-else blocks, if-else
+    blocks nested in loops and all sorts of combinations. Look into it!
+  * Instruction branch numbering while deconstructing SSA is getting messed
+    up because of the different functions being compiled at different stages.
 
 Items that I don't remember myself
 ----------------------------------
