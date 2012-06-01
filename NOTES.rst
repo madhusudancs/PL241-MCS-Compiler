@@ -1,7 +1,6 @@
 General
 -------
 
-  * Only short near jumps are implemented (jumps within signed 32-bits can be the max jump value).
   * Only integers are implemented.
   * Immediate values cannot be moved to memory, they have to be moved to a register and then moved to memory.
   * Cannot add anything to memory directly. The result should be stored in a register and if required then moved to memory.
@@ -10,7 +9,18 @@ General
     and upwards. So the 21st byte must be the newline character, if that is not the case, the return address on the
     stack for the InputNum function is rewritten and we are lost! That is lose the caller information of the InputNum
     function to return back.
-
+  * Only short near jumps are implemented (jumps within signed 32-bits can be the max jump value).
+  * Only near CALL and near RET are implemented
+  * No explicit StackSegment setting up.
+  * Linux AMD64 ABI specification is followed for function calling convention.
+  * Function prologue doesn't use ENTER instruction to setup the stack frame,
+    but the epilogue uses LEAVE instruction to destroy the stack frame. Stack
+    frame for the function is manaully setup using the subtraction of %rsp
+    register.
+  * CPU is forced to run in 64-bit mode. 64-bit registers are used everywhere.
+  * At all possible places the highest width available operands are used. i.e.
+    whenever there is a choice between operand sizes, the largest size is encoded
+    to keep the code generator simple.
 
 RegisterAllocator/SAT solver notes
 ----------------------------------

@@ -149,6 +149,9 @@ class Node(object):
     """
     parent = self.parent
 
+    if parent.type == 'functions' and parent.value == 'function_definitions':
+      return
+
     if not parent:
       return
 
@@ -595,10 +598,9 @@ class CFG(list):
 
     for variable in sorted(node.live_intervals, key=lambda k: k.name):
       liveness = node.live_intervals[variable]
-      node_str += '%s: (%s...%s)\n' % (
+      node_str += '%s: %s\n' % (
           variable,
-          liveness[0] if liveness[0] else 'None',
-          liveness[1] if liveness[1] else 'None')
+          liveness if liveness else 'None')
 
     for variable in sorted(node.live_in):
       node_str += '%s\n' % (variable)

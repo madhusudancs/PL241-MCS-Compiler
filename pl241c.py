@@ -276,9 +276,10 @@ def bootstrap():
     """
 
     for function in compilation_stages.values():
-      graph += function['regalloc'].interference_graph.generate_vcg(
-          title=function['name'],)
-      graph += '\n'
+      if function['regalloc'].interference_graph:
+        graph += function['regalloc'].interference_graph.generate_vcg(
+            title=function['name'],)
+        graph += '\n'
 
     graph += '}'
     interference_vcg_file.write(graph)
