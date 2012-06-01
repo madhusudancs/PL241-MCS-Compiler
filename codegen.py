@@ -78,6 +78,7 @@ from x86_64 import JLE
 from x86_64 import JMP
 from x86_64 import JNE
 from x86_64 import LEA
+from x86_64 import LEAVE
 from x86_64 import MEMORY_WIDTH
 from x86_64 import MOV
 from x86_64 import POP
@@ -879,6 +880,11 @@ class CodeGenerator(object):
     mov = MOV(rbp, rsp)
     self.add_instruction(0, mov)
 
+    if self.memory_offset:
+      # Allocate memory for locals
+      sub = SUB(rsp, Immediate(self.memory_offset))
+      self.add_instruction(0, sub)
+
   def handle_prologue(self, func_name, *operands):
     """Handles the prologue of the function definition in IR.
     """
@@ -913,17 +919,15 @@ class CodeGenerator(object):
   def handle_epilogue(self, func_name, *operands):
     """Handles the epilogue of the function definition in IR.
     """
-    # Create a dummy register and give it a color to keep the API consistent.
-    rbp = Register()
-    rbp.color = 'rbp'        # The color of %rbp
-    pop = POP(rbp)
-    self.add_instruction(len(self.ir.ir) - 1, pop)
+    # Destruct the stack-frame using the LEAVE instruction.
+    leave = LEAVE()
+    self.add_instruction(len(self.ir.ir) - 1, leave)
 
     ret = RET()
     self.add_instruction(len(self.ir.ir) - 1, ret)
 
     for instruction in self.returns_to_process:
-       target_instruction = pop
+       target_instruction = leave
        target_start_offset = self.instruction_offsets_map[
            target_instruction]['start_offset']
        next_offset = self.instruction_offsets_map[instruction]['end_offset']
