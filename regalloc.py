@@ -1428,9 +1428,9 @@ class RegisterAllocator(object):
       elif (self.ssa.ir.ir[predecessor.value[1] - 1].instruction == 'cmp' and
           self.ssa.ir.ir[predecessor.value[1]].instruction in [
           'beq', 'bne', 'blt', 'ble', 'bgt', 'bge']):
-        instruction = self.ssa.ir.ir[predecessor.value[1] - 1]
-        self.ssa_deconstructed_instructions[instruction] = instructions + \
-            self.ssa_deconstructed_instructions[instruction]
+        instruction = self.ssa.ir.ir[predecessor.value[1]]
+        self.ssa_deconstructed_instructions[instruction] = \
+            self.ssa_deconstructed_instructions[instruction] + instructions
       else:
         instruction = self.ssa.ir.ir[predecessor.value[1]]
         self.ssa_deconstructed_instructions[instruction].extend(instructions)
