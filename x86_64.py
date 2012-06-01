@@ -970,6 +970,29 @@ class LEA(Instruction):
     super(LEA, self).__init__(destination, source)
 
 
+class LEAVE(Instruction):
+  """Implements the LEAVE instruction.
+  """
+
+  OPCODE_TABLE = {
+      ('nooperand'): { 'REX': 0x00, 'OPCODE': 0xC9 },
+      }
+
+  def __init__(self):
+    """Constructs the LEAVE instruction.
+    """
+    super(LEAVE, self).__init__(destination=None, source=None)
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', self.OPCODE_TABLE['nooperand']['OPCODE'])
+
+
 class MOV(Instruction):
   """Implements the MOV instruction.
   """
