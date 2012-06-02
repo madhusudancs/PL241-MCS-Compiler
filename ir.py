@@ -766,7 +766,9 @@ class IntermediateRepresentation(object):
 
     if not isinstance(result, Memory):
       array_name = result
-      result = Memory(name=array_name, scope=self.function_name)
+      result = self.local_symbol_table[result].get('memory', None)
+      if result is None:
+        result = Memory(name=array_name, scope=self.function_name)
       self.local_symbol_table[array_name]['memory'] = result
 
     if result.scope == self.function_name:
