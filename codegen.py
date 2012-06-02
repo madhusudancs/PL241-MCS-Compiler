@@ -706,7 +706,19 @@ class CodeGenerator(object):
   def handle_move(self, label, result, *operands):
     """Handles the move instruction of IR.
     """
-    mov = MOV(operands[1], operands[0])
+    source = operands[0]
+
+    # If both the operands are memory locations, use %r15 as an intermediate
+    # register
+    if isinstance(source, Memory) and isinstance(operands[1], Memory):
+      r15 = Register()
+      r15.color = 13
+      mov = MOV(r15, operands[0])
+      self.add_instruction(label, mov)
+
+      source = r15
+
+    mov = MOV(operands[1], source)
     self.add_instruction(label, mov)
 
   def handle_mul(self, label, result, *operands):
