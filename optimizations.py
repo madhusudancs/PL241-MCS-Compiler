@@ -136,7 +136,6 @@ class Optimize(object):
       # So we can't really reuse the results of the cmp instruction later since
       # some other instructions in between may change the flag
       if instruction.instruction == 'cmp':
-        self.dead_code_candidates.append(instruction)
         continue
 
       # Remove all move instructions by copy propagation and record
