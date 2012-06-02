@@ -349,6 +349,8 @@ class Instruction(object):
 
     opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
 
+    reg = opcode_entry.get('OPCODE_EXT', 0x000)
+
     sib = None
 
     if isinstance(dest_mem.base, Memory):
@@ -384,7 +386,7 @@ class Instruction(object):
 
       rex = self.rex_byte(base=opcode_entry['REX'], B=dest_reg['REX'])
 
-    modregrm = self.mod_reg_rm_byte(mod, 000, rm)
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
