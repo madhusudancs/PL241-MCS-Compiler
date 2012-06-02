@@ -3,8 +3,16 @@ The most important TODO item
 
   * Save myself before my brain explodes!
 
+
+
 TODO
 ----
+
+  * Other than that first item, this document is henceforth declared dead. It is
+    becoming harder to maintain a TODO file like this, and making commits for
+    every update of this file. Let us do it the proper way. Let us use github's
+    issue tracker, that too when it provides one for free!
+
   * Nested loops where the loop 1 level deep starts just inside the loop
     outer loop at level 0 is totally broken when resolving phis during SSA
     deconstruction. This may be broken for nested if-else blocks, if-else
