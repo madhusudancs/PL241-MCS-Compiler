@@ -389,6 +389,7 @@ class IntermediateRepresentation(object):
       'adda': ['adda'],
       'load': ['load'],
       'bra': ['bra'],
+      'neg': ['neg'],
       }
 
   def __init__(self, function_name, parse_tree, local_symbol_table={},
@@ -755,11 +756,24 @@ class IntermediateRepresentation(object):
 
     return branch_result
 
+  def negation(self, root):
+    """Generate the IR for negation statement.
+    """
+    return self.instruction('neg', root)
+
   def designator(self, root, lvalue=False):
     """Generate the IR for "designator" nodes.
     """
+    negate = False
+    child = root.children[0]
+    if child.type == 'operator' and child.value == '-':
+      negate = True
+      root = child
+
     result = self.dfs(root.children[0])
     if len(root.children) <= 1:
+      if negate:
+        result = self.negation(result)
       return (result, None) if lvalue else result
 
     # Else this must be an array.
@@ -789,6 +803,10 @@ class IntermediateRepresentation(object):
       return result, expression_result
 
     result = self.instruction('load', expression_result, result)
+
+    if negate:
+      result = self.negation(result)
+
     return result
 
   def factor(self, root):
