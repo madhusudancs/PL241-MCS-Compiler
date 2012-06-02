@@ -62,7 +62,8 @@ IDENT_PATTERN = r'[a-zA-Z][a-zA-Z0-9]*'
 NUMBER_PATTERN = r'-?\d+'
 IDENT_RE = re.compile(IDENT_PATTERN)
 NUMBER_RE = re.compile(NUMBER_PATTERN)
-TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t\r +])' % (
+TOKEN_RE = re.compile(
+    r'(%s|%s|\/\/|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t\r +])' % (
     NUMBER_PATTERN, IDENT_PATTERN))
 
 
@@ -150,10 +151,18 @@ class TokenStream(object):
     self.__tokens = []
     self.__line_track = []
 
+    comment = False
     for i, token in enumerate(initial_tokens):
       if token == '\n':
+        comment = False
         line_num += 1
         continue
+      elif token in ['//', '#']:
+        comment = True
+
+      if comment:
+        continue
+
       self.__tokens.append(token)
       self.__line_track.append(line_num)
 
@@ -241,6 +250,8 @@ class Parser(object):
   TERM_OPERATORS = ['*', '/']
 
   EXPRESSION_OPERATORS = ['+', '-']
+
+  COMMENT_CHARACTERS = ['//', '#']
 
   def __init__(self, program_file):
     """Initializes by reading the program file and constructing the parse tree.
