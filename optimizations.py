@@ -123,9 +123,21 @@ class Optimize(object):
               Immediate(constant_fold)
           self.ssa.optimized_removal.add(instruction.label)
           continue
-        elif instruction.instruction == 'cmp':
+        if instruction.instruction == 'cmp':
           self.dead_code_candidates.append(instruction)
           continue
+
+      # IMPORTANT: We won't even reach here if both the operands are immediate
+      # and the instruction is still cmp. What an irony!? I am forced to write
+      # dead code when optimizing for dead code! Ironies of life!? :P
+      # Don't do a Common Subexpression Elimination on cmp instruction since
+      # the result of this instruction is architecture dependent. For example,
+      # on x86, the result of the cmp instruction is set in the condition flags.
+      # So we can't really reuse the results of the cmp instruction later since
+      # some other instructions in between may change the flag
+      if instruction.instruction == 'cmp':
+        self.dead_code_candidates.append(instruction)
+        continue
 
       # Remove all move instructions by copy propagation and record
       # the replacement.
