@@ -729,8 +729,7 @@ class CodeGenerator(object):
           'Only two registers or two immediates or one register and another '
           'immediate multiplications are supported at the moment.')
 
-    if (isinstance(operands[0], Immediate) and
-        isinstance(operands[1], Immediate)):
+    if isinstance(operands[0], Immediate) and isinstance(operands[1], Immediate):
       mov = MOV(result, operands[0])
       self.add_instruction(label, mov)
 
@@ -766,7 +765,7 @@ class CodeGenerator(object):
     self.add_instruction(label, neg)
 
   def handle_ret(self, label, result, *operands):
-    """Handles the read instruction of IR.
+    """Handles the return instruction of IR.
     """
     # Return is nothing but the jump to the end of the function.
     # If it has an operand it should be returned in %rax, according to Linux
