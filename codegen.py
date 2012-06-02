@@ -261,9 +261,9 @@ class CodeGenerator(object):
         # dictionaries.
         if self.is_register(register):
           live[register] = True
-          intervals[register] = list([node.instructions[0].label,
-                                      node.instructions[-1].label])
-
+          if node.instructions:
+            intervals[register] = list([node.instructions[0].label,
+                                       node.instructions[-1].label])
 
     # Walk the instructions in the reverse order, note -1 for stepping.
     for instruction in node.instructions[-1::-1]:
@@ -351,15 +351,17 @@ class CodeGenerator(object):
     node.live_include = include
 
     for operand in intervals:
+      range_start = intervals[operand][0] if intervals[operand][0] is not None \
+          else node.instructions[0].label
+      range_end = intervals[operand][1] + 1 if intervals[operand][0] is not None \
+          else node.instructions[-1].label + 1
+
       if operand in self.live_intervals:
         # Merge the intervals
-        self.live_intervals[operand] = [
-            min(intervals[operand][0], self.live_intervals[operand][0]),
-            max(intervals[operand][1], self.live_intervals[operand][1]),
-            ]
+        self.live_intervals[operand].update(range(range_start, range_end))
       else:
         # Add a new interval
-        self.live_intervals[operand] = intervals[operand]
+        self.live_intervals[operand] = set(range(range_start, range_end))
 
   def liveness(self):
     """Performs the live range analysis again on allocated registers.
@@ -399,7 +401,7 @@ class CodeGenerator(object):
       # Note the register is live upto the instruction that is before its
       # last usage, since it will anyway be killed in this instruction, so
       # for the range, we don't add liveness[1] + 1
-      for label in range(liveness[0], liveness[1]):
+      for label in liveness:
         if register.color in self.instruction_live_registers[label]:
 #          raise RegisterAllocationFailedException(
 #              'Register Allocation has failed, color %d assigned more than '
