@@ -2,6 +2,9 @@ General
 -------
 
   * Only integers are implemented.
+  * No Common Subexpression Elimination on CMP instructions since this doesn't work in x86 because x86 CMP instructions
+    work by setting condition flags in the flags register and there is no guarantee that these flags are retained
+    elsewhere in the program.
   * Immediate values cannot be moved to memory, they have to be moved to a register and then moved to memory.
   * Cannot add anything to memory directly. The result should be stored in a register and if required then moved to memory.
   * Loop detection algorithm in datastructures.py assumes that the CFG is reducible.
