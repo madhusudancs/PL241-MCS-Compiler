@@ -81,6 +81,7 @@ from x86_64 import LEA
 from x86_64 import LEAVE
 from x86_64 import MEMORY_WIDTH
 from x86_64 import MOV
+from x86_64 import NEG
 from x86_64 import POP
 from x86_64 import PUSH
 from x86_64 import REGISTERS_COLOR_SET
@@ -738,6 +739,17 @@ class CodeGenerator(object):
 
       imul = IMUL(result, operand)
       self.add_instruction(label, imul)
+
+  def handle_neg(self, label, result, *operands):
+    """Handles the negation instruction of IR.
+    """
+    if not (isinstance(operands[0], Register) and \
+        operands[0].color == result.color):
+      mov = MOV(result, operands[0])
+      self.add_instruction(label, mov)
+
+    neg = NEG(result)
+    self.add_instruction(label, neg)
 
   def handle_ret(self, label, result, *operands):
     """Handles the read instruction of IR.
