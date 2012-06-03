@@ -727,7 +727,8 @@ class RegisterAllocator(object):
       for phi_function in phi_node.phi_functions.values():
         for operand in phi_function['RHS']:
           if operand in self.live_intervals:
-            if (operand.definition().label > operand.uses()[-1].label):
+            if (operand.definition() and
+                (operand.definition().label > operand.uses()[-1].label)):
               self.live_intervals[operand].add(operand.definition().label)
 
   def populate_collisions(self):
