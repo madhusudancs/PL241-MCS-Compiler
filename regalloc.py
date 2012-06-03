@@ -725,11 +725,14 @@ class RegisterAllocator(object):
 
     for phi_node in start.phi_nodes:
       for phi_function in phi_node.phi_functions.values():
-        for operand in phi_function['RHS']:
-          if operand in self.live_intervals:
-            if (operand.definition() and
-                (operand.definition().label > operand.uses()[-1].label)):
-              self.live_intervals[operand].add(operand.definition().label)
+        for i, operand in enumerate(phi_function['RHS']):
+          if self.is_register(operand):
+            if (operand in self.live_intervals) and operand.definition():
+              if operand.definition().label > operand.uses()[-1].label:
+                self.live_intervals[operand].add(operand.definition().label)
+            else:
+              phi_function['RHS'][i] = None
+              self.live_intervals.pop(operand, None)
 
   def populate_collisions(self):
     """Populate collisions based on the live intervals dictionary.
@@ -1273,7 +1276,7 @@ class RegisterAllocator(object):
     """
     # We don't do anything for the case where assignment and
     # phi_result are the same. They just remain the way they are :-)
-    if not (self.is_register(assignment) and
+    if assignment and not (self.is_register(assignment) and
         assignment.assignments_equal(result)):
       move_instruction = Instruction('move', assignment, result)
       move_instruction.result = None
