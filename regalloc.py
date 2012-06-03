@@ -614,11 +614,12 @@ class RegisterAllocator(object):
           # optimizations! :-P
           # NOTE: pop is not added because it doesn't even exist
           # So don't bother about doing anything.
-          if instruction.instruction != 'call':
-            continue
-          else:
+          if instruction.instruction == 'call':
             # For call instruction process its other operands.
             pass
+          else:
+            self.ssa.optimized_removal.add(instruction.label)
+            continue
         else:
           intervals[instruction.result][0] = instruction.label
           live.pop(instruction.result)
