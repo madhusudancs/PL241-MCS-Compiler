@@ -384,11 +384,17 @@ class CodeGenerator(object):
         target_node = instruction.assigned_operand1
         if target_node.instructions:
           instruction.assigned_operand1 = target_node.instructions[0].label
+        else:
+          instruction.assigned_operand1 = min([o.instructions[0].label for o in \
+              target_node.out_edges if o.instructions])
       if instruction.instruction in ['beq', 'bne', 'blt', 'ble', 'bgt', 'bge']:
         target_node = instruction.assigned_operand2
         if target_node.instructions:
           instruction.assigned_operand2 = \
               target_node.instructions[0].label
+        else:
+          instruction.assigned_operand2 = min([o.instructions[0].label for o in \
+              target_node.out_edges if o.instructions])
 
     # A temporary dictionary containing the nodes visited as the keys and
     # dummy True as the value. This dictionary must be reset for every
