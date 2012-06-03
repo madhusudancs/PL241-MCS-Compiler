@@ -77,7 +77,22 @@ def input_num():
 
   # sub_address again for the same reason as before, we want to start after
   # the stack address byte.
+  # sub_address                                                  # sub $0x15, %rsi
 
+  xor_r9 = "\x4D\x33\xC9"                                        # xor  %r9, %r9
+
+  mov_byte = "\x48\x8B\x0E"                                      # mov (%rsi), %rcx
+
+  and_clear = "\x48\x81\xE1\xFF\x00\x00\x00"                     # and 0xff, %rcx
+
+  # 0x2D is the minus sign in ASCII
+  cmp_neg = "\x48\x81\xF9\x2D\x00\x00\x00"                       # cmp 0x2D, %rcx
+
+  jne_neg = "\x0F\x85\x0D\x00\x00\x00"                           # jne rnext
+
+  set_sf = "\x49\xB9\x01\x00\x00\x00\x00\x00\x00\x00"            # mov 0x1, %r9
+
+  inc_tonextbyte = "\x48\xFF\xC6"                                # inc %rsi
 
   # rnext:
 
@@ -111,14 +126,24 @@ def input_num():
 
   jmp_loop = "\xE9\xBA\xFF\xFF\xFF"                              # jmp rnext
 
+  cmp_sf = "\x49\x81\xF9\x01\x00\x00\x00"                        # cmp 0x1, %r9
+
+  jne_nosign = "\x0F\x85\x03\x00\x00\x00"                        # jne return
+
+  neg_rax = "\x48\xF7\xD8"                                       # neg %rax
+
+  # return:
+
   ret = "\xC3"                                                   # return: retq
 
   # The return value is in %rax according to the Linux AMD64 ABI
   return ''.join([mov_fd, mov_readaddr, sub_address, mov_numbytes,
                   mov_syscallnum, syscall, xor, mov_rbx, mov_readaddr,
-                  sub_address, mov_byte, and_clear, cmp_tenbytes, je_end,
-                  cmp_countten, jg_end, sub_ascii, mov_copy, shl_three, shl_one,
-                  add_copy, add_digit, inc_tonextbyte, increment, jmp_loop, ret])
+                  sub_address, xor_r9, mov_byte, and_clear, cmp_neg,
+                  jne_neg, set_sf, inc_tonextbyte, mov_byte, and_clear, cmp_tenbytes,
+                  je_end, cmp_countten, jg_end, sub_ascii, mov_copy, shl_three,
+                  shl_one, add_copy, add_digit, inc_tonextbyte, increment,
+                  jmp_loop, cmp_sf, jne_nosign, neg_rax, ret])
 
 
 def output_num():
