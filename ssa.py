@@ -21,16 +21,12 @@
 
 
 import collections
-import copy
 import logging
 import sys
 
 from argparse import ArgumentParser
 
-from datastructures import CFG
-from datastructures import CFGNode
 from datastructures import Stack
-from ir import Instruction
 from ir import IntermediateRepresentation
 from parser import LanguageSyntaxError
 from parser import Parser
