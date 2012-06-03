@@ -59,7 +59,7 @@ def input_num():
   # We make space for 0x15 = 21 bytes because largest 64-bit number consists
   # of 20 digits, so we make space for these 20 digits and one more byte to
   # store the newline character.
-  sub_address = "\x48\x81\xEE\x14\x00\x00\x00"                   # sub $0x15, %rsi
+  sub_address = "\x48\x81\xEE\x15\x00\x00\x00"                   # sub $0x15, %rsi
 
   mov_numbytes = "\x48\xBA\x0A\x00\x00\x00\x00\x00\x00\x00"      # mov 0xa, %rdx
 
