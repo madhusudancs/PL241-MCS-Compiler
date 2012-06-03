@@ -1215,7 +1215,9 @@ class ELF(object):
     self.sh_symtab_header = SectionHeader(
         name=self.shstrtab['.symtab'], sh_type=SectionHeader.TYPE.SHT_SYMTAB,
         addr=0x0, offset=self.symtaboff, size=self.symtabsize,
-        link=self.STRTAB_SHNDX, info=self.symtab_locals + 1, addralign=0x8,
+        link=self.STRTAB_SHNDX if self.global_memory_size else \
+            self.STRTAB_SHNDX - 1,
+        info=self.symtab_locals + 1, addralign=0x8,
         entsize=len(self.null_sym_entry))
 
     self.sh_symtab_header.build()
@@ -1290,7 +1292,8 @@ class ELF(object):
     # This is hard-coded for now since we will only have limited sections for
     # now.
     # FIXME: Should be made dynamic when we start adding sections dynamically.
-    self.elf_header.shstrndx = self.ELF_HEADER_SHSTRNDX
+    self.elf_header.shstrndx = self.ELF_HEADER_SHSTRNDX if \
+        self.global_memory_size else self.ELF_HEADER_SHSTRNDX - 1
 
 
     # Final binary dumping.
