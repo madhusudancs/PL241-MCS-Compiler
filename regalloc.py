@@ -648,6 +648,16 @@ class RegisterAllocator(object):
         intervals[phi_function['LHS']] = [None, None]
       else:
         intervals[phi_function['LHS']][0] = node.value[0]
+
+        if intervals[phi_function['LHS']][0] == intervals[phi_function['LHS']][1]:
+          # This patching is required because if the last instruction where the
+          # operand is used is an instruction just after the phi functions, the
+          # live range is empty since it is already dead at that instruction. So
+          # we record the live range as empty as we see it as dead-on-arrival
+          # operand. But unfortunately is not the case, it should live at least
+          # until all the phi-move operands are inserted, so we don't end up
+          # assigning the same color to another phi function result.
+          intervals[phi_function['LHS']][1] += 1
         live.pop(phi_function['LHS'])
 
       phi_operands[phi_function['LHS']] = True
