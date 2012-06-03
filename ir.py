@@ -600,7 +600,8 @@ class IntermediateRepresentation(object):
       nodes[leader] = node
 
     end = len(self.ir) - 1
-    nodes[end] = CFGNode(value=(end, end))
+    if end not in nodes:
+      nodes[end] = CFGNode(value=(end, end))
 
     for node in nodes.values():
       basic_block = self.basic_blocks.get(node.value[0], None)
