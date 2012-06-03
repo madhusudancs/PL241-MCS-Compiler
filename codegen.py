@@ -619,15 +619,27 @@ class CodeGenerator(object):
   def handle_cmp(self, label, result, *operands):
     """Handles the cmp instruction of IR.
     """
+    dest = operands[0]
+
     if isinstance(operands[0], Memory) and isinstance(operands[1], Memory):
       mov = MOV(result, operands[0])
       self.add_instruction(label, mov)
 
-      cmp_instruction = CMP(result, operands[1])
-      self.add_instruction(label, cmp_instruction)
-    else:
-      cmp_instruction = CMP(operands[0], operands[1])
-      self.add_instruction(label, cmp_instruction)
+      dest = result
+    elif isinstance(operands[0], Immediate):
+      # FIXME: If the destination is an immediate operand, this is moved to
+      # a temporary scratch register and then compared, however this calls for
+      # a better mechanism. Please see issue #6.
+      r15 = Register()
+      r15.color = 13
+
+      mov = MOV(r15, operands[0])
+      self.add_instruction(label, mov)
+
+      dest = r15
+
+    cmp_instruction = CMP(dest, operands[1])
+    self.add_instruction(label, cmp_instruction)
 
   def handle_div(self, label, result, *operands):
     """Handles the div instruction of IR.
