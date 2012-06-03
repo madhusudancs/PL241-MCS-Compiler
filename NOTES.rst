@@ -10,6 +10,14 @@ Datastructures
 
 Optimization
 ------------
+
+  * A lot of optimizations happen after/during liveness analysis too.
+
+    * If the result of the instruction is dead on arrival, the whole instruction is removed
+    * If the operand a phi-instruction is not defined anywhere no live interval is added for it. It doesn't matter
+      what it is in that control flow path. So while resolving the phi instructions we don't even attempt to generate
+      move for such operands.
+
   * No Common Subexpression Elimination on CMP instructions since this doesn't work in x86 because x86 CMP instructions
     work by setting condition flags in the flags register and there is no guarantee that these flags are retained
     elsewhere in the program.
