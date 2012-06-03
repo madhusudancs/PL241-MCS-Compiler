@@ -1439,8 +1439,12 @@ class RegisterAllocator(object):
           self.ssa.ir.ir[predecessor.value[1]].instruction in [
           'beq', 'bne', 'blt', 'ble', 'bgt', 'bge']):
         instruction = self.ssa.ir.ir[predecessor.value[1]]
-        self.ssa_deconstructed_instructions[instruction] = \
-            self.ssa_deconstructed_instructions[instruction] + instructions
+        # FIXME: The list concatenation should be the other way round, because
+        # if the inserted move instruction rewrites the FLAGS register then
+        # we are screwed. But we also want to insert move before we branch
+        # so there is a conflicting goal and we need to find a way to fix this.
+        self.ssa_deconstructed_instructions[instruction] = instructions + \
+            self.ssa_deconstructed_instructions[instruction]
       else:
         instruction = self.ssa.ir.ir[predecessor.value[1]]
         self.ssa_deconstructed_instructions[instruction].extend(instructions)
