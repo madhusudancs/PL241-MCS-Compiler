@@ -124,6 +124,8 @@ def input_num():
 def output_num():
   xor_rdx = "\x48\x33\xD2"                                      # xor  %rdx, %rdx
 
+  xor_r9 = "\x4D\x33\xC9"                                      # xor  %r9, %r9
+
   mov_countinit = "\x49\xB8\x00\x00\x00\x00\x00\x00\x00\x00"    # mov  0x0, %r8
 
 
@@ -201,12 +203,13 @@ def output_num():
 
   ret = "\xC3"                                                  # return: retq
 
-  return ''.join([xor_rdx, mov_countinit, mov_funcarg, mov_baseten, cmp_neg, jns,
-                  set_sf, neg_rax, div_baseten, add_ascii, push_ascii, xor_rdx,
-                  inc_count, cmp_neg, jne_loop, mov_numbytes, mov_fd,
-                  mov_syscallnum, cmp_sf, jne_nosign, push_neg, mov_writeaddr,
-                  syscall, pop_nextbyte, cmp_countend, jle_ret, mov_writeaddr,
-                  syscall, dec_count, pop_nextbyte, jmp_loop, ret])
+  return ''.join([xor_rdx, xor_r9, mov_countinit, mov_funcarg, mov_baseten,
+                  cmp_neg, jns, set_sf, neg_rax, div_baseten, add_ascii,
+                  push_ascii, xor_rdx, inc_count, cmp_neg, jne_loop,
+                  mov_numbytes, mov_fd, mov_syscallnum, cmp_sf, jne_nosign,
+                  push_neg, mov_writeaddr, syscall, pop_nextbyte, cmp_countend,
+                  jle_ret, mov_writeaddr, syscall, dec_count, pop_nextbyte,
+                  jmp_loop, ret])
 
 
 def output_newline():
