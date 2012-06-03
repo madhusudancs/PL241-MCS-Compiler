@@ -150,7 +150,7 @@ class SSA(object):
       count: contains a count of the number of assignments to a variable.
     """
     for variable in root.phi_functions:
-      i = count[variable]
+      i = count[variable] if count[variable] != 0 else 1
       root.phi_functions[variable]['LHS'] = '%s_%d' % (variable, i)
       stacks[variable].push(i)
       count[variable] = i + 1
@@ -165,7 +165,7 @@ class SSA(object):
 
         variable = instruction.operand2
         if instruction.is_variable(variable):
-          i = count[variable]
+          i = count[variable] if count[variable] != 0 else 1
           instruction.operand2 = '%s_%d' % (variable, i)
           stacks[variable].push(i)
           count[variable] = i + 1
