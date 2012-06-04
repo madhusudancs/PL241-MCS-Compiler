@@ -644,7 +644,8 @@ class RegisterAllocator(object):
           intervals[operand] = [node.value[0], instruction.label]
           live[operand] = True
 
-    for phi_function in node.phi_functions.values():
+    phi_function_keys_for_removal = []
+    for variable, phi_function in node.phi_functions.iteritems():
       if phi_function['LHS'] in intervals:
         intervals[phi_function['LHS']][0] = node.value[0]
 
@@ -658,8 +659,14 @@ class RegisterAllocator(object):
           # assigning the same color to another phi function result.
           intervals[phi_function['LHS']][1] += 1
         live.pop(phi_function['LHS'])
+        phi_operands[phi_function['LHS']] = True
+      else:
+        # If the result of the phi function is dead on arrival, completely get
+        # rid of the phi function.
+        phi_function_keys_for_removal.append(variable)
 
-      phi_operands[phi_function['LHS']] = True
+    for variable in phi_function_keys_for_removal:
+      node.phi_functions.pop(variable)
 
     for phi_function in node.phi_functions.values():
       for i, operand in enumerate(phi_function['RHS']):
