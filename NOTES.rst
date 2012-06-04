@@ -138,3 +138,20 @@ More about Spill Cost function
 
   #. Spilling is implemented as no load/store requirements to optimize for x86_64 architecture.
      "Generalization kills optimization."
+
+Feedback
+--------
+
+  * It will be nice if it is made more explicit at the beginning of the project (say in the project documentation)
+    that people who are going to generate binaries for x86 or similar CISC architectures have a bit more freedom
+    to tweak the Intermediate Representation.
+
+  * It will be nice to warn stupid people like me at the start that they are probably going to kill themselves
+    if they want to generate binaries for x86 all by hand.
+
+  * Encouraging to read existing compilers code, esp. LLVM's would have been useful, esp the way awesome infrastructure
+    they have for optimizations, esp in the register allocator and instruction selection/scheduling.
+
+  * Compare and Branch instructions can perhaps be merged into a single instruction in the intermediate representation?
+    It is really painful to handle two separate instructions which are really related and always work together.
+
