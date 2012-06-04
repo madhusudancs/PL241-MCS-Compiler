@@ -59,10 +59,11 @@ LOGGER = logging.getLogger(__name__)
 
 # Regular expression patterns used for parsing.
 IDENT_PATTERN = r'[a-zA-Z][a-zA-Z0-9]*'
-NUMBER_PATTERN = r'-?\d+'
+NUMBER_PATTERN = r'\d+'
 IDENT_RE = re.compile(IDENT_PATTERN)
 NUMBER_RE = re.compile(NUMBER_PATTERN)
-TOKEN_RE = re.compile(r'(%s|%s|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t\r +])' % (
+TOKEN_RE = re.compile(
+    r'(%s|%s|\/\/|<-|==|!=|<=|>=|\+|\-|\*|\/|[\n]|[^\t\r +])' % (
     NUMBER_PATTERN, IDENT_PATTERN))
 
 
@@ -150,10 +151,18 @@ class TokenStream(object):
     self.__tokens = []
     self.__line_track = []
 
+    comment = False
     for i, token in enumerate(initial_tokens):
       if token == '\n':
+        comment = False
         line_num += 1
         continue
+      elif token in ['//', '#']:
+        comment = True
+
+      if comment:
+        continue
+
       self.__tokens.append(token)
       self.__line_track.append(line_num)
 
@@ -241,6 +250,8 @@ class Parser(object):
   TERM_OPERATORS = ['*', '/']
 
   EXPRESSION_OPERATORS = ['+', '-']
+
+  COMMENT_CHARACTERS = ['//', '#']
 
   def __init__(self, program_file):
     """Initializes by reading the program file and constructing the parse tree.
@@ -404,18 +415,25 @@ class Parser(object):
     raise LanguageSyntaxError('%d: Expected identifier but "%s" found.' % (
         self.__token_stream.linenum(), look_ahead_token))
 
-  def __parse_abstract_number(self, parent):
+  def __parse_abstract_number(self, parent, negate=False):
     look_ahead_token = self.__token_stream.look_ahead()
+
     if NUMBER_RE.match(look_ahead_token):
       next_token = int(self.__token_stream.next())
+      if negate:
+        next_token = -next_token
+
       Node('number', next_token, parent)
       return next_token
 
     raise LanguageSyntaxError('%d: Expected number but "%s" found.' % (
         self.__token_stream.linenum(), look_ahead_token))
 
-  def __parse_abstract_designator(self, parent):
+  def __parse_abstract_designator(self, parent, negate=False):
     node = Node('abstract', 'designator', parent)
+
+    if negate:
+      node = Node('operator', '-', node)
 
     self.__parse_abstract_ident(node)
 
@@ -448,10 +466,16 @@ class Parser(object):
       self.__parse_call(node)
     else:
       try:
-        self.__parse_abstract_number(node)
+        negate = False
+        if look_ahead_token == '-':
+          negate = True
+          self.__token_stream.next()
+          look_ahead_token = self.__token_stream.look_ahead()
+
+        self.__parse_abstract_number(node, negate)
       except LanguageSyntaxError:
         try:
-          self.__parse_abstract_designator(node)
+          self.__parse_abstract_designator(node, negate)
         except LanguageSyntaxError:
           look_ahead_token = self.__token_stream.look_ahead()
           if self.is_control_character(look_ahead_token):

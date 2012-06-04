@@ -389,6 +389,7 @@ class IntermediateRepresentation(object):
       'adda': ['adda'],
       'load': ['load'],
       'bra': ['bra'],
+      'neg': ['neg'],
       }
 
   def __init__(self, function_name, parse_tree, local_symbol_table={},
@@ -428,6 +429,10 @@ class IntermediateRepresentation(object):
     # Dictionary containing the keys as the CFG nodes that are pointed by
     # instructions.
     self.nodes_pointed_instructions = collections.defaultdict(list)
+
+    # The label past of the last instruction for any further assignments. We
+    # need to save this state for adding any further instructions.
+    self.last_instruction_label = None
 
   def instruction(self, operator, *operands):
     """Builds the instruction for the given arguments.
@@ -484,6 +489,8 @@ class IntermediateRepresentation(object):
 
     epilogue_instruction = self.instruction('.end_')
     self.ir[epilogue_instruction].function_name = self.function_name
+
+    self.last_instruction_label = Instruction.label_counter
 
   def rewrite_branch_targets(self):
     """Rewrites all the branch targets from labels to the CFG nodes.
@@ -593,7 +600,8 @@ class IntermediateRepresentation(object):
       nodes[leader] = node
 
     end = len(self.ir) - 1
-    nodes[end] = CFGNode(value=(end, end))
+    if end not in nodes:
+      nodes[end] = CFGNode(value=(end, end))
 
     for node in nodes.values():
       basic_block = self.basic_blocks.get(node.value[0], None)
@@ -749,18 +757,33 @@ class IntermediateRepresentation(object):
 
     return branch_result
 
+  def negation(self, root):
+    """Generate the IR for negation statement.
+    """
+    return self.instruction('neg', root)
+
   def designator(self, root, lvalue=False):
     """Generate the IR for "designator" nodes.
     """
+    negate = False
+    child = root.children[0]
+    if child.type == 'operator' and child.value == '-':
+      negate = True
+      root = child
+
     result = self.dfs(root.children[0])
     if len(root.children) <= 1:
+      if negate:
+        result = self.negation(result)
       return (result, None) if lvalue else result
 
     # Else this must be an array.
 
     if not isinstance(result, Memory):
       array_name = result
-      result = Memory(name=array_name, scope=self.function_name)
+      result = self.local_symbol_table[result].get('memory', None)
+      if result is None:
+        result = Memory(name=array_name, scope=self.function_name)
       self.local_symbol_table[array_name]['memory'] = result
 
     if result.scope == self.function_name:
@@ -781,6 +804,10 @@ class IntermediateRepresentation(object):
       return result, expression_result
 
     result = self.instruction('load', expression_result, result)
+
+    if negate:
+      result = self.negation(result)
+
     return result
 
   def factor(self, root):

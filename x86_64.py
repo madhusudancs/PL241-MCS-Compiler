@@ -349,6 +349,8 @@ class Instruction(object):
 
     opcode_entry = self.OPCODE_TABLE[('rm64', 'imm32')]
 
+    reg = opcode_entry.get('OPCODE_EXT', 0x000)
+
     sib = None
 
     if isinstance(dest_mem.base, Memory):
@@ -384,7 +386,7 @@ class Instruction(object):
 
       rex = self.rex_byte(base=opcode_entry['REX'], B=dest_reg['REX'])
 
-    modregrm = self.mod_reg_rm_byte(mod, 000, rm)
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
 
     if rex:
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
@@ -1074,6 +1076,52 @@ class MOV(Instruction):
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, offset)
 
     self.binary += struct.pack('%si' % BYTE_ORDERING_FMT, source_imm)
+
+
+class NEG(Instruction):
+  """Implements the NEG instruction.
+  """
+
+  OPCODE_TABLE = {
+      'rm64': { 'REX': 0x48, 'OPCODE': 0xF7, 'OPCODE_EXT': 0x3 },
+      }
+
+  def __init__(self, operand):
+    """Constructs the NEG instruction.
+    """
+    self.operand = operand
+    super(NEG, self).__init__()
+
+  def build(self):
+    """Builds the instruction bytes.
+    """
+    self.binary = ''
+
+    if not isinstance(self.operand, Register):
+      raise InvalidInstructionException(
+          'Operand of neg instruction is not a register or a memory operand. '
+          'The value given is %s.' % self.operand)
+
+    opcode_entry = self.OPCODE_TABLE['rm64']
+
+    mod = 0b11
+    reg = opcode_entry['OPCODE_EXT']
+    source_reg = REGISTER_COLOR_TO_CODE_MAP[self.operand.color]
+    rm = source_reg['REG']
+
+    modregrm = self.mod_reg_rm_byte(mod, reg, rm)
+
+    rex = self.rex_byte(base=opcode_entry['REX'], B=source_reg['REX'])
+
+    if rex:
+      self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT, rex)
+
+    # Opcode entries are properly byte ordered, so preserve the order
+    # using big-endian
+    self.binary += struct.pack('>B', opcode_entry['OPCODE'])
+
+    self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
+                               modregrm)
 
 
 class POP(Instruction):

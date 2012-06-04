@@ -59,7 +59,7 @@ def input_num():
   # We make space for 0x15 = 21 bytes because largest 64-bit number consists
   # of 20 digits, so we make space for these 20 digits and one more byte to
   # store the newline character.
-  sub_address = "\x48\x81\xEE\x14\x00\x00\x00"                   # sub $0x15, %rsi
+  sub_address = "\x48\x81\xEE\x15\x00\x00\x00"                   # sub $0x15, %rsi
 
   mov_numbytes = "\x48\xBA\x0A\x00\x00\x00\x00\x00\x00\x00"      # mov 0xa, %rdx
 
@@ -73,17 +73,34 @@ def input_num():
 
   mov_rbx = "\x48\xBB\x00\x00\x00\x00\x00\x00\x00\x00"           # mov 0x0, %rbx
 
-  mov_readaddr = "\x48\x8B\xF4"                                  # mov %rsp, %rsi
+  # Move the stack pointer to start with again
+  # mov_readaddr                                                 # mov %rsp, %rsi
 
   # sub_address again for the same reason as before, we want to start after
   # the stack address byte.
+  # sub_address                                                  # sub $0x15, %rsi
 
-
-  # rnext:
+  xor_r9 = "\x4D\x33\xC9"                                        # xor  %r9, %r9
 
   mov_byte = "\x48\x8B\x0E"                                      # mov (%rsi), %rcx
 
   and_clear = "\x48\x81\xE1\xFF\x00\x00\x00"                     # and 0xff, %rcx
+
+  # 0x2D is the minus sign in ASCII
+  cmp_neg = "\x48\x81\xF9\x2D\x00\x00\x00"                       # cmp 0x2D, %rcx
+
+  jne_neg = "\x0F\x85\x0D\x00\x00\x00"                           # jne rnext
+
+  set_sf = "\x49\xB9\x01\x00\x00\x00\x00\x00\x00\x00"            # mov 0x1, %r9
+
+  inc_tonextbyte = "\x48\xFF\xC6"                                # inc %rsi
+
+  # rnext:
+
+  # Repeat move next bytes and clearing it
+  # mov_byte                                                     # mov (%rsi), %rcx
+
+  # and_clear                                                    # and 0xff, %rcx
 
   cmp_tenbytes = "\x48\x81\xF9\x0A\x00\x00\x00"                  # cmp 0xa, %rcx
 
@@ -111,18 +128,30 @@ def input_num():
 
   jmp_loop = "\xE9\xBA\xFF\xFF\xFF"                              # jmp rnext
 
+  cmp_sf = "\x49\x81\xF9\x01\x00\x00\x00"                        # cmp 0x1, %r9
+
+  jne_nosign = "\x0F\x85\x03\x00\x00\x00"                        # jne return
+
+  neg_rax = "\x48\xF7\xD8"                                       # neg %rax
+
+  # return:
+
   ret = "\xC3"                                                   # return: retq
 
   # The return value is in %rax according to the Linux AMD64 ABI
   return ''.join([mov_fd, mov_readaddr, sub_address, mov_numbytes,
                   mov_syscallnum, syscall, xor, mov_rbx, mov_readaddr,
-                  sub_address, mov_byte, and_clear, cmp_tenbytes, je_end,
-                  cmp_countten, jg_end, sub_ascii, mov_copy, shl_three, shl_one,
-                  add_copy, add_digit, inc_tonextbyte, increment, jmp_loop, ret])
+                  sub_address, xor_r9, mov_byte, and_clear, cmp_neg,
+                  jne_neg, set_sf, inc_tonextbyte, mov_byte, and_clear, cmp_tenbytes,
+                  je_end, cmp_countten, jg_end, sub_ascii, mov_copy, shl_three,
+                  shl_one, add_copy, add_digit, inc_tonextbyte, increment,
+                  jmp_loop, cmp_sf, jne_nosign, neg_rax, ret])
 
 
 def output_num():
   xor_rdx = "\x48\x33\xD2"                                      # xor  %rdx, %rdx
+
+  xor_r9 = "\x4D\x33\xC9"                                      # xor  %r9, %r9
 
   mov_countinit = "\x49\xB8\x00\x00\x00\x00\x00\x00\x00\x00"    # mov  0x0, %r8
 
@@ -131,6 +160,15 @@ def output_num():
   mov_funcarg = "\x48\x8B\xC7"                                  # mov  %rdi, %rax
 
   mov_baseten = "\x48\xBB\x0A\x00\x00\x00\x00\x00\x00\x00"      # mov  0xa, %rbx
+
+  cmp_neg = "\x48\x81\xF8\x00\x00\x00\x00" 	                 # cmp  0x0, %rax
+
+  # Jump if not sign
+  jns = "\x0F\x89\x0D\x00\x00\x00"                              # jns  wnext
+
+  set_sf = "\x49\xB9\x01\x00\x00\x00\x00\x00\x00\x00"           # mov  0x1, %r9
+
+  neg_rax = "\x48\xF7\xD8"                                      # neg %rax
 
 
   # wnext:
@@ -145,40 +183,59 @@ def output_num():
 
   inc_count = "\x49\xFF\xC0"                                    # inc  %r8
 
-  cmp_nomore = "\x48\x81\xF8\x00\x00\x00\x00"                   # cmp  0x0, %rax
+  # cmp_neg                                                     # cmp  0x0, %rax
 
   jne_loop = "\x0F\x85\xE2\xFF\xFF\xFF"                         # jne  wnext
 
 
 
-  # popnext:
-
-  cmp_countend = "\x49\x81\xF8\x00\x00\x00\x00"                 # cmp  0x0, %r8
-
-  jle_ret = "\x0F\x8E\x2C\x00\x00\x00"                          # jle  return
-
   mov_numbytes = "\x48\xBA\x01\x00\x00\x00\x00\x00\x00\x00"     # mov  0x1, %rdx
-
-  mov_writeaddr = "\x48\x8B\xF4"                                # mov  %rsp, %rsi
 
   mov_fd = "\x48\xBF\x01\x00\x00\x00\x00\x00\x00\x00"           # mov  0x1, %rdi
 
   mov_syscallnum = "\x48\xB8\x01\x00\x00\x00\x00\x00\x00\x00"   # mov  0x1, %rax
 
+  cmp_sf = "\x49\x81\xF9\x01\x00\x00\x00"                       # cmp  0x1, %r9
+
+  jne_nosign = "\x0F\x85\x0B\x00\x00\x00"                       # jne  popnext
+
+  # print negative sign, the ASCII value of negative sign is 0x2D
+  push_neg = "\x68\x2D\x00\x00\x00"                             # push 0x2D
+
+  mov_writeaddr = "\x48\x8B\xF4"                                # mov  %rsp, %rsi
+
   syscall = "\x0F\x05"                                          # syscall
+
+  # We are popping to some random register, let the victim be %rbx :P
+  pop_nextbyte = "\x5B"                                         # pop %rbx
+
+  # popnext:
+
+  cmp_countend = "\x49\x81\xF8\x00\x00\x00\x00"                 # cmp  0x0, %r8
+
+  jle_ret = "\x0F\x8E\x0E\x00\x00\x00"                          # jle  return
+
+  # Move the address to rsi as argument
+  # mov_writeaddr                                               # mov  %rsp, %rsi
+
+  # Make a syscall to write out the byte
+  # syscall                                                     # syscall
 
   dec_count = "\x49\xFF\xC8"                                    # dec  %r8
 
-  pop_nextbyte = "\x5B"                                         # pop  %rbx
+  # Pop the next byte to %rbx
+  # pop_nextbyte                                                # pop  %rbx
 
-  jmp_loop = "\xE9\xC7\xFF\xFF\xFF"                             # jmp  popnext
+  jmp_loop = "\xE9\xE5\xFF\xFF\xFF"                             # jmp  popnext
 
   ret = "\xC3"                                                  # return: retq
 
-  return ''.join([xor_rdx, mov_countinit, mov_funcarg, mov_baseten, div_baseten,
-                  add_ascii, push_ascii, xor_rdx, inc_count, cmp_nomore,
-                  jne_loop, cmp_countend, jle_ret, mov_numbytes, mov_writeaddr,
-                  mov_fd, mov_syscallnum, syscall, dec_count, pop_nextbyte,
+  return ''.join([xor_rdx, xor_r9, mov_countinit, mov_funcarg, mov_baseten,
+                  cmp_neg, jns, set_sf, neg_rax, div_baseten, add_ascii,
+                  push_ascii, xor_rdx, inc_count, cmp_neg, jne_loop,
+                  mov_numbytes, mov_fd, mov_syscallnum, cmp_sf, jne_nosign,
+                  push_neg, mov_writeaddr, syscall, pop_nextbyte, cmp_countend,
+                  jle_ret, mov_writeaddr, syscall, dec_count, pop_nextbyte,
                   jmp_loop, ret])
 
 

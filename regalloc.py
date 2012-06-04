@@ -634,11 +634,12 @@ class RegisterAllocator(object):
           # optimizations! :-P
           # NOTE: pop is not added because it doesn't even exist
           # So don't bother about doing anything.
-          if instruction.instruction != 'call':
-            continue
-          else:
+          if instruction.instruction == 'call':
             # For call instruction process its other operands.
             pass
+          else:
+            self.ssa.optimized_removal.add(instruction.label)
+            continue
         else:
           intervals[instruction.result][0] = instruction.label
           live.pop(instruction.result)
@@ -664,10 +665,18 @@ class RegisterAllocator(object):
           live[operand] = True
 
     for phi_function in node.phi_functions.values():
-      if phi_function['LHS'] not in intervals:
-        intervals[phi_function['LHS']] = [None, None]
-      else:
+      if phi_function['LHS'] in intervals:
         intervals[phi_function['LHS']][0] = node.value[0]
+
+        if intervals[phi_function['LHS']][0] == intervals[phi_function['LHS']][1]:
+          # This patching is required because if the last instruction where the
+          # operand is used is an instruction just after the phi functions, the
+          # live range is empty since it is already dead at that instruction. So
+          # we record the live range as empty as we see it as dead-on-arrival
+          # operand. But unfortunately is not the case, it should live at least
+          # until all the phi-move operands are inserted, so we don't end up
+          # assigning the same color to another phi function result.
+          intervals[phi_function['LHS']][1] += 1
         live.pop(phi_function['LHS'])
 
       phi_operands[phi_function['LHS']] = True
@@ -734,10 +743,14 @@ class RegisterAllocator(object):
 
     for phi_node in start.phi_nodes:
       for phi_function in phi_node.phi_functions.values():
-        for operand in phi_function['RHS']:
-          if operand in self.live_intervals:
-            if (operand.definition().label > operand.uses()[-1].label):
-              self.live_intervals[operand].add(operand.definition().label)
+        for i, operand in enumerate(phi_function['RHS']):
+          if self.is_register(operand):
+            if (operand in self.live_intervals) and operand.definition():
+              if operand.definition().label > operand.uses()[-1].label:
+                self.live_intervals[operand].add(operand.definition().label)
+            else:
+              phi_function['RHS'][i] = None
+              self.live_intervals.pop(operand, None)
 
   def populate_collisions(self):
     """Populate collisions based on the live intervals dictionary.
@@ -1369,7 +1382,7 @@ class RegisterAllocator(object):
     """
     # We don't do anything for the case where assignment and
     # phi_result are the same. They just remain the way they are :-)
-    if not (self.is_register(assignment) and
+    if assignment and not (self.is_register(assignment) and
         assignment.assignments_equal(result)):
       move_instruction = Instruction('move', assignment, result)
       move_instruction.result = None
@@ -1456,6 +1469,10 @@ class RegisterAllocator(object):
   def deconstruct_ssa(self):
     """Deconstruct SSA form along with inserting instructions for spills.
     """
+    # Reset the instruction counter to the next instruction label that can
+    # be assigned to the new instructions for this function.
+    Instruction.label_counter = self.ssa.ir.last_instruction_label
+
     # Reset visited dictionary for another traversal.
     self.visited = {}
 
@@ -1532,7 +1549,11 @@ class RegisterAllocator(object):
       elif (self.ssa.ir.ir[predecessor.value[1] - 1].instruction == 'cmp' and
           self.ssa.ir.ir[predecessor.value[1]].instruction in [
           'beq', 'bne', 'blt', 'ble', 'bgt', 'bge']):
-        instruction = self.ssa.ir.ir[predecessor.value[1] - 1]
+        instruction = self.ssa.ir.ir[predecessor.value[1]]
+        # FIXME: The list concatenation should be the other way round, because
+        # if the inserted move instruction rewrites the FLAGS register then
+        # we are screwed. But we also want to insert move before we branch
+        # so there is a conflicting goal and we need to find a way to fix this.
         self.ssa_deconstructed_instructions[instruction] = instructions + \
             self.ssa_deconstructed_instructions[instruction]
       else:

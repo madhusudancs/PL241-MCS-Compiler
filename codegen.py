@@ -81,6 +81,7 @@ from x86_64 import LEA
 from x86_64 import LEAVE
 from x86_64 import MEMORY_WIDTH
 from x86_64 import MOV
+from x86_64 import NEG
 from x86_64 import POP
 from x86_64 import PUSH
 from x86_64 import REGISTERS_COLOR_SET
@@ -260,9 +261,9 @@ class CodeGenerator(object):
         # dictionaries.
         if self.is_register(register):
           live[register] = True
-          intervals[register] = list([node.instructions[0].label,
-                                      node.instructions[-1].label])
-
+          if node.instructions:
+            intervals[register] = list([node.instructions[0].label,
+                                       node.instructions[-1].label])
 
     # Walk the instructions in the reverse order, note -1 for stepping.
     for instruction in node.instructions[-1::-1]:
@@ -350,15 +351,17 @@ class CodeGenerator(object):
     node.live_include = include
 
     for operand in intervals:
+      range_start = intervals[operand][0] if intervals[operand][0] is not None \
+          else node.instructions[0].label
+      range_end = intervals[operand][1] + 1 if intervals[operand][0] is not None \
+          else node.instructions[-1].label + 1
+
       if operand in self.live_intervals:
         # Merge the intervals
-        self.live_intervals[operand] = [
-            min(intervals[operand][0], self.live_intervals[operand][0]),
-            max(intervals[operand][1], self.live_intervals[operand][1]),
-            ]
+        self.live_intervals[operand].update(range(range_start, range_end))
       else:
         # Add a new interval
-        self.live_intervals[operand] = intervals[operand]
+        self.live_intervals[operand] = set(range(range_start, range_end))
 
   def liveness(self):
     """Performs the live range analysis again on allocated registers.
@@ -381,11 +384,17 @@ class CodeGenerator(object):
         target_node = instruction.assigned_operand1
         if target_node.instructions:
           instruction.assigned_operand1 = target_node.instructions[0].label
+        else:
+          instruction.assigned_operand1 = min([o.instructions[0].label for o in \
+              target_node.out_edges if o.instructions])
       if instruction.instruction in ['beq', 'bne', 'blt', 'ble', 'bgt', 'bge']:
         target_node = instruction.assigned_operand2
         if target_node.instructions:
           instruction.assigned_operand2 = \
               target_node.instructions[0].label
+        else:
+          instruction.assigned_operand2 = min([o.instructions[0].label for o in \
+              target_node.out_edges if o.instructions])
 
     # A temporary dictionary containing the nodes visited as the keys and
     # dummy True as the value. This dictionary must be reset for every
@@ -398,7 +407,7 @@ class CodeGenerator(object):
       # Note the register is live upto the instruction that is before its
       # last usage, since it will anyway be killed in this instruction, so
       # for the range, we don't add liveness[1] + 1
-      for label in range(liveness[0], liveness[1]):
+      for label in liveness:
         if register.color in self.instruction_live_registers[label]:
 #          raise RegisterAllocationFailedException(
 #              'Register Allocation has failed, color %d assigned more than '
@@ -610,15 +619,27 @@ class CodeGenerator(object):
   def handle_cmp(self, label, result, *operands):
     """Handles the cmp instruction of IR.
     """
+    dest = operands[0]
+
     if isinstance(operands[0], Memory) and isinstance(operands[1], Memory):
       mov = MOV(result, operands[0])
       self.add_instruction(label, mov)
 
-      cmp_instruction = CMP(result, operands[1])
-      self.add_instruction(label, cmp_instruction)
-    else:
-      cmp_instruction = CMP(operands[0], operands[1])
-      self.add_instruction(label, cmp_instruction)
+      dest = result
+    elif isinstance(operands[0], Immediate):
+      # FIXME: If the destination is an immediate operand, this is moved to
+      # a temporary scratch register and then compared, however this calls for
+      # a better mechanism. Please see issue #6.
+      r15 = Register()
+      r15.color = 13
+
+      mov = MOV(r15, operands[0])
+      self.add_instruction(label, mov)
+
+      dest = r15
+
+    cmp_instruction = CMP(dest, operands[1])
+    self.add_instruction(label, cmp_instruction)
 
   def handle_div(self, label, result, *operands):
     """Handles the div instruction of IR.
@@ -703,7 +724,19 @@ class CodeGenerator(object):
   def handle_move(self, label, result, *operands):
     """Handles the move instruction of IR.
     """
-    mov = MOV(operands[1], operands[0])
+    source = operands[0]
+
+    # If both the operands are memory locations, use %r15 as an intermediate
+    # register
+    if isinstance(source, Memory) and isinstance(operands[1], Memory):
+      r15 = Register()
+      r15.color = 13
+      mov = MOV(r15, operands[0])
+      self.add_instruction(label, mov)
+
+      source = r15
+
+    mov = MOV(operands[1], source)
     self.add_instruction(label, mov)
 
   def handle_mul(self, label, result, *operands):
@@ -714,8 +747,7 @@ class CodeGenerator(object):
           'Only two registers or two immediates or one register and another '
           'immediate multiplications are supported at the moment.')
 
-    if (isinstance(operands[0], Immediate) and
-        isinstance(operands[1], Immediate)):
+    if isinstance(operands[0], Immediate) and isinstance(operands[1], Immediate):
       mov = MOV(result, operands[0])
       self.add_instruction(label, mov)
 
@@ -739,8 +771,19 @@ class CodeGenerator(object):
       imul = IMUL(result, operand)
       self.add_instruction(label, imul)
 
+  def handle_neg(self, label, result, *operands):
+    """Handles the negation instruction of IR.
+    """
+    if not (isinstance(operands[0], Register) and \
+        operands[0].color == result.color):
+      mov = MOV(result, operands[0])
+      self.add_instruction(label, mov)
+
+    neg = NEG(result)
+    self.add_instruction(label, neg)
+
   def handle_ret(self, label, result, *operands):
-    """Handles the read instruction of IR.
+    """Handles the return instruction of IR.
     """
     # Return is nothing but the jump to the end of the function.
     # If it has an operand it should be returned in %rax, according to Linux
