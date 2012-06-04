@@ -1026,8 +1026,8 @@ class InterferenceNode(object):
       edge.preferred_edges.add(self)
 
   def __str__(self):
-    return 'node: { title: "%s" label: "%s: (%d..%d)" }' % (
-        id(self), self.register, self.instructions[0], self.instructions[1])
+    return 'node: { title: "%s" label: "%s: (%s)" }' % (
+        id(self), self.register, self.instructions)
 
   def __repr__(self):
     return self.__str__()
