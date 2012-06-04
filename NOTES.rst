@@ -176,6 +176,8 @@ More about Spill Cost function
 Feedback
 --------
 
+  * Allow people to optionally use DOT language instead of VCG.
+
   * It will be nice if it is made more explicit at the beginning of the project (say in the project documentation)
     that people who are going to generate binaries for x86 or similar CISC architectures have a bit more freedom
     to tweak the Intermediate Representation.
