@@ -14,9 +14,13 @@ Optimization
   * A lot of optimizations happen after/during liveness analysis too.
 
     * If the result of the instruction is dead on arrival, the whole instruction is removed
-    * If the operand a phi-instruction is not defined anywhere no live interval is added for it. It doesn't matter
-      what it is in that control flow path. So while resolving the phi instructions we don't even attempt to generate
-      move for such operands.
+
+    * If the operand of a phi-instruction is not defined anywhere, no live interval is added for it. If we think about
+      the program flow path, it doesn't matter what its value is going to be in that control flow path since it is
+      anyway supposed to contain a junk value. So why even bother creating a live range for it and getting a spill?
+      So while resolving the phi instructions we don't even attempt to generate move for such operands.
+
+    * If the result of the phi function is dead on arrival, that phi function is completely removed.
 
   * No Common Subexpression Elimination on CMP instructions since this doesn't work in x86 because x86 CMP instructions
     work by setting condition flags in the flags register and there is no guarantee that these flags are retained
@@ -26,6 +30,7 @@ Precompiled
 -----------
 
   * InputNum doesn't accept negative numbers as input.
+
   * For InputNum please enter only 20 digits or less. The current implementation starts storing the bytes at %rsp-21
     and upwards. So the 21st byte must be the newline character, if that is not the case, the return address on the
     stack for the InputNum function is rewritten and we are lost! That is lose the caller information of the InputNum
@@ -35,22 +40,41 @@ Code Generator
 --------------
 
   * Immediate values cannot be moved to memory, they have to be moved to a register and then moved to memory.
-  * Cannot add anything to memory directly. The result should be stored in a register and if required then moved to memory.
-  * Only short near jumps are implemented (jumps within signed 32-bits can be the max jump value).
-  * Only near CALL and near RET are implemented
-  * No explicit StackSegment setting up.
+
+  * We cannot add anything to memory directly. The result should be stored in a register and if required then
+    moved to memory.
+
+  * Only NEAR jumps are implemented (jumps within signed 32-bits can be the max jump value).
+
+  * Only NEAR CALL and NEAR RET are implemented
+
+  * We do not explicitly setup a StackSegment.
+
   * Linux AMD64 ABI specification is followed for function calling convention.
+
   * Register %r15 is used a temporary register for those instructions where both
-    the operands are memory operands and such.
+    the operands are memory operands and such places where we want an intermediate
+    temporary register.
+
   * Function prologue doesn't use ENTER instruction to setup the stack frame,
     but the epilogue uses LEAVE instruction to destroy the stack frame. Stack
     frame for the function is manaully setup using the subtraction of %rsp
     register.
+
   * CPU is forced to run in 64-bit mode. 64-bit registers are used everywhere.
-  * At all possible places the highest width available operands are used. i.e.
-    whenever there is a choice between operand sizes, the largest size is encoded
-    to keep the code generator simple. However encoding for lower size operands
-    is trivial.
+
+  * At every place in the program, whenever there is a choice between operands
+    of different widths, the operands with the largest widths are used. This is
+    done to keep the binary generator simple. However encoding for operands with
+    smaller sizes should be trivial with the existing infrastructure.
+
+Register Allocator
+------------------
+
+  * The number of physical registers for assignment in the Register Allocator is
+    configurable. However currently since the Linux AMD64 ABI is hard coded, this
+    may affect the code generator and hence make the binaries not executable.
+
 
 RegisterAllocator/SAT solver notes
 ----------------------------------
