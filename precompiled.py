@@ -73,7 +73,8 @@ def input_num():
 
   mov_rbx = "\x48\xBB\x00\x00\x00\x00\x00\x00\x00\x00"           # mov 0x0, %rbx
 
-  mov_readaddr = "\x48\x8B\xF4"                                  # mov %rsp, %rsi
+  # Move the stack pointer to start with again
+  # mov_readaddr                                                 # mov %rsp, %rsi
 
   # sub_address again for the same reason as before, we want to start after
   # the stack address byte.
@@ -96,9 +97,10 @@ def input_num():
 
   # rnext:
 
-  mov_byte = "\x48\x8B\x0E"                                      # mov (%rsi), %rcx
+  # Repeat move next bytes and clearing it
+  # mov_byte                                                     # mov (%rsi), %rcx
 
-  and_clear = "\x48\x81\xE1\xFF\x00\x00\x00"                     # and 0xff, %rcx
+  # and_clear                                                    # and 0xff, %rcx
 
   cmp_tenbytes = "\x48\x81\xF9\x0A\x00\x00\x00"                  # cmp 0xa, %rcx
 
