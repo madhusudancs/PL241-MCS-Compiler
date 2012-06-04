@@ -75,6 +75,16 @@ Register Allocator
     configurable. However currently since the Linux AMD64 ABI is hard coded, this
     may affect the code generator and hence make the binaries not executable.
 
+  * The speed reduction in case of MaxSAT based allocator as compared to general
+    SAT solver based allocator, at least until benchmarking with larger source
+    files, should be attributed to the fact that akmaxsat doesn't take the input
+    from UNIX Pipe but requires us to write the input to the file on disk and then
+    read from that file. When I can write a C++ wrapper for the Python code, I
+    will have a better way of comparing the two allocators.
+
+  * Additional it should be considered while considering the speed reduction for
+    MaxSAT based allocator that this allocator has substantially more number of
+    clauses to resolve since we implement coalescing clauses for phi functions.
 
 RegisterAllocator/SAT solver notes
 ----------------------------------
