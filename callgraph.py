@@ -72,7 +72,7 @@ class CallGraphAnalysis(object):
     for cs_name in call_sites:
       cs_node = self.call_graph.get(cs_name, None)
       if not cs_node:
-        cs_node = Node(value=name)
+        cs_node = Node(value=cs_name)
         self.call_graph[cs_name] = cs_node
 
       if cs_node not in node.children:
