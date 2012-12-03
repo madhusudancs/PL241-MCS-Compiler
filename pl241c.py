@@ -26,6 +26,7 @@ import argparse
 import os
 import sys
 
+from callgraph import CallGraphAnalysis
 from codegen import allocate_global_memory
 from codegen import CodeGenerator
 from elf import ELF
@@ -79,6 +80,9 @@ def bootstrap():
                       help='Generate the Visualization Compiler Graph '
                            'for the virtual registers allocated and liveness '
                            'computed for the subgraphs.')
+  parser.add_argument('--callgraphvcg', action='store_true',
+                      help='Generate the Visualization Compiler Graph '
+                           'for the whole program call graph.')
 
   args = parser.parse_args()
   filename, fileext = os.path.splitext(args.file_names[0])
@@ -235,6 +239,21 @@ def bootstrap():
     ssa_after_optimized_vcg_file.write(graph)
     ssa_after_optimized_vcg_file.close()
 
+
+  cga = CallGraphAnalysis(compilation_stages)
+  cga.analyze()
+
+  if args.callgraphvcg or args.dumpall:
+    callgraph_file = open('%s.callgraph.vcg' % filename, 'w')
+
+    graph = """graph: { title: "CallGraph"
+    port_sharing: no
+    """
+    graph += cga.call_graph.generate_vcg()
+    graph += '\n}'
+
+    callgraph_file.write(graph)
+    callgraph_file.close()
 
   for function_name in compilation_stages:
     regalloc = RegisterAllocator(
