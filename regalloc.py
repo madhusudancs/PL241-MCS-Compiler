@@ -273,6 +273,7 @@ class RegisterAllocator(object):
     self.ssa = ssa
 
     self.num_registers = num_registers
+    print self.num_registers
 
     # Reset the register counter for this register allocator.
     Register.reset_name_counter()
@@ -788,7 +789,11 @@ class RegisterAllocator(object):
     To populate collisions, we first build an inverted  map of the live
     intervals dictionary and then from that we create the collision nodes.
     """
+    print self.ssa.ir.function_name
+    print self.str_virtual_register_allocation()
     instructions_registers_map = collections.defaultdict(set)
+    print self.live_intervals
+
     for register in self.live_intervals:
       # Create a new interference node for the current register.
       self.register_nodes[register] = InterferenceNode(
@@ -822,6 +827,7 @@ class RegisterAllocator(object):
     # So add a preferred edge between such nodes.
     for phi_node in self.phi_nodes:
       for phi_function in phi_node.phi_functions.values():
+        print phi_function['LHS']
         lhs_node = self.register_nodes[phi_function['LHS']]
         for operand in phi_function['RHS']:
           if operand in self.live_intervals:
@@ -955,7 +961,7 @@ class RegisterAllocator(object):
       for bit_position in template:
         cnf_var = self.get_cnf_var(register, bit_position)
 
-        clause += '-%s' % (cnf_var)
+        clause += '-%s ' % (cnf_var)
 
       clauses.append(clause)
 

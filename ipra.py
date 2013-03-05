@@ -51,41 +51,39 @@ class IPRA(object):
     """
     used_regs = set()
     func_name = node.value
-    if func_name in ['InputNum', 'OutputNum', 'OutputNewline']:
-      return used_regs
+    if func_name in ['InputNum', 'OutputNum', 'OutputNewLine']:
+      return set(FUNCTION_ARGUMENTS_COLORS)
 
-    for child in node.children:
-        used_regs |= self.dfs(child)
+    if node.children:
+      for child in node.children:
+          used_regs |= self.dfs(child)
 
-    regalloc = RegisterAllocator(
-        self.compiling_functions[func_name]['ssa'],
-        len(AVAIL_REGS) - len(used_regs))
+      regalloc = RegisterAllocator(
+          self.compiling_functions[func_name]['ssa'],
+          len(AVAIL_REGS) - len(used_regs))
+
+    else:
+      regalloc = RegisterAllocator(
+          self.compiling_functions[func_name]['ssa'], len(AVAIL_REGS))
 
     regalloc.allocate()
     self.compiling_functions[func_name]['regalloc'] = regalloc
-    
-    used_regs = self.remap_registers(
-        used_regs, regalloc.used_physical_registers,
-        regalloc.function_parameters)
+    print regalloc.used_physical_registers
+    updated_used_regs = self.remap_registers(
+        used_regs, regalloc.function_parameters)
 
-    return used_regs
+    self.compiling_functions[func_name]['used_physical_registers'] = \
+        updated_used_regs
 
-  def remap_registers(self, used_child_regs, assigned_regs, function_parameters):
+    return updated_used_regs
+
+  def remap_registers(self, used_child_regs, function_parameters):
     """Remaps the assigned register colors to the lowest valued colors.
     """
-    used_regs = used_child_regs
+    used_func_arg_regs = set(
+        [regnum for regnum, param in zip(
+            FUNCTION_ARGUMENTS_COLORS, function_parameters)])
 
-    assigned_reg_colors = assigned_regs.keys()
-    for color in assigned_reg_colors:
-      if color in AVAIL_REGS:
-        AVAIL_REGS.remove(color)
-        used_regs.add(color)
-        assigned_regs.pop(color)
-
-    for color in assigned_regs:
-      new_color = AVAIL_REGS.pop()
-      assigned_regs[color].color = new_color
-      used_regs.add(color)
+    used_regs = used_child_regs | used_func_arg_regs
 
     return used_regs
-

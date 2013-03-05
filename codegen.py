@@ -141,7 +141,7 @@ class CodeGenerator(object):
   """Generates the code for the given SSA object.
   """
 
-  def __init__(self, ir):
+  def __init__(self, ir, compiling_functions):
     """Constructs the datastructures required for code generation.
 
     Args:
@@ -149,6 +149,9 @@ class CodeGenerator(object):
           allocated instructions.
     """
     self.ir = ir
+
+    # Various stages of each function being compiled.
+    self.compiling_functions = compiling_functions
 
     # Final binary generated for the function
     self.binary = None
@@ -554,8 +557,16 @@ class CodeGenerator(object):
         self.add_instruction(label, push)
         pushed_registers.append(register)
 
+    if function_name in ['InputNum', 'OutputNum', 'OutputNewLine']:
+      callee_used_regs = REGISTERS_COLOR_SET
+    else:
+      callee_used_regs = self.compiling_functions[function_name][
+          'used_physical_registers']
 
     for register_color in self.instruction_live_registers[label]:
+      if register_color not in callee_used_regs:
+        continue
+
       # Create a dummy register
       register = PhysicalRegister()
       register.color = register_color

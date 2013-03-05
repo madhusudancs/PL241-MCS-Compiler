@@ -318,7 +318,8 @@ def bootstrap():
 
   generated_functions = []
   for function_name in compilation_stages:
-    cg = CodeGenerator(compilation_stages[function_name]['ir'])
+    cg = CodeGenerator(compilation_stages[function_name]['ir'],
+        compilation_stages)
     cg.generate()
     generated_functions.append(cg)
     compilation_stages[function_name]['cg'] = cg
