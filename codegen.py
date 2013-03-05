@@ -60,7 +60,7 @@ from ir import IntermediateRepresentation
 from ir import Memory
 from optimizations import Optimize
 from parser import Parser
-from regalloc import Register
+from regalloc import PhysicalRegister
 from regalloc import RegisterAllocator
 
 # Architecture specific imports
@@ -424,7 +424,7 @@ class CodeGenerator(object):
   def is_register(self, register):
     """Checks if the register has been assigned a real machine register color.
     """
-    return True if (register and isinstance(register, Register) and
+    return True if (register and isinstance(register, PhysicalRegister) and
         isinstance(register.color, int)) else False
 
   def add_instruction(self, label, instruction):
@@ -450,7 +450,7 @@ class CodeGenerator(object):
     elif (isinstance(destination, Memory) and isinstance(destination.base, Memory)
         and (destination.base.base == 'rip')):
       self.global_sibs_to_process.append((instruction, destination.base))
-    elif (isinstance(destination, Register) and
+    elif (isinstance(destination, PhysicalRegister) and
         isinstance(destination.color, Memory) and
         destination.color.base == 'rip'):
       self.globals_to_process.append((instruction, destination.color))
@@ -460,7 +460,7 @@ class CodeGenerator(object):
     elif (isinstance(source, Memory) and isinstance(source.base, Memory)
         and (source.base.base == 'rip')):
       self.global_sibs_to_process.append((instruction, source.base))
-    elif (isinstance(source, Register) and
+    elif (isinstance(source, PhysicalRegister) and
         isinstance(source.color, Memory) and
         source.color.base == 'rip'):
       self.globals_to_process.append((instruction, source.color))
@@ -548,7 +548,7 @@ class CodeGenerator(object):
       self.instruction_live_registers[label].pop(0)
       if not self.is_register(result) or result.color != 0:
         # Create a dummy register
-        register = Register()
+        register = PhysicalRegister()
         register.color = 0
         push = PUSH(register)
         self.add_instruction(label, push)
@@ -557,7 +557,7 @@ class CodeGenerator(object):
 
     for register_color in self.instruction_live_registers[label]:
       # Create a dummy register
-      register = Register()
+      register = PhysicalRegister()
       register.color = register_color
       push = PUSH(register)
       self.add_instruction(label, push)
@@ -565,10 +565,10 @@ class CodeGenerator(object):
 
     # Arguments are passed through %rdi, %rsi, %rdx, %rcx, %r8, %r9
     for argument, register_color in zip(operands, FUNCTION_ARGUMENTS_COLORS):
-      if not (isinstance(argument, Register) and
+      if not (isinstance(argument, PhysicalRegister) and
           argument.color == register_color):
         # Create a dummy register for %rax.
-        new_register = Register()
+        new_register = PhysicalRegister()
         new_register.color = register_color
         mov = MOV(new_register, argument)
         self.add_instruction(label, mov)
@@ -602,7 +602,7 @@ class CodeGenerator(object):
     # If the result of the call instruction is to be passed on to some other
     # register than %rax, we need to insert a move for it.
     if self.is_register(result) and result.color != 0:
-      rax = Register()
+      rax = PhysicalRegister()
       rax.color = 0
 
       mov = MOV(result, rax)
@@ -611,7 +611,7 @@ class CodeGenerator(object):
     # We should pop_rax if we rax has been pushed to the stack, but we can only
     # pop it after moving the result to the right location.
     if pop_rax_later:
-      register = Register()
+      register = PhysicalRegister()
       register.color = 0
       pop = POP(register)
       self.add_instruction(label, pop)
@@ -630,7 +630,7 @@ class CodeGenerator(object):
       # FIXME: If the destination is an immediate operand, this is moved to
       # a temporary scratch register and then compared, however this calls for
       # a better mechanism. Please see issue #6.
-      r15 = Register()
+      r15 = PhysicalRegister()
       r15.color = 13
 
       mov = MOV(r15, operands[0])
@@ -661,12 +661,12 @@ class CodeGenerator(object):
 
     # We may want %rax register to move the first dividend to %rax if it is
     # not already in %rax, so create a dummy %rax register in any case.
-    rax = Register()
+    rax = PhysicalRegister()
     rax.color = 0     # Color of RAX
 
     # We want to clear the contents of %rdx no matter what, so create a dummy
     # register for it.
-    rdx = Register()
+    rdx = PhysicalRegister()
     rdx.color = 3     # Color of RDX
 
     # Store %rax and %rdx in memory if they have to be restored
@@ -693,7 +693,7 @@ class CodeGenerator(object):
 
     if isinstance(operands[1], Immediate):
       # Create a dummy register object for %r15 for moving the operand to it.
-      r15 = Register()
+      r15 = PhysicalRegister()
       r15.color = 13
 
       if not(self.is_register(result) and result.color == 13):
@@ -729,7 +729,7 @@ class CodeGenerator(object):
     # If both the operands are memory locations, use %r15 as an intermediate
     # register
     if isinstance(source, Memory) and isinstance(operands[1], Memory):
-      r15 = Register()
+      r15 = PhysicalRegister()
       r15.color = 13
       mov = MOV(r15, operands[0])
       self.add_instruction(label, mov)
@@ -742,7 +742,7 @@ class CodeGenerator(object):
   def handle_mul(self, label, result, *operands):
     """Handles the mul instruction of IR.
     """
-    if not isinstance(result, Register):
+    if not isinstance(result, PhysicalRegister):
       raise NotImplementedError(
           'Only two registers or two immediates or one register and another '
           'immediate multiplications are supported at the moment.')
@@ -774,7 +774,7 @@ class CodeGenerator(object):
   def handle_neg(self, label, result, *operands):
     """Handles the negation instruction of IR.
     """
-    if not (isinstance(operands[0], Register) and \
+    if not (isinstance(operands[0], PhysicalRegister) and \
         operands[0].color == result.color):
       mov = MOV(result, operands[0])
       self.add_instruction(label, mov)
@@ -792,7 +792,7 @@ class CodeGenerator(object):
       # 0 is the Register color for %rax.
       if operands[0]:
         # Create a dummy register for %rax.
-        rax = Register()
+        rax = PhysicalRegister()
         rax.color = 0
         mov = MOV(rax, operands[0])
         self.add_instruction(label, mov)
@@ -810,7 +810,7 @@ class CodeGenerator(object):
       memory = Memory(
           base=operands[1].base,
           offset=operands[1].offset + (operands[0].value * MEMORY_WIDTH))
-    elif isinstance(operands[0], Register):
+    elif isinstance(operands[0], PhysicalRegister):
       # This happens only in case of arrays
       memory = Memory(base=operands[1], offset=operands[0])
     elif isinstance(operands[0], Memory):
@@ -829,7 +829,7 @@ class CodeGenerator(object):
       memory = Memory(
           base=operands[2].base,
           offset=operands[2].offset + (operands[1].value * MEMORY_WIDTH))
-    elif isinstance(operands[1], Register):
+    elif isinstance(operands[1], PhysicalRegister):
       memory = Memory()
       memory.base = operands[2]
       memory.offset = operands[1]
@@ -839,7 +839,7 @@ class CodeGenerator(object):
 
       self.memory_offset += MEMORY_WIDTH
 
-    if isinstance(operands[0], Memory) or (isinstance(operands[0], Register)
+    if isinstance(operands[0], Memory) or (isinstance(operands[0], PhysicalRegister)
         and isinstance(operands[0].color, Memory)):
 
       # Take the set difference
@@ -847,7 +847,7 @@ class CodeGenerator(object):
           set(self.instruction_live_registers[label].keys()))
       if free_registers:
         # Create a dummy register for this color
-        register = Register()
+        register = PhysicalRegister()
         # pop and add back since sets don't support indexing
         register.color = free_registers.pop()
         free_registers.add(register.color)
@@ -865,7 +865,7 @@ class CodeGenerator(object):
         # pop back our register.
         # NOTE: We pick %rax for this temporary operation
         # Create a dummy register for %rax
-        register = Register()
+        register = PhysicalRegister()
         register.color = 0
         push = PUSH(register)
         self.add_instruction(label, push)
@@ -912,13 +912,13 @@ class CodeGenerator(object):
     """Creates the stack with the current memory offset value.
     """
     # Create a dummy register and give it a color to keep the API consistent.
-    rbp = Register()
+    rbp = PhysicalRegister()
     rbp.color = 'rbp'        # The color of %rbp
     push = PUSH(rbp)
     self.add_instruction(0, push)
 
     # Another dummy register for %rsp
-    rsp = Register()
+    rsp = PhysicalRegister()
     rsp.color = 'rsp'
     mov = MOV(rbp, rsp)
     self.add_instruction(0, mov)

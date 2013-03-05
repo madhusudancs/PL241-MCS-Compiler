@@ -21,7 +21,7 @@
 
 
 from ir import Immediate
-from regalloc import Register
+from regalloc import PhysicalRegister
 
 # Architecture specific imports
 from x86_64 import CALL
@@ -35,12 +35,12 @@ def entry():
   call = CALL()
 
   # Move exit status to %rdi
-  rdi = Register()
+  rdi = PhysicalRegister()
   rdi.color = 5
   mov_status = MOV(rdi, Immediate(0))
 
   # Move exit SYSCALL descriptor number to %rax
-  rax = Register()
+  rax = PhysicalRegister()
   rax.color = 0
   mov_sycall = MOV(rax, Immediate(60))
 

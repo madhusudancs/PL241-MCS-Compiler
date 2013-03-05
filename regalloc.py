@@ -150,9 +150,8 @@ class Register(object):
     # Flag to indicate if the register is spilled to memory or not.
     self.spilled = False
 
-    # Color assignment after solving the K-coloring problem using SAT solver.
-    # Note even though they are called colors they are just integral values.
-    self.color = None
+    # Physical register assigned after running the SAT solver.
+    self.physical_register = None
 
     # The cost of spilling the register computed usin Chaitin's allocator type
     # cost function using execution frequencies. When a register is created it
@@ -218,7 +217,7 @@ class Register(object):
     """Checks if the two registers have the same color assignment.
     """
     return True if (isinstance(register, self.__class__) and
-        self.color == register.color) else False
+        self.physical_register == register.physical_register) else False
 
   def __eq__(self, register):
     """Checks if the two registers are same.
@@ -240,11 +239,31 @@ class Register(object):
     return 'r%d' % self.name
 
 
+class PhysicalRegister(object):
+  """Represents a physical register.
+  """
+
+  def __init__(self, color=None):
+    """Initializes the color i.e. the number equivalent of the assigned
+    register.
+    """
+    # Note even though the variable is called colors they are just integral
+    # values. It is called as color for historical reasons, from the K-coloring
+    # algorithm which was originally used to solve register allocation.
+    self.color = color
+
+  def __eq__(self, register):
+    """Checks if the two registers have the same color assignment.
+    """
+    return True if (isinstance(register, self.__class__) and
+        self.color == register.color) else False
+
+
 class RegisterAllocator(object):
   """Allocates the registers for the given SSA form of the source code.
   """
 
-  def __init__(self, ssa, num_registers=8):
+  def __init__(self, ssa, num_registers=11):
     """Initializes the allocator with SSA.
 
     Args:
@@ -282,6 +301,10 @@ class RegisterAllocator(object):
 
     # Interference graph for this allocator.
     self.interference_graph = None
+
+    # Map containing the physical registers colors/numbers as keys and the
+    # physical register objects as values.
+    self.used_physical_registers = {}
 
     # Dictionary of color assigned SSA deconstructed instructions.
     # Key is the original label of the instruction and value is the list of
@@ -1205,8 +1228,17 @@ class RegisterAllocator(object):
 
       # Do a conversion from binary string to integer using the built-in int
       # type constructor with base as the argument.
-      register.color = int(reg_binary, 2)
-      LOGGER.debug('Register: %s Color: %d' % (register, register.color))
+      regnum = int(reg_binary, 2)
+      physical_register = self.used_physical_registers.get(regnum, None)
+      if not physical_register:
+        physical_register = PhysicalRegister(regnum)
+        # Add the new assigned physical register to the map
+        self.used_physical_registers[regnum] = physical_register
+
+      register.physical_register = physical_register
+
+      LOGGER.debug('Register: %s Color: %d' % (
+          register, physical_register.color))
 
   def sat_solve(self, interference_graph):
     """Converts the clauses to DIMACS format and feeds it to the SAT solver.
@@ -1291,6 +1323,12 @@ class RegisterAllocator(object):
     """
     return True if (operand and isinstance(operand, Register)) else False
 
+  def is_physical_register(self, operand):
+    """Checks if the given operand is a physical register.
+    """
+    return True if (operand and isinstance(operand, Register) and
+        isinstance(operand.physical_register, PhysicalRegister)) else False
+
   def is_memory(self, operand):
     """Checks if the given operand is actually a memory object.
     """
@@ -1341,6 +1379,38 @@ class RegisterAllocator(object):
 
     return '\n'.join([b[1] for b in sorted_blocks])
 
+  def virtual2physical(self, instruction):
+    """Replace virtual registers with physical registers in the instructions.
+    """
+    if self.is_physical_register(instruction.assigned_operand1):
+      instruction.assigned_operand1 = \
+          instruction.assigned_operand1.physical_register
+    elif self.is_register(instruction.assigned_operand1):
+      instruction.assigned_operand1 = None
+
+    if self.is_physical_register(instruction.assigned_operand2):
+      instruction.assigned_operand2 = \
+          instruction.assigned_operand2.physical_register
+    elif self.is_register(instruction.assigned_operand2):
+      instruction.assigned_operand2 = None
+
+    new_operands = []
+    for operand in instruction.assigned_operands:
+      if self.is_physical_register(operand):
+        new_operands.append(operand.physical_register)
+      elif self.is_register(operand):
+        new_operands.append(None)
+      else:
+        new_operands.append(operand)
+
+      instruction.assigned_operands = new_operands
+
+    if self.is_physical_register(instruction.assigned_result):
+      instruction.assigned_result = \
+          instruction.assigned_result.physical_register
+    elif self.is_register(instruction.assigned_result):
+      instruction.assigned_result = None
+
   def generate_assigned_instructions(self):
     """Generates instructions which have registers assigned and phi-resolved.
     """
@@ -1365,6 +1435,10 @@ class RegisterAllocator(object):
       if instruction in self.ssa_deconstructed_instructions:
         if self.ssa_deconstructed_instructions[instruction]:
           first.label, last.label = last.label, first.label
+
+    for instruction in assigned_ssa:
+      # Replace virtual registers with physical registers in the instruction
+      self.virtual2physical(instruction)
 
     self.ssa.ir.ir = assigned_ssa
 
@@ -1412,7 +1486,7 @@ class RegisterAllocator(object):
       if self.is_register(phi_function['LHS']):
         if phi_function['LHS'].spilled:
           phi_function['LHS'] = phi_function['LHS'].assignment()
-        elif phi_function['LHS'].color == None:
+        elif phi_function['LHS'].physical_register == None:
           continue
 
       # We should not add phi instruction to the resulting instructions because
@@ -1631,8 +1705,8 @@ class RegisterAllocator(object):
         instruction_str = ' ' * 5
         if self.is_register(instruction.assigned_result):
           assignment = instruction.assigned_result
-          instruction_str += '%-4d' % assignment.color if \
-              assignment.color != None else '      None'
+          instruction_str += '%-4d' % assignment.physical_register.color if \
+              assignment.physical_register != None else '      None'
           instruction_str += '%-10s' % ('(%s)' % instruction.result,)
         else:
           instruction_str += ' ' * 14
@@ -1642,8 +1716,8 @@ class RegisterAllocator(object):
 
         if self.is_register(instruction.assigned_operand1):
           assignment = instruction.assigned_operand1
-          instruction_str += '%-10d' % assignment.color if \
-              assignment.color != None else ('' * 6 + 'None')
+          instruction_str += '%-10d' % assignment.physical_register.color if \
+              assignment.physical_register != None else ('' * 6 + 'None')
           instruction_str += '%-10s' % (assignment,)
           instruction_str += '%-30s' % ('(%s)' % instruction.operand1,)
         else:
@@ -1651,8 +1725,8 @@ class RegisterAllocator(object):
 
         if self.is_register(instruction.assigned_operand2):
           assignment = instruction.assigned_operand2
-          instruction_str += '%-10d' % assignment.color if \
-              assignment.color != None else '      None '
+          instruction_str += '%-10d' % assignment.physical_register.color if \
+              assignment.physical_register != None else '      None '
           instruction_str += '%s   ' % (assignment,)
           instruction_str += '%-10s' % ('(%s)' % instruction.operand2,)
         else:
@@ -1661,8 +1735,8 @@ class RegisterAllocator(object):
         for op in getattr(instruction, 'assigned_operands', []):
           if self.is_register(op):
             assignment = op
-            instruction_str += '%-10d' % assignment.color if \
-                assignment.color != None else '      None '
+            instruction_str += '%-10d' % assignment.physical_register.color if \
+                assignment.physical_register != None else '      None '
             instruction_str += '%s   ' % (assignment,)
             instruction_str += '%-10s' % ('(%s)' % op,)
           else:

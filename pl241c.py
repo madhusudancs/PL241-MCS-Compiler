@@ -30,6 +30,7 @@ from callgraph import CallGraphAnalysis
 from codegen import allocate_global_memory
 from codegen import CodeGenerator
 from elf import ELF
+from ipra import IPRA
 from ir import IntermediateRepresentation
 from linker import Linker
 from optimizations import Optimize
@@ -37,7 +38,6 @@ from parser import GLOBAL_SCOPE_NAME
 from parser import LanguageSyntaxError
 from parser import Parser
 from ssa import SSA
-from regalloc import RegisterAllocator
 
 
 def bootstrap():
@@ -255,11 +255,8 @@ def bootstrap():
     callgraph_file.write(graph)
     callgraph_file.close()
 
-  for function_name in compilation_stages:
-    regalloc = RegisterAllocator(
-        compilation_stages[function_name]['ssa'])
-    compilation_stages[function_name]['is_allocated'] = regalloc.allocate()
-    compilation_stages[function_name]['regalloc'] = regalloc
+  ipra = IPRA(compilation_stages, cga.call_graph)
+  ipra.allocate()
 
   if args.virtualregvcg or args.dumpall:
     virtualreggraph_file = open('%s.virtualreg.vcg' % filename, 'w')

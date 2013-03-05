@@ -27,7 +27,7 @@ from argparse import ArgumentParser
 
 from ir import Immediate
 from ir import Memory
-from regalloc import Register
+from regalloc import PhysicalRegister
 
 
 # Module level logger object
@@ -410,21 +410,21 @@ class Instruction(object):
     """Builds the instruction bytes.
     """
     self.binary = ''
-    if (isinstance(self.destination, Register) and
-        isinstance(self.source, Register)):
+    if (isinstance(self.destination, PhysicalRegister) and
+        isinstance(self.source, PhysicalRegister)):
       self.reg64_reg64()
 
-    elif (isinstance(self.destination, Register) and
+    elif (isinstance(self.destination, PhysicalRegister) and
         isinstance(self.source, Memory)):
       self.reg64_rm64()
 
     elif (isinstance(self.destination, Memory) and
-        isinstance(self.source, Register)):
+        isinstance(self.source, PhysicalRegister)):
       self.rm64_reg64()
 
     # This case is very important since the destination register is encoded
     # into opcode. See the binary generation for OPCODE
-    elif (isinstance(self.destination, Register) and
+    elif (isinstance(self.destination, PhysicalRegister) and
         isinstance(self.source, Immediate)):
       self.reg64_imm32()
 
@@ -601,7 +601,7 @@ class IDIV(Instruction):
     """
     self.binary = ''
 
-    if isinstance(self.source, Register):
+    if isinstance(self.source, PhysicalRegister):
       source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
 
       opcode_entry = self.OPCODE_TABLE['rm64']
@@ -629,7 +629,7 @@ class IDIV(Instruction):
 
       mod = 0b10
       reg = opcode_entry['OPCODE_EXT']
-      if isinstance(source_mem.base, Register):
+      if isinstance(source_mem.base, PhysicalRegister):
         source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
         rm = source_reg['REG']
         offset = self.displacement if self.displacement else source_mem.offset
@@ -681,7 +681,7 @@ class IMUL(Instruction):
   def reg64_rm64_imm32(self):
     """Builds the instruction bytes for reg64, rm64, imm32 operands.
     """
-    if isinstance(self.source, Register):
+    if isinstance(self.source, PhysicalRegister):
       source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
       dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
       imm32 = self.immediate.value
@@ -717,7 +717,7 @@ class IMUL(Instruction):
       mod = 0b10
       reg = dest_reg['REG']
 
-      if isinstance(source_mem.base, Register):
+      if isinstance(source_mem.base, PhysicalRegister):
         source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
         rm = source_reg['REG']
         offset = self.displacement if self.displacement else source_mem.offset
@@ -764,8 +764,8 @@ class IMUL(Instruction):
     self.binary = ''
     if self.immediate != None:
       self.reg64_rm64_imm32()
-    elif (isinstance(self.destination, Register) and
-        (isinstance(self.source, Register))):
+    elif (isinstance(self.destination, PhysicalRegister) and
+        (isinstance(self.source, PhysicalRegister))):
       source_reg = REGISTER_COLOR_TO_CODE_MAP[self.source.color]
       dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
 
@@ -788,7 +788,7 @@ class IMUL(Instruction):
       self.binary += struct.pack('%sB' % BYTE_ORDERING_FMT,
                                  modregrm)
 
-    elif (isinstance(self.destination, Register) and
+    elif (isinstance(self.destination, PhysicalRegister) and
         (isinstance(self.source, Memory))):
       source_mem = self.source
       dest_reg = REGISTER_COLOR_TO_CODE_MAP[self.destination.color]
@@ -798,7 +798,7 @@ class IMUL(Instruction):
       mod = 0b10
       reg = dest_reg['REG']
 
-      if isinstance(source_mem.base, Register):
+      if isinstance(source_mem.base, PhysicalRegister):
         source_reg = REGISTER_COLOR_TO_CODE_MAP[source_mem.base.color]
         rm = source_reg['REG']
         offset = self.displacement if self.displacement else source_mem.offset
@@ -1097,7 +1097,7 @@ class NEG(Instruction):
     """
     self.binary = ''
 
-    if not isinstance(self.operand, Register):
+    if not isinstance(self.operand, PhysicalRegister):
       raise InvalidInstructionException(
           'Operand of neg instruction is not a register or a memory operand. '
           'The value given is %s.' % self.operand)
@@ -1143,7 +1143,7 @@ class POP(Instruction):
     """
     self.binary = ''
 
-    if not isinstance(self.operand, Register):
+    if not isinstance(self.operand, PhysicalRegister):
       raise InvalidInstructionException(
           'Operand of pop instruction is not register. The value given is '
           '%s.' % self.operand)
@@ -1181,7 +1181,7 @@ class PUSH(Instruction):
     """
     self.binary = ''
 
-    if not isinstance(self.operand, Register):
+    if not isinstance(self.operand, PhysicalRegister):
       raise InvalidInstructionException(
           'Operand of push instruction is not register. The value given is '
           '%s.' % self.operand)
