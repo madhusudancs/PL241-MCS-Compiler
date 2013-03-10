@@ -41,6 +41,10 @@ class IPRA(object):
     self.compiling_functions = compiling_functions
     self.call_graph = call_graph
 
+    # Map of allocated function names, to used_registers to make sure
+    # functions are not register allocated more than once.
+    self.function_used_reg_map = {}
+
   def allocate(self):
     """Begin register allocation on 
     """
@@ -49,6 +53,9 @@ class IPRA(object):
   def dfs(self, node):
     """Perform depth first search on the given subtree's root node.
     """
+    if node.value in self.function_used_reg_map:
+      return self.function_used_reg_map[node.value]
+
     used_regs = set()
     func_name = node.value
     if func_name in ['InputNum', 'OutputNum', 'OutputNewLine']:
@@ -60,7 +67,7 @@ class IPRA(object):
 
       regalloc = RegisterAllocator(
           self.compiling_functions[func_name]['ssa'],
-          len(AVAIL_REGS) - len(used_regs))
+          max(len(AVAIL_REGS) - len(used_regs), 8))
 
     else:
       regalloc = RegisterAllocator(
@@ -68,12 +75,14 @@ class IPRA(object):
 
     regalloc.allocate()
     self.compiling_functions[func_name]['regalloc'] = regalloc
-    print regalloc.used_physical_registers
+
     updated_used_regs = self.remap_registers(
         used_regs, regalloc.function_parameters)
 
     self.compiling_functions[func_name]['used_physical_registers'] = \
         updated_used_regs
+
+    self.function_used_reg_map[node.value] = updated_used_regs
 
     return updated_used_regs
 
