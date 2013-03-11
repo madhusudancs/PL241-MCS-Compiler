@@ -77,7 +77,8 @@ class IPRA(object):
     self.compiling_functions[func_name]['regalloc'] = regalloc
 
     updated_used_regs = self.remap_registers(
-        used_regs, regalloc.function_parameters)
+        used_regs, regalloc.function_parameters,
+        set(regalloc.used_physical_registers.keys()))
 
     self.compiling_functions[func_name]['used_physical_registers'] = \
         updated_used_regs
@@ -86,13 +87,13 @@ class IPRA(object):
 
     return updated_used_regs
 
-  def remap_registers(self, used_child_regs, function_parameters):
+  def remap_registers(self, used_child_regs, function_parameters, used_regs):
     """Remaps the assigned register colors to the lowest valued colors.
     """
     used_func_arg_regs = set(
         [regnum for regnum, param in zip(
             FUNCTION_ARGUMENTS_COLORS, function_parameters)])
 
-    used_regs = used_child_regs | used_func_arg_regs
+    used_regs |= used_child_regs | used_func_arg_regs
 
     return used_regs

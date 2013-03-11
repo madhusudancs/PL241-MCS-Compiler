@@ -258,6 +258,11 @@ class PhysicalRegister(object):
     return True if (isinstance(register, self.__class__) and
         self.color == register.color) else False
 
+  def __str__(self):
+    """Prints the string representation.
+    """
+    return "PhysReg: %d" % (self.color,)
+
 
 class RegisterAllocator(object):
   """Allocates the registers for the given SSA form of the source code.
@@ -310,6 +315,11 @@ class RegisterAllocator(object):
     # Key is the original label of the instruction and value is the list of
     # instructions including the spill/reload in the order.
     self.ssa_deconstructed_instructions = collections.defaultdict(list)
+
+  def get_num_bits(self):
+    """Returns the number of bits in the physical register color.
+    """
+    return len(bin(self.num_registers - 1)) - 2
 
   def assign_memory(self, operand, register):
     """Assign the memory object to the register based on the symbol table.
@@ -821,13 +831,21 @@ class RegisterAllocator(object):
     # As part of coalescing the nodes, the phi-result and the phi-operands
     # must be attempted to be assigned to the same register as much as possible.
     # So add a preferred edge between such nodes.
+
+    # Maintain a set of seen LHS registers. If that register is on the RHS
+    # of another phi instruction, do not coalesce that phi instruction.
+    seen_lhs = set()
     for phi_node in self.phi_nodes:
       for phi_function in phi_node.phi_functions.values():
         if phi_function['LHS'] not in self.live_intervals:
           continue
-        lhs_node = self.register_nodes[phi_function['LHS']]
+        lhs_reg = phi_function['LHS']
+        lhs_node = self.register_nodes[lhs_reg]
+        seen_lhs.add(lhs_reg)
         for operand in phi_function['RHS']:
-          if operand in self.live_intervals:
+          if (operand in self.live_intervals and operand not in seen_lhs and
+              not (lhs_reg.definition().label < operand.definition().label <
+                  lhs_reg.uses()[-1].label)):
             self.register_nodes[operand].add_preferred_edges(lhs_node)
 
   def build_interference_graph(self):
@@ -927,13 +945,17 @@ class RegisterAllocator(object):
     this can be encoded as (r12 | r22 | ~r11 | ~r21 | r10 | r20). This method
     only return the bit patterns, not the actual literals.
     """
-    last_pattern = bin(self.num_registers - 1)[2:]
-
     # Number of literals per register.
-    num_literals_per_reg = len(last_pattern)
+    num_literals_per_reg = self.get_num_bits()
 
-    self.edge_bit_template = [last_pattern]
-    for i in range(self.num_registers - 2, -1, -1):
+    # The number that is one less than the next number that is a power of 2.
+    # For example if self.num_registers is 11, the next number which is one
+    # less than the next power of 2, i.e. 16 is 15.
+    next_two_power = int(
+        ''.join(['0b'] + ['1' for i in range(num_literals_per_reg)]), 2)
+
+    self.edge_bit_template = []
+    for i in range(next_two_power, -1, -1):
       pattern = ('%s' % bin(i)[2:]).zfill(num_literals_per_reg)
       self.edge_bit_template.append(pattern)
 
@@ -985,7 +1007,7 @@ class RegisterAllocator(object):
       num_bits = len(self.edge_bit_template[0])
       for bit_position in range(num_bits):
         cnf1_var = self.get_cnf_var(register1, bit_position)
-        clauses.append('%s -%s ' % (cnf1_var, cnf1_var))
+        # clauses.append('%s -%s ' % (cnf1_var, cnf1_var))
 
       return clauses
 
@@ -1198,12 +1220,14 @@ class RegisterAllocator(object):
     # and then ending with 0
     # Example: v -1 -2 -3 4 5 -6 -7 -8 -9 -10 11 -12 -13 -14 15 -16 -17 -18 0
     # So exclude the first and the last entry.
-    assignments_str = cnf_assignment.split()[1:]
+    assignments_str = cnf_assignment.split()[1:] if cnf_assignment else ''
 
     # Dictionary containing the register objects as keys and the values are
     # another dictionary where the keys are bit positions and the values
     # are assignments.
-    registers = collections.defaultdict(dict)
+    registers = {}
+    for register in self.register_cnf_map:
+      registers[register[0]] = {}
 
     for assignment_str in assignments_str:
       assignment = assignment_str.strip()
@@ -1223,11 +1247,14 @@ class RegisterAllocator(object):
     # Since all the registers are supposed to have same number of bits, since
     # it is resolved like that during the conversion to CNF, we get the number
     # of bits from the first value in the dictionary
-    num_bits = len(registers.values()[0])
+    num_bits = self.get_num_bits()
     for register in registers:
       reg_binary = ''
       for bit_position in range(num_bits):
-        reg_binary += registers[register][bit_position]
+        # If a particular position did not get an assignment, it means that
+        # it does not matter what value it gets, so simply assign 0 for its
+        # bit position.
+        reg_binary += registers[register].get(bit_position, 0)
 
       # Do a conversion from binary string to integer using the built-in int
       # type constructor with base as the argument.
@@ -1253,6 +1280,12 @@ class RegisterAllocator(object):
           obtained and solved.
     """
     num_literals, num_clauses, clauses = self.reduce_to_sat(interference_graph)
+
+    # If there is no assignment to be done, randomly assign registers and
+    # return
+    if num_literals <= 0:
+      self.generate_assignments('')
+      return True
 
     cnf = 'p wcnf %d %d %d\n%s' % (
          num_literals, num_clauses, COLOR_SCHEME['top'], clauses)
@@ -1329,6 +1362,13 @@ class RegisterAllocator(object):
   def is_physical_register(self, operand):
     """Checks if the given operand is a physical register.
     """
+    return True if (operand and isinstance(operand, PhysicalRegister)) \
+        else False
+
+  def has_assigned_physical_register(self, operand):
+    """Checks if the given operand has an assigned physical register in the
+    virtual register.
+    """
     return True if (operand and isinstance(operand, Register) and
         isinstance(operand.physical_register, PhysicalRegister)) else False
 
@@ -1385,13 +1425,13 @@ class RegisterAllocator(object):
   def virtual2physical(self, instruction):
     """Replace virtual registers with physical registers in the instructions.
     """
-    if self.is_physical_register(instruction.assigned_operand1):
+    if self.has_assigned_physical_register(instruction.assigned_operand1):
       instruction.assigned_operand1 = \
           instruction.assigned_operand1.physical_register
     elif self.is_register(instruction.assigned_operand1):
       instruction.assigned_operand1 = None
 
-    if self.is_physical_register(instruction.assigned_operand2):
+    if self.has_assigned_physical_register(instruction.assigned_operand2):
       instruction.assigned_operand2 = \
           instruction.assigned_operand2.physical_register
     elif self.is_register(instruction.assigned_operand2):
@@ -1399,7 +1439,7 @@ class RegisterAllocator(object):
 
     new_operands = []
     for operand in instruction.assigned_operands:
-      if self.is_physical_register(operand):
+      if self.has_assigned_physical_register(operand):
         new_operands.append(operand.physical_register)
       elif self.is_register(operand):
         new_operands.append(None)
@@ -1408,7 +1448,7 @@ class RegisterAllocator(object):
 
       instruction.assigned_operands = new_operands
 
-    if self.is_physical_register(instruction.assigned_result):
+    if self.has_assigned_physical_register(instruction.assigned_result):
       instruction.assigned_result = \
           instruction.assigned_result.physical_register
     elif self.is_register(instruction.assigned_result):
@@ -1662,7 +1702,10 @@ class RegisterAllocator(object):
 
       instruction_str += '%10s ' % instruction.label
       instruction_str += '     '
-      instruction_str += '%10s ' % instruction.instruction
+      if instruction.instruction == '.begin_':
+        instruction_str += '%s [%s] ' % (instruction.instruction, instruction.function_name)
+      else:
+        instruction_str += '%10s ' % instruction.instruction
 
       if self.is_register(instruction.operand1):
         assignment = instruction.operand1.assignment(instruction)
@@ -1706,41 +1749,38 @@ class RegisterAllocator(object):
 
       for instruction in self.ssa_deconstructed_instructions[ssa_instruction]:
         instruction_str = ' ' * 5
-        if self.is_register(instruction.assigned_result):
+        if self.is_physical_register(instruction.assigned_result):
           assignment = instruction.assigned_result
-          instruction_str += '%-4d' % assignment.physical_register.color if \
-              assignment.physical_register != None else '      None'
-          instruction_str += '%-10s' % ('(%s)' % instruction.result,)
+          instruction_str += '%-12s' % assignment
+          instruction_str += '%-6s' % ('(%s)' % instruction.result,)
         else:
-          instruction_str += ' ' * 14
+          instruction_str += ' ' * 18
 
         instruction_str += '%-10s' % ('%s:' % (instruction.label,))
-        instruction_str += '%-30s' % instruction.instruction
+        if instruction.instruction == '.begin_':
+          instruction_str += '%-30s ' % ('%s [%s]' % (
+              instruction.instruction, instruction.function_name))
+        else:
+          instruction_str += '%-30s' % instruction.instruction
 
-        if self.is_register(instruction.assigned_operand1):
+        if self.is_physical_register(instruction.assigned_operand1):
           assignment = instruction.assigned_operand1
-          instruction_str += '%-10d' % assignment.physical_register.color if \
-              assignment.physical_register != None else ('' * 6 + 'None')
-          instruction_str += '%-10s' % (assignment,)
+          instruction_str += '%-12s' % assignment
           instruction_str += '%-30s' % ('(%s)' % instruction.operand1,)
         else:
           instruction_str += '%-50s' % instruction.operand1
 
-        if self.is_register(instruction.assigned_operand2):
+        if self.is_physical_register(instruction.assigned_operand2):
           assignment = instruction.assigned_operand2
-          instruction_str += '%-10d' % assignment.physical_register.color if \
-              assignment.physical_register != None else '      None '
-          instruction_str += '%s   ' % (assignment,)
+          instruction_str += '%-12s' % assignment
           instruction_str += '%-10s' % ('(%s)' % instruction.operand2,)
         else:
           instruction_str += '%-20s' % instruction.operand2
 
         for op in getattr(instruction, 'assigned_operands', []):
-          if self.is_register(op):
+          if self.is_physical_register(op):
             assignment = op
-            instruction_str += '%-10d' % assignment.physical_register.color if \
-                assignment.physical_register != None else '      None '
-            instruction_str += '%s   ' % (assignment,)
+            instruction_str += '%-12s' % assignment
             instruction_str += '%-10s' % ('(%s)' % op,)
           else:
             instruction_str += '%-20s' % op

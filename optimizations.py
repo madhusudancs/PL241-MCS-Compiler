@@ -98,9 +98,7 @@ class Optimize(object):
       instruction.operands = tuple(new_operands)
 
       # Leave the prologue and epilogue instructions alone
-      if (instruction.instruction == '.begin_' or
-          instruction.instruction == '.end_' or
-          instruction.instruction == 'call'):
+      if (instruction.instruction in ['.begin_', '.end_', 'call', 'load']):
         continue
 
       # Constant folding
