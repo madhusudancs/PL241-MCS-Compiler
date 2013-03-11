@@ -1283,7 +1283,7 @@ class RegisterAllocator(object):
 
     # If there is no assignment to be done, randomly assign registers and
     # return
-    if num_literals <= 0:
+    if num_clauses <= 0:
       self.generate_assignments('')
       return True
 
