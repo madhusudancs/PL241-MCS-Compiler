@@ -56,6 +56,10 @@ class IPRA(object):
     if node.value in self.function_used_reg_map:
       return self.function_used_reg_map[node.value]
 
+    # Use this dictionary to both store visited list and a mapping to store
+    # used regs
+    self.function_used_reg_map[node.value] = set()
+
     used_regs = set()
     func_name = node.value
     if func_name in ['InputNum', 'OutputNum', 'OutputNewLine']:
