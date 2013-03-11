@@ -1254,7 +1254,7 @@ class RegisterAllocator(object):
         # If a particular position did not get an assignment, it means that
         # it does not matter what value it gets, so simply assign 0 for its
         # bit position.
-        reg_binary += registers[register].get(bit_position, 0)
+        reg_binary += registers[register].get(bit_position, '0')
 
       # Do a conversion from binary string to integer using the built-in int
       # type constructor with base as the argument.
