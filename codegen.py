@@ -356,8 +356,8 @@ class CodeGenerator(object):
     for operand in intervals:
       range_start = intervals[operand][0] if intervals[operand][0] is not None \
           else node.instructions[0].label
-      range_end = intervals[operand][1] + 1 if intervals[operand][0] is not None \
-          else node.instructions[-1].label + 1
+      range_end = intervals[operand][1] + 1 if intervals[operand][0] is not \
+          None else node.instructions[-1].label + 1
 
       if operand in self.live_intervals:
         # Merge the intervals
